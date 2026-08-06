@@ -300,6 +300,7 @@ namespace FlaxEditor.Options
                 BorderNormal = Color.FromBgra(0xFF54545C),
                 TextBoxBackground = Color.FromBgra(0xFF333337),
                 TextBoxBackgroundSelected = Color.FromBgra(0xFF3F3F46),
+                TreeAlternateRowBackground = Color.FromBgra(0x06FFFFFF),
                 CollectionBackgroundColor = Color.FromBgra(0x14CCCCCC),
                 ProgressNormal = Color.FromBgra(0xFF0ad328),
                 Selection = Color.Orange * 0.4f,

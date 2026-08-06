@@ -126,7 +126,7 @@ namespace FlaxEditor.Content.Import
             _rootNode.Expand();
             _rootNode.ChildrenIndent = 0;
             _rootNode.Parent = _tree;
-            _tree.Margin = new Margin(0.0f, 0.0f, -16.0f, 2.0f); // Hide root node
+            _tree.Margin = new Margin(0.0f, 0.0f, -_rootNode.HeaderHeight, 2.0f); // Hide root node
             _tree.SelectedChanged += OnSelectedChanged;
 
             // Select the first item
