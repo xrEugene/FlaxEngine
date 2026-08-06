@@ -159,6 +159,12 @@ namespace FlaxEngine.GUI
         public Color TextBoxBackgroundSelected;
 
         /// <summary>
+        /// The alternating (zebra) row background overlay color used by tree lists.
+        /// </summary>
+        [EditorOrder(195)]
+        public Color TreeAlternateRowBackground;
+
+        /// <summary>
         /// The collection background color.
         /// </summary>
         [EditorOrder(195)]

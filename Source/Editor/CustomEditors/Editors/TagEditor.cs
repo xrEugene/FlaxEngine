@@ -423,13 +423,13 @@ namespace FlaxEditor.CustomEditors.Editors
             var dropPanelOpenHeight = tagNamePanel.Height + addButtonPanel.Height + 4;
 
             // Create tree with tags hierarchy
-            tree.Margin = new Margin(-16.0f, 0.0f, -16.0f, -0.0f); // Hide root node
             var tags = Tags.List;
             var nameToNode = new Dictionary<string, ContainerControl>();
             var style = FlaxEngine.GUI.Style.Current;
             var nodeBackgroundColorHighlighted = style.BackgroundHighlighted * 0.5f;
             var nodeIndent = 16.0f;
             var root = tree.AddChild<TreeNode>();
+            tree.Margin = new Margin(-16.0f, 0.0f, -root.HeaderHeight, -0.0f); // Hide root node
             for (var i = 0; i < tags.Length; i++)
             {
                 var tagName = tags[i];

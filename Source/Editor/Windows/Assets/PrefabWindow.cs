@@ -183,7 +183,7 @@ namespace FlaxEditor.Windows.Assets
             Graph.Root.TreeNode.Expand(true);
             _tree = new PrefabTree
             {
-                Margin = new Margin(0.0f, 0.0f, -16.0f, _treePanel.ScrollBarsSize), // Hide root node
+                Margin = new Margin(0.0f, 0.0f, -Graph.Root.TreeNode.HeaderHeight, _treePanel.ScrollBarsSize), // Hide root node
                 IsScrollable = true,
             };
             _tree.AddChild(Graph.Root.TreeNode);

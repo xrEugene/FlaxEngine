@@ -99,7 +99,7 @@ namespace FlaxEditor.Windows
                 _rootNode.Expand();
                 _rootNode.ChildrenIndent = 0;
                 _rootNode.Parent = _tree;
-                _tree.Margin = new Margin(0.0f, 0.0f, -14.0f, 2.0f); // Hide root node
+                _tree.Margin = new Margin(0.0f, 0.0f, -_rootNode.HeaderHeight, 2.0f); // Hide root node
                 _tree.SelectedChanged += OnTreeSelectedChanged;
                 _tree.RightClick += OnTreeRightClick;
             }

@@ -90,8 +90,8 @@ namespace FlaxEditor.CustomEditors.Editors
         internal static ContextMenuBase CreatePicker(CultureInfo value, Action<CultureInfo> changed)
         {
             var menu = Utilities.Utils.CreateSearchPopup(out var searchBox, out var tree);
-            tree.Margin = new Margin(-16.0f, 0.0f, -16.0f, -0.0f); // Hide root node
             var root = tree.AddChild<TreeNode>();
+            tree.Margin = new Margin(-16.0f, 0.0f, -root.HeaderHeight, -0.0f); // Hide root node
             var cultures = CultureInfo.GetCultures(CultureTypes.AllCultures);
             Array.Sort(cultures, 1, cultures.Length - 2, new CultureInfoComparer()); // at 0 there is Invariant Culture
             var lcidToNode = new Dictionary<int, ContainerControl>();

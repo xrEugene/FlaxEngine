@@ -38,7 +38,7 @@ namespace FlaxEditor.GUI.Tree
         private float _highlightScale;
         private bool _mouseOverArrow, _mouseOverHeader;
         private float _xOffset, _textWidth;
-        private float _headerHeight = 16.0f;
+        private float _headerHeight = 22.0f;
         private Rectangle _headerRect;
         private SpriteHandle _iconCollaped, _iconOpened;
         private Margin _margin = new Margin(2.0f);
@@ -709,6 +709,14 @@ namespace FlaxEditor.GUI.Tree
             if (isSelected || _mouseOverHeader)
             {
                 Render2D.FillRectangle(_headerRect, (isSelected && isFocused) ? BackgroundColorSelected : (_mouseOverHeader ? BackgroundColorHighlighted : BackgroundColorSelectedUnfocused));
+            }
+            else if (tree != null && _headerHeight > 0.0f)
+            {
+                // Alternating (zebra) row background based on this header's Y position in tree coordinates
+                float yInTree = PointToParent(tree, Float2.Zero).Y;
+                int rowIndex = Mathf.FloorToInt(yInTree / _headerHeight);
+                if ((rowIndex & 1) != 0)
+                    Render2D.FillRectangle(_headerRect, style.TreeAlternateRowBackground);
             }
 
             // Draw arrow
