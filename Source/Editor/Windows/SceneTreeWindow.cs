@@ -85,7 +85,7 @@ namespace FlaxEditor.Windows
             root.TreeNode.Expand();
             _tree = new Tree(true)
             {
-                Margin = new Margin(0.0f, 0.0f, -16.0f, _sceneTreePanel.ScrollBarsSize), // Hide root node
+                Margin = new Margin(0.0f, 0.0f, -root.TreeNode.HeaderHeight, _sceneTreePanel.ScrollBarsSize), // Hide root node
                 IsScrollable = true,
                 DrawRootTreeLine = false,
             };

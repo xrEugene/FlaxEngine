@@ -1456,13 +1456,20 @@ namespace FlaxEditor.Windows
                 return;
 
             var scale = _showAllContentInTree ? View.ViewScale : 1.0f;
-            var headerHeight = Mathf.Clamp(16.0f * scale, 12.0f, 28.0f);
+            var headerHeight = Mathf.Clamp(22.0f * scale, 16.0f, 32.0f);
             var style = Style.Current;
             var fontSize = Mathf.Clamp(style.FontSmall.Size * scale, 8.0f, 28.0f);
             var fontRef = new FontReference(style.FontSmall.Asset, fontSize);
             var iconSize = Mathf.Clamp(16.0f * scale, 12.0f, 28.0f);
             var textMarginLeft = 2.0f + Mathf.Max(0.0f, iconSize - 16.0f);
+
             ApplyTreeNodeScale(_root, headerHeight, fontRef, textMarginLeft);
+            if (_root != null)
+            {
+                var m = _tree.Margin;
+                _tree.Margin = new Margin(m.Left, m.Right, -_root.HeaderHeight, m.Bottom); // Hide root node
+            }
+
             _root?.PerformLayout(true);
             _tree.PerformLayout();
         }
@@ -1712,7 +1719,7 @@ namespace FlaxEditor.Windows
             _root.AddChild(Editor.ContentDatabase.Engine);
 
             Editor.ContentDatabase.Game?.Expand(true);
-            _tree.Margin = new Margin(0.0f, 0.0f, -16.0f, ScrollBar.DefaultSize + 2); // Hide root node
+            _tree.Margin = new Margin(0.0f, 0.0f, -_root.HeaderHeight, ScrollBar.DefaultSize + 2); // Hide root node
             _tree.AddChild(_root);
 
             // Setup navigation
