@@ -70,10 +70,9 @@ namespace FlaxEditor.GUI.Tabs
                     var color = style.BorderSelected;
                     if (!enabled)
                         color *= 0.6f;
-                    var cornerRadius = style.GetTabCornerRadius();
                     if (Tabs._orientation == Orientation.Horizontal)
                     {
-                        StyleRendering.FillRoundedRectangle(tabRect, color, cornerRadius, RoundedCorners.Top);
+                        Render2D.FillRectangle(tabRect, color);
                     }
                     else
                     {
@@ -89,7 +88,7 @@ namespace FlaxEditor.GUI.Tabs
                 }
                 else if (IsMouseOver && enabled)
                 {
-                    StyleRendering.FillRoundedRectangle(tabRect, style.BackgroundHighlighted.AlphaMultiplied(0.82f), style.GetTabCornerRadius(), Tabs._orientation == Orientation.Horizontal ? RoundedCorners.Top : RoundedCorners.All);
+                    Render2D.FillRectangle(tabRect, style.BackgroundHighlighted.AlphaMultiplied(0.82f));
                 }
 
                 // Draw icon
