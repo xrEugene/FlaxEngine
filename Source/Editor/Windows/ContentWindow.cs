@@ -35,7 +35,6 @@ namespace FlaxEditor.Windows
         private TreeViewPanel _treeOnlyPanel;
         private ContainerControl _treePanelRoot;
         private ContainerControl _treeHeaderPanel;
-        private Panel _contentItemsSearchPanel;
         private Panel _contentViewPanel;
         private Panel _contentTreePanel;
         private ContentView _view;
@@ -178,11 +177,32 @@ namespace FlaxEditor.Windows
             _navigateUpButton = (ToolStripButton)_toolStrip.AddButton(Editor.Icons.Up64, NavigateUp).LinkTooltip("Navigate up.");
             _toolStrip.AddSeparator();
 
+            // Unified search bar spanning both tree and items views
+            _treeHeaderPanel = new ContainerControl
+            {
+                AnchorPreset = AnchorPresets.HorizontalStretchTop,
+                BackgroundColor = style.Background,
+                IsScrollable = false,
+                Offsets = new Margin(0, 0, _toolStrip.Bottom, 18 + 8),
+                Parent = this,
+            };
+
+            _foldersSearchBox = new SearchBox
+            {
+                AnchorPreset = AnchorPresets.HorizontalStretchMiddle,
+                Parent = _treeHeaderPanel,
+                Bounds = new Rectangle(4, 4, _treeHeaderPanel.Width - 8, 18),
+            };
+
+            _foldersSearchBox.TextChanged += OnFoldersSearchBoxTextChanged;
+            _foldersSearchBox.TextChanged += UpdateItemsSearch;
+            _itemsSearchBox = _foldersSearchBox;
+
             // Split panel
             _split = new SplitPanel(options.Options.Interface.ContentWindowOrientation, ScrollBars.None, ScrollBars.None)
             {
                 AnchorPreset = AnchorPresets.StretchAll,
-                Offsets = new Margin(0, 0, _toolStrip.Bottom, 0),
+                Offsets = new Margin(0, 0, _treeHeaderPanel.Bottom, 0),
                 SplitterValue = 0.2f,
                 Parent = this,
             };
@@ -191,7 +211,7 @@ namespace FlaxEditor.Windows
             _treeOnlyPanel = new TreeViewPanel
             {
                 AnchorPreset = AnchorPresets.StretchAll,
-                Offsets = new Margin(0, 0, _toolStrip.Bottom, 0),
+                Offsets = new Margin(0, 0, _treeHeaderPanel.Bottom, 0),
                 Visible = false,
                 Parent = this,
             };
@@ -204,29 +224,11 @@ namespace FlaxEditor.Windows
                 Parent = _split.Panel1,
             };
 
-            // Content structure tree searching query input box
-            _treeHeaderPanel = new ContainerControl
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchTop,
-                BackgroundColor = style.Background,
-                IsScrollable = false,
-                Offsets = new Margin(0, 0, 0, 18 + 6),
-                Parent = _treePanelRoot,
-            };
-
-            _foldersSearchBox = new SearchBox
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchMiddle,
-                Parent = _treeHeaderPanel,
-                Bounds = new Rectangle(4, 4, _treeHeaderPanel.Width - 8, 18),
-            };
-            _foldersSearchBox.TextChanged += OnFoldersSearchBoxTextChanged;
-
             // Content tree panel
             _contentTreePanel = new Panel
             {
                 AnchorPreset = AnchorPresets.StretchAll,
-                Offsets = new Margin(0, 0, _treeHeaderPanel.Bottom, 0),
+                Offsets = Margin.Zero,
                 IsScrollable = true,
                 ScrollBars = ScrollBars.Both,
                 Parent = _treePanelRoot,
@@ -240,23 +242,6 @@ namespace FlaxEditor.Windows
             };
             _tree.SelectedChanged += OnTreeSelectionChanged;
             _treeOnlyPanel.ContentTree = _tree;
-
-            // Content items searching query input box and filters selector
-            _contentItemsSearchPanel = new Panel
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchTop,
-                IsScrollable = true,
-                Offsets = new Margin(0, 0, 0, 18 + 8),
-                Parent = _split.Panel2,
-            };
-
-            _itemsSearchBox = new SearchBox
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchMiddle,
-                Parent = _contentItemsSearchPanel,
-                Bounds = new Rectangle(4, 4, _contentItemsSearchPanel.Width - 8, 18),
-            };
-            _itemsSearchBox.TextChanged += UpdateItemsSearch;
 
             _viewDropdownPanel = new Panel
             {
@@ -294,7 +279,7 @@ namespace FlaxEditor.Windows
             _contentViewPanel = new Panel
             {
                 AnchorPreset = AnchorPresets.StretchAll,
-                Offsets = new Margin(0, 0, _contentItemsSearchPanel.Bottom + 4, 0),
+                Offsets = new Margin(0, 0, 0, 0),
                 IsScrollable = true,
                 ScrollBars = ScrollBars.Vertical,
                 Parent = _split.Panel2,
@@ -501,8 +486,6 @@ namespace FlaxEditor.Windows
                 _treeOnlyPanel.Visible = true;
                 _treePanelRoot.Parent = _treeOnlyPanel;
                 _treePanelRoot.Offsets = Margin.Zero;
-                _contentItemsSearchPanel.Visible = false;
-                _itemsSearchBox.Visible = false;
                 _contentViewPanel.Visible = false;
                 RefreshTreeItems();
             }
@@ -512,8 +495,6 @@ namespace FlaxEditor.Windows
                 _split.Visible = true;
                 _treePanelRoot.Parent = _split.Panel1;
                 _treePanelRoot.Offsets = Margin.Zero;
-                _contentItemsSearchPanel.Visible = true;
-                _itemsSearchBox.Visible = true;
                 _contentViewPanel.Visible = true;
                 if (_tree.SelectedNode is ContentItemTreeNode itemNode && itemNode.Parent is TreeNode parentNode)
                     _tree.Select(parentNode);
@@ -1546,9 +1527,15 @@ namespace FlaxEditor.Windows
                 if (bottomPrev != _toolStrip.Bottom)
                 {
                     // Navigation bar changed toolstrip height
-                    _split.Offsets = new Margin(0, 0, _toolStrip.Bottom, 0);
+                    if (_treeHeaderPanel != null)
+                        _treeHeaderPanel.Offsets = new Margin(0, 0, _toolStrip.Bottom, _treeHeaderPanel.Height);
+
+                    var headerBottom = _treeHeaderPanel != null ? _treeHeaderPanel.Bottom : _toolStrip.Bottom;
+                    _split.Offsets = new Margin(0, 0, headerBottom, 0);
+
                     if (_treeOnlyPanel != null)
-                        _treeOnlyPanel.Offsets = new Margin(0, 0, _toolStrip.Bottom, 0);
+                        _treeOnlyPanel.Offsets = new Margin(0, 0, headerBottom, 0);
+
                     PerformLayout();
                 }
                 UpdateViewDropdownBounds();
@@ -1898,7 +1885,6 @@ namespace FlaxEditor.Windows
             _treePanelRoot = null;
             _treeHeaderPanel = null;
             _treeOnlyPanel = null;
-            _contentItemsSearchPanel = null;
             _newFilesCache = null;
 
             Editor.Options.OptionsChanged -= OnOptionsChanged;

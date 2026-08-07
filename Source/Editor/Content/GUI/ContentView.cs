@@ -177,6 +177,11 @@ namespace FlaxEditor.Content.GUI
         public bool IsSearching;
 
         /// <summary>
+        /// Current search query used to filter items. Used by items to highlight matched name ranges.
+        /// </summary>
+        public string SearchFilterText;
+
+        /// <summary>
         /// Flag used to indicate whenever show full file names including extensions.
         /// </summary>
         public bool ShowFileExtensions;
@@ -681,6 +686,8 @@ namespace FlaxEditor.Content.GUI
 
             if (button == MouseButton.Left)
             {
+                Focus();
+
                 _mousePressLocation = location;
                 _rubberBandRectangle = new Rectangle(_mousePressLocation, 0, 0);
                 _isRubberBandSpanning = true;

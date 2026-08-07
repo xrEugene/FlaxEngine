@@ -173,6 +173,7 @@ namespace FlaxEditor.Windows
             if (_itemsSearchBox.TextLength == 0 && !_viewDropdown.HasSelection)
             {
                 _view.IsSearching = false;
+                _view.SearchFilterText = null;
                 RefreshView();
                 return;
             }
@@ -180,6 +181,8 @@ namespace FlaxEditor.Windows
             // Apply filter
             var items = new List<ContentItem>(8);
             var query = _itemsSearchBox.Text;
+            _view.SearchFilterText = string.IsNullOrWhiteSpace(query) ? null : query;
+
             var filters = new bool[_viewDropdown.Items.Count];
             if (_viewDropdown.HasSelection)
             {

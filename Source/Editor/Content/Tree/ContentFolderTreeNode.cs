@@ -20,7 +20,7 @@ public class ContentFolderTreeNode : TreeNode
 {
     private DragItems _dragOverItems;
     private DragActors _dragActors;
-    private List<Rectangle> _highlights;
+    private QueryFilterHelper.Range[] _highlightRanges;
 
     /// <summary>
     /// The folder.
@@ -163,34 +163,21 @@ public class ContentFolderTreeNode : TreeNode
         if (noFilter)
         {
             // Clear filter
-            _highlights?.Clear();
+            _highlightRanges = null;
             isThisVisible = true;
         }
         else
         {
-            var text = Text;
-            if (QueryFilterHelper.Match(filterText, text, out QueryFilterHelper.Range[] ranges))
+            if (QueryFilterHelper.Match(filterText, Text, out QueryFilterHelper.Range[] ranges))
             {
-                // Update highlights
-                if (_highlights == null)
-                    _highlights = new List<Rectangle>(ranges.Length);
-                else
-                    _highlights.Clear();
-                var style = Style.Current;
-                var font = style.FontSmall;
-                var textRect = TextRect;
-                for (int i = 0; i < ranges.Length; i++)
-                {
-                    var start = font.GetCharPosition(text, ranges[i].StartIndex);
-                    var end = font.GetCharPosition(text, ranges[i].EndIndex);
-                    _highlights.Add(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height));
-                }
+                // Store the ranges; rectangles are recomputed at draw time to stay aligned with the current layout
+                _highlightRanges = ranges;
                 isThisVisible = true;
             }
             else
             {
                 // Hide
-                _highlights?.Clear();
+                _highlightRanges = null;
                 isThisVisible = false;
             }
         }
@@ -238,13 +225,23 @@ public class ContentFolderTreeNode : TreeNode
     {
         base.Draw();
 
-        // Draw all highlights
-        if (_highlights != null)
+        // Draw all highlights (positions recomputed each frame to stay aligned with the current layout)
+        if (_highlightRanges != null && _highlightRanges.Length > 0)
         {
             var style = Style.Current;
             var color = style.ProgressNormal * 0.6f;
-            for (int i = 0; i < _highlights.Count; i++)
-                Render2D.FillRectangle(_highlights[i], color);
+            var font = style.FontSmall;
+
+            var text = Text;
+            var textRect = TextRect;
+
+            for (int i = 0; i < _highlightRanges.Length; i++)
+            {
+                var start = font.GetCharPosition(text, _highlightRanges[i].StartIndex);
+                var end = font.GetCharPosition(text, _highlightRanges[i].EndIndex);
+
+                Render2D.FillRectangle(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height), color);
+            }
         }
 
         var contentWindow = Editor.Instance.Windows.ContentWin;

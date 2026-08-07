@@ -16,7 +16,7 @@ namespace FlaxEditor.Content;
 /// </summary>
 public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
 {
-    private List<Rectangle> _highlights;
+    private QueryFilterHelper.Range[] _highlightRanges;
 
     /// <summary>
     /// The content item.
@@ -58,32 +58,19 @@ public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
         bool isVisible;
         if (noFilter)
         {
-            _highlights?.Clear();
+            _highlightRanges = null;
             isVisible = true;
         }
         else
         {
-            var text = Text;
-            if (QueryFilterHelper.Match(filterText, text, out QueryFilterHelper.Range[] ranges))
+            if (QueryFilterHelper.Match(filterText, Text, out QueryFilterHelper.Range[] ranges))
             {
-                if (_highlights == null)
-                    _highlights = new List<Rectangle>(ranges.Length);
-                else
-                    _highlights.Clear();
-                var style = Style.Current;
-                var font = style.FontSmall;
-                var textRect = TextRect;
-                for (int i = 0; i < ranges.Length; i++)
-                {
-                    var start = font.GetCharPosition(text, ranges[i].StartIndex);
-                    var end = font.GetCharPosition(text, ranges[i].EndIndex);
-                    _highlights.Add(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height));
-                }
+                _highlightRanges = ranges;
                 isVisible = true;
             }
             else
             {
-                _highlights?.Clear();
+                _highlightRanges = null;
                 isVisible = false;
             }
         }
@@ -107,12 +94,22 @@ public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
             Render2D.DrawSprite(icon, iconRect);
         }
 
-        if (_highlights != null)
+        if (_highlightRanges != null && _highlightRanges.Length > 0)
         {
             var style = Style.Current;
             var color = style.ProgressNormal * 0.6f;
-            for (int i = 0; i < _highlights.Count; i++)
-                Render2D.FillRectangle(_highlights[i], color);
+            var font = style.FontSmall;
+
+            var text = Text;
+            var textRect = TextRect;
+
+            for (int i = 0; i < _highlightRanges.Length; i++)
+            {
+                var start = font.GetCharPosition(text, _highlightRanges[i].StartIndex);
+                var end = font.GetCharPosition(text, _highlightRanges[i].EndIndex);
+
+                Render2D.FillRectangle(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height), color);
+            }
         }
     }
 

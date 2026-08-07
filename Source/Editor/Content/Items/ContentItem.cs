@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using FlaxEditor.Content.GUI;
 using FlaxEditor.GUI.Drag;
+using FlaxEditor.Utilities;
 using FlaxEngine;
 using FlaxEngine.Assertions;
 using FlaxEngine.GUI;
@@ -749,9 +750,57 @@ namespace FlaxEditor.Content
             }
 
             // Draw short name
+            var displayName = ShowFileExtension || view.ShowFileExtensions ? FileName : ShortName;
             Render2D.PushClip(ref textRect);
+
             var scale = 0.95f * view.ViewScale;
-            Render2D.DrawText(style.FontMedium, ShowFileExtension || view.ShowFileExtensions ? FileName : ShortName, textRect, style.Foreground, nameAlignment, TextAlignment.Center, TextWrapping.WrapWords, 1f, scale);
+
+            // Highlight matched search substrings
+            if (view.IsSearching 
+                && !string.IsNullOrEmpty(view.SearchFilterText) &&
+                QueryFilterHelper.Match(view.SearchFilterText, displayName, out var highlightRanges))
+            {
+                var font = style.FontMedium;
+                var layout = new TextLayoutOptions
+                {
+                    Bounds = textRect,
+                    HorizontalAlignment = nameAlignment,
+                    VerticalAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.WrapWords,
+                    Scale = scale,
+                    BaseLinesGapScale = 1.0f,
+                };
+
+                var lineHeight = font.Height * scale;
+                var highlightColor = style.ProgressNormal * 0.6f;
+
+                for (int r = 0; r < highlightRanges.Length; r++)
+                {
+                    int i = highlightRanges[r].StartIndex;
+                    int end = highlightRanges[r].EndIndex;
+
+                    while (i < end)
+                    {
+                        var s = font.GetCharPosition(displayName, i, ref layout);
+                        int j = i + 1;
+
+                        var e = font.GetCharPosition(displayName, j, ref layout);
+                        while (j < end)
+                        {
+                            var next = font.GetCharPosition(displayName, j + 1, ref layout);
+                            if (!Mathf.NearEqual(next.Y, s.Y)) break;
+
+                            e = next;
+                            j++;
+                        }
+
+                        if (e.X > s.X) Render2D.FillRectangle(new Rectangle(s.X, s.Y, e.X - s.X, lineHeight), highlightColor);
+                        i = j;
+                    }
+                }
+            }
+
+            Render2D.DrawText(style.FontMedium, displayName, textRect, style.Foreground, nameAlignment, TextAlignment.Center, TextWrapping.WrapWords, 1f, scale);
             Render2D.PopClip();
 
             if (IsBeingCut)
