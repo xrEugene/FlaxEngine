@@ -60,18 +60,20 @@ namespace FlaxEditor.GUI.Tabs
 
                 var style = Style.Current;
                 var enabled = EnabledInHierarchy && Tab.EnabledInHierarchy;
+                var selected = Tabs.SelectedTab == Tab;
                 var tabRect = new Rectangle(Float2.Zero, Size);
                 var textOffset = Tabs._orientation == Orientation.Horizontal ? 0 : 8;
 
                 // Draw bar
-                if (Tabs.SelectedTab == Tab)
+                if (selected)
                 {
-                    var color = style.BackgroundSelected;
+                    var color = style.BorderSelected;
                     if (!enabled)
                         color *= 0.6f;
+                    var cornerRadius = style.GetTabCornerRadius();
                     if (Tabs._orientation == Orientation.Horizontal)
                     {
-                        Render2D.FillRectangle(tabRect, color);
+                        StyleRendering.FillRoundedRectangle(tabRect, color, cornerRadius, RoundedCorners.Top);
                     }
                     else
                     {
@@ -87,19 +89,19 @@ namespace FlaxEditor.GUI.Tabs
                 }
                 else if (IsMouseOver && enabled)
                 {
-                    Render2D.FillRectangle(tabRect, style.BackgroundHighlighted);
+                    StyleRendering.FillRoundedRectangle(tabRect, style.BackgroundHighlighted.AlphaMultiplied(0.82f), style.GetTabCornerRadius(), Tabs._orientation == Orientation.Horizontal ? RoundedCorners.Top : RoundedCorners.All);
                 }
 
                 // Draw icon
                 if (Tab.Icon.IsValid)
                 {
-                    Render2D.DrawSprite(Tab.Icon, tabRect.MakeExpanded(-8), style.Foreground);
+                    Render2D.DrawSprite(Tab.Icon, tabRect.MakeExpanded(-8), selected && enabled ? Color.White : style.Foreground);
                 }
 
                 // Draw text
                 if (!string.IsNullOrEmpty(Tab.Text))
                 {
-                    Render2D.DrawText(style.FontMedium, Tab.Text, new Rectangle(tabRect.X + textOffset, tabRect.Y, tabRect.Width - textOffset, tabRect.Height), style.Foreground, Tabs.TabsTextHorizontalAlignment, Tabs.TabsTextVerticalAlignment);
+                    Render2D.DrawText(style.FontMedium, Tab.Text, new Rectangle(tabRect.X + textOffset, tabRect.Y, tabRect.Width - textOffset, tabRect.Height), selected && enabled ? Color.White : style.Foreground, Tabs.TabsTextHorizontalAlignment, Tabs.TabsTextVerticalAlignment);
                 }
             }
         }
