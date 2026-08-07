@@ -234,7 +234,7 @@ namespace FlaxEditor.GUI.Docking
             // Draw background
             Render2D.FillRectangle(headerRect, style.LightBackground);
 
-            // Render all tabs (single-tab panels use the same compact rounded tab styling)
+            // Render all tabs
             float x = 0;
             for (int i = 0; i < tabsCount; i++)
             {
@@ -257,19 +257,18 @@ namespace FlaxEditor.GUI.Docking
                 var isSelected = _panel.SelectedTab == tab;
 
                 // Check if tab is selected
-                var tabCornerRadius = style.GetTabCornerRadius();
                 if (isSelected)
                 {
                     tabColor = style.Background;
-                    StyleRendering.FillRoundedRectangle(tabRect, tabColor, tabCornerRadius, RoundedCorners.Top);
+                    Render2D.FillRectangle(tabRect, tabColor);
                     if (containsFocus)
-                        StyleRendering.FillRoundedRectangle(new Rectangle(tabRect.X, tabRect.Y, tabRect.Width, 2.0f), style.BorderSelected, 1.0f, RoundedCorners.Top);
+                        Render2D.FillRectangle(new Rectangle(tabRect.X, tabRect.Y, tabRect.Width, 2.0f), style.BorderSelected);
                 }
                 // Check if mouse is over
                 else if (isMouseOver)
                 {
                     tabColor = style.BackgroundHighlighted;
-                    StyleRendering.FillRoundedRectangle(tabRect, tabColor, tabCornerRadius, RoundedCorners.Top);
+                    Render2D.FillRectangle(tabRect, tabColor);
                 }
 
                 if (tab.Icon.IsValid)
@@ -296,7 +295,7 @@ namespace FlaxEditor.GUI.Docking
                     var crossRect = new Rectangle(x + width - DockPanel.DefaultButtonsSize - DockPanel.DefaultButtonsMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
                     bool isMouseOverCross = isMouseOver && crossRect.Contains(MousePosition);
                     if (isMouseOverCross)
-                        StyleRendering.FillRoundedRectangle(crossRect, style.BackgroundHighlighted * 1.2f, style.GetTabCornerRadius());
+                        Render2D.FillRectangle(crossRect, style.BackgroundHighlighted * 1.2f);
                     Render2D.DrawSprite(style.Cross, crossRect, isMouseOverCross ? style.Foreground : style.ForegroundGrey);
                 }
 
