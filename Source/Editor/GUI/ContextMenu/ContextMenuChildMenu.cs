@@ -76,17 +76,17 @@ namespace FlaxEditor.GUI.ContextMenu
         }
 
         /// <inheritdoc />
+        public override bool OnMouseDown(Float2 location, MouseButton button)
+        {
+            // Swallow click over a child menu row so parent doesn't close the submenu.
+            return true;
+        }
+
+        /// <inheritdoc />
         public override bool OnMouseUp(Float2 location, MouseButton button)
         {
-            // Skip if already shown
-            var parentContextMenu = ParentContextMenu;
-            if (parentContextMenu == ContextMenu)
-                return true;
-            if (ContextMenu.IsOpened)
-                return true;
-
-            ShowChild(parentContextMenu);
-            return base.OnMouseUp(location, button);
+            // Do nothing on click over a child menu row; child menu is opened on hover only.
+            return true;
         }
     }
 }

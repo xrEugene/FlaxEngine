@@ -1,12 +1,14 @@
 // Copyright (c) Wojciech Figat. All rights reserved.
 
-using System;
-using System.Collections.Generic;
 using FlaxEditor.GUI.ContextMenu;
 using FlaxEditor.GUI.Input;
 using FlaxEditor.Utilities;
 using FlaxEngine;
 using FlaxEngine.GUI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using static FlaxEditor.GUI.ItemsListContextMenu;
 
 namespace FlaxEditor.GUI
 {
@@ -167,7 +169,16 @@ namespace FlaxEditor.GUI
 
                 // Overlay
                 if (IsMouseOver || IsFocused)
+                {
                     Render2D.FillRectangle(new Rectangle(Float2.Zero, Size), style.BackgroundHighlighted);
+                }
+                else if (Parent != null)
+                {
+                    // Alternating (zebra) row background based on this item's index among its siblings
+                    int index = Parent.Children.IndexOf(this);
+                    if ((index & 1) != 0)
+                        Render2D.FillRectangle(new Rectangle(Float2.Zero, Size), style.TreeAlternateRowBackground);
+                }
 
                 // Draw all highlights
                 if (DrawHighlights && _highlights != null)
@@ -380,6 +391,26 @@ namespace FlaxEditor.GUI
         }
 
         /// <summary>
+        /// Scrolls to the first visible item whose name starts with the given prefix, without changing focus/highlight.
+        /// </summary>
+        /// <param name="prefix">The name prefix to look for.</param>
+        public void ScrollToFirstItemStartingWith(string prefix)
+        {
+            if (string.IsNullOrEmpty(prefix))
+                return;
+            foreach (var child in ItemsPanel.Children)
+            {
+                if (child is not ItemsListContextMenu.Item item || !item.Visible)
+                    continue;
+                if (item.Name != null && item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    ScrollViewTo(item);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
         /// Removes all added items.
         /// </summary>
         public void ClearItems()
@@ -552,6 +583,18 @@ namespace FlaxEditor.GUI
         }
 
         /// <inheritdoc />
+        public override bool OnMouseDown(Float2 location, MouseButton button)
+        {
+            if (button == MouseButton.Left)
+            {
+                var item = ItemsPanel.Children.FirstOrDefault(x => x.IsMouseOver);
+                item?.Focus();
+            }
+
+            return base.OnMouseDown(location, button);
+        }
+
+        /// <inheritdoc />
         public override void Hide()
         {
             Focus(null);
@@ -604,7 +647,7 @@ namespace FlaxEditor.GUI
                 if (controlDown)
                     ExpandToItem(nextItem);
                 
-                _scrollPanel.ScrollViewTo(nextItem);
+                _scrollPanel.ScrollViewTo(nextItem, true);
                 return true;
             case KeyboardKeys.Return:
                 if (focusedItem != null)

@@ -81,6 +81,8 @@ namespace FlaxEditor.GUI
             _inputField.AnchorPreset = AnchorPresets.StretchAll;
             _inputField.Offsets = Margin.Zero;
             _inputField.Text = _startValue;
+            _inputField.HorizontalAlignment = TextAlignment.Center;
+            _inputField.VerticalAlignment = TextAlignment.Center;
             _inputField.Parent = this;
         }
 

@@ -101,37 +101,25 @@ namespace FlaxEditor.GUI.Docking
             closeButton = false;
 
             var tabsCount = _panel.TabsCount;
-            if (tabsCount == 1)
+            float x = 0;
+            for (int i = 0; i < tabsCount; i++)
             {
-                var crossRect = new Rectangle(Width - DockPanel.DefaultButtonsSize - DockPanel.DefaultButtonsMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
-                if (HeaderRectangle.Contains(position))
-                {
-                    result = _panel.GetTab(0);
-                    closeButton = crossRect.Contains(position) && IsCloseButtonVisible(result, _closeButtonVisibility);
-                }
-            }
-            else
-            {
-                float x = 0;
-                for (int i = 0; i < tabsCount; i++)
-                {
-                    var tab = _panel.GetTab(i);
-                    float width = CalculateTabWidth(tab, _closeButtonVisibility);
+                var tab = _panel.GetTab(i);
+                float width = CalculateTabWidth(tab, _closeButtonVisibility);
 
-                    if (_useMinimumTabWidth && width < _minimumTabWidth)
-                        width = _minimumTabWidth;
+                if (_useMinimumTabWidth && width < _minimumTabWidth)
+                    width = _minimumTabWidth;
 
-                    var tabRect = new Rectangle(x, 0, width, HeaderRectangle.Height);
-                    var isMouseOver = tabRect.Contains(position);
-                    if (isMouseOver)
-                    {
-                        var crossRect = new Rectangle(x + width - DockPanel.DefaultButtonsSize - DockPanel.DefaultButtonsMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
-                        closeButton = crossRect.Contains(position) && IsCloseButtonVisible(tab, _closeButtonVisibility);
-                        result = tab;
-                        break;
-                    }
-                    x += width;
+                var tabRect = new Rectangle(x, 0, width, HeaderRectangle.Height);
+                var isMouseOver = tabRect.Contains(position);
+                if (isMouseOver)
+                {
+                    var crossRect = new Rectangle(x + width - DockPanel.DefaultButtonsSize - DockPanel.DefaultButtonsMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
+                    closeButton = crossRect.Contains(position) && IsCloseButtonVisible(tab, _closeButtonVisibility);
+                    result = tab;
+                    break;
                 }
+                x += width;
             }
 
             return result;
@@ -160,26 +148,20 @@ namespace FlaxEditor.GUI.Docking
             FlaxEngine.Assertions.Assert.IsTrue(_panel.ContainsTab(win));
 
             var tabsCount = _panel.TabsCount;
-            if (tabsCount == 1)
+            float x = 0;
+            for (int i = 0; i < tabsCount; i++)
             {
-                bounds = HeaderRectangle;
-                return;
-            }
-            else
-            {
-                float x = 0;
-                for (int i = 0; i < tabsCount; i++)
+                var tab = _panel.GetTab(i);
+                var titleSize = tab.TitleSize;
+                float width = CalculateTabWidth(tab, _closeButtonVisibility);
+                if (_useMinimumTabWidth && width < _minimumTabWidth)
+                    width = _minimumTabWidth;
+                if (tab == win)
                 {
-                    var tab = _panel.GetTab(i);
-                    var titleSize = tab.TitleSize;
-                    float width = CalculateTabWidth(tab, _closeButtonVisibility);
-                    if (tab == win)
-                    {
-                        bounds = new Rectangle(x, 0, width, HeaderRectangle.Height);
-                        return;
-                    }
-                    x += width;
+                    bounds = new Rectangle(x, 0, width, HeaderRectangle.Height);
+                    return;
                 }
+                x += width;
             }
 
             bounds = Rectangle.Empty;
@@ -234,6 +216,27 @@ namespace FlaxEditor.GUI.Docking
             var style = Style.Current;
             var window = Root;
             bool containsFocus = ContainsFocus && ((WindowRootControl)window).Window.IsFocused;
+            if (!containsFocus)
+            {
+                var owner = FlaxEditor.GUI.ContextMenu.ContextMenuBase.ActiveContextMenuOwner;
+                if (owner != null)
+                {
+                    var selected = _panel.SelectedTab;
+                    if (selected != null)
+                    {
+                        var c = owner;
+                        while (c != null)
+                        {
+                            if (c == selected)
+                            {
+                                containsFocus = true;
+                                break;
+                            }
+                            c = c.Parent;
+                        }
+                    }
+                }
+            }
             var headerRect = HeaderRectangle;
             var tabsCount = _panel.TabsCount;
 
@@ -241,22 +244,51 @@ namespace FlaxEditor.GUI.Docking
             if (IsSingleFloatingWindow)
                 return;
 
-            // Check if has only one window docked
-            if (tabsCount == 1)
+            // Draw background (extend by 1px to prevent sub-pixel seam with content below)
+            Render2D.FillRectangle(new Rectangle(headerRect.X, headerRect.Y, headerRect.Width, headerRect.Height + 1), style.SecondaryBackground);
+
+            // Render all tabs
+            float x = 0;
+            for (int i = 0; i < tabsCount; i++)
             {
-                var tab = _panel.GetTab(0);
+                // Cache data
+                var tab = _panel.GetTab(i);
+                var tabColor = Color.Black;
+                var iconWidth = tab.Icon.IsValid ? DockPanel.DefaultButtonsSize + DockPanel.DefaultLeftTextMargin : 0;
 
-                // Draw header
-                bool isMouseOver = headerRect.Contains(MousePosition);
-                Render2D.FillRectangle(headerRect, containsFocus ? style.BackgroundSelected : isMouseOver ? style.BackgroundHighlighted : style.LightBackground);
+                float width = CalculateTabWidth(tab, _closeButtonVisibility);
 
-                float iconWidth = tab.Icon.IsValid ? DockPanel.DefaultButtonsSize + DockPanel.DefaultLeftTextMargin : 0;
+                if (_useMinimumTabWidth && width < _minimumTabWidth)
+                    width = _minimumTabWidth;
+
+                var tabRect = new Rectangle(x, 0, width, headerRect.Height);
+                var isMouseOver = tabRect.Contains(MousePosition);
+                var isSelected = _panel.SelectedTab == tab;
+
+                // Check if tab is selected
+                if (isSelected)
+                {
+                    tabColor = style.ContentBackground;
+                    Render2D.FillRectangle(new Rectangle(tabRect.X, tabRect.Y, tabRect.Width, tabRect.Height + 1), tabColor);
+                    if (containsFocus)
+                        Render2D.FillRectangle(new Rectangle(tabRect.X, tabRect.Y, tabRect.Width, 2), style.BackgroundSelected);
+                }
+                // Check if mouse is over
+                else if (isMouseOver)
+                {
+                    tabColor = style.BackgroundHighlighted;
+                    Render2D.FillRectangle(new Rectangle(tabRect.X, tabRect.Y, tabRect.Width, tabRect.Height + 1), tabColor);
+                }
+                else
+                {
+                    tabColor = style.BackgroundHighlighted;
+                }
 
                 if (tab.Icon.IsValid)
                 {
                     Render2D.DrawSprite(
                         tab.Icon,
-                        new Rectangle(DockPanel.DefaultLeftTextMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize),
+                        new Rectangle(x + DockPanel.DefaultLeftTextMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize),
                         style.Foreground);
 
                 }
@@ -265,97 +297,29 @@ namespace FlaxEditor.GUI.Docking
                 Render2D.DrawText(
                     style.FontMedium,
                     tab.Title,
-                    new Rectangle(DockPanel.DefaultLeftTextMargin + iconWidth, 0, Width - DockPanel.DefaultLeftTextMargin - DockPanel.DefaultButtonsSize - 2 * DockPanel.DefaultButtonsMargin, HeaderRectangle.Height),
+                    new Rectangle(x + DockPanel.DefaultLeftTextMargin + iconWidth, 0, 10000, HeaderRectangle.Height),
                     style.Foreground,
                     TextAlignment.Near,
                     TextAlignment.Center);
 
+                // Draw cross
                 if (IsCloseButtonVisible(tab, _closeButtonVisibility))
                 {
-                    // Draw cross
-                    var crossRect = new Rectangle(Width - DockPanel.DefaultButtonsSize - DockPanel.DefaultButtonsMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
+                    var crossRect = new Rectangle(x + width - DockPanel.DefaultButtonsSize - DockPanel.DefaultButtonsMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
                     bool isMouseOverCross = isMouseOver && crossRect.Contains(MousePosition);
                     if (isMouseOverCross)
-                        Render2D.FillRectangle(crossRect, (containsFocus ? style.BackgroundSelected : style.LightBackground) * 1.3f);
+                        Render2D.FillRectangle(crossRect, tabColor * 1.3f);
                     Render2D.DrawSprite(style.Cross, crossRect, isMouseOverCross ? style.Foreground : style.ForegroundGrey);
                 }
+
+                // Set the start position for the next tab
+                x += width;
             }
-            else
+
+            // Fill remaining header area to the right of the tabs with secondary background
+            if (x < headerRect.Width)
             {
-                // Draw background
-                Render2D.FillRectangle(headerRect, style.LightBackground);
-
-                // Render all tabs
-                float x = 0;
-                for (int i = 0; i < tabsCount; i++)
-                {
-                    // Cache data
-                    var tab = _panel.GetTab(i);
-                    var tabColor = Color.Black;
-                    var iconWidth = tab.Icon.IsValid ? DockPanel.DefaultButtonsSize + DockPanel.DefaultLeftTextMargin : 0;
-
-                    float width = CalculateTabWidth(tab, _closeButtonVisibility);
-
-                    if (_useMinimumTabWidth && width < _minimumTabWidth)
-                        width = _minimumTabWidth;
-
-                    var tabRect = new Rectangle(x, 0, width, headerRect.Height);
-                    var isMouseOver = tabRect.Contains(MousePosition);
-                    var isSelected = _panel.SelectedTab == tab;
-
-                    // Check if tab is selected
-                    if (isSelected)
-                    {
-                        tabColor = containsFocus ? style.BackgroundSelected : style.BackgroundNormal;
-                        Render2D.FillRectangle(tabRect, tabColor);
-                    }
-                    // Check if mouse is over
-                    else if (isMouseOver)
-                    {
-                        tabColor = style.BackgroundHighlighted;
-                        Render2D.FillRectangle(tabRect, tabColor);
-                    }
-                    else
-                    {
-                        tabColor = style.BackgroundHighlighted;
-                        Render2D.DrawLine(tabRect.BottomLeft - new Float2(0, 1), tabRect.UpperLeft, tabColor);
-                        Render2D.DrawLine(tabRect.BottomRight - new Float2(0, 1), tabRect.UpperRight, tabColor);
-                    }
-
-                    if (tab.Icon.IsValid)
-                    {
-                        Render2D.DrawSprite(
-                            tab.Icon,
-                            new Rectangle(x + DockPanel.DefaultLeftTextMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize),
-                            style.Foreground);
-
-                    }
-
-                    // Draw text
-                    Render2D.DrawText(
-                        style.FontMedium,
-                        tab.Title,
-                        new Rectangle(x + DockPanel.DefaultLeftTextMargin + iconWidth, 0, 10000, HeaderRectangle.Height),
-                        style.Foreground,
-                        TextAlignment.Near,
-                        TextAlignment.Center);
-
-                    // Draw cross
-                    if (IsCloseButtonVisible(tab, _closeButtonVisibility))
-                    {
-                        var crossRect = new Rectangle(x + width - DockPanel.DefaultButtonsSize - DockPanel.DefaultButtonsMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
-                        bool isMouseOverCross = isMouseOver && crossRect.Contains(MousePosition);
-                        if (isMouseOverCross)
-                            Render2D.FillRectangle(crossRect, tabColor * 1.3f);
-                        Render2D.DrawSprite(style.Cross, crossRect, isMouseOverCross ? style.Foreground : style.ForegroundGrey);
-                    }
-
-                    // Set the start position for the next tab
-                    x += width;
-                }
-
-                // Draw selected tab strip
-                Render2D.FillRectangle(new Rectangle(0, HeaderRectangle.Height - 2, Width, 2), containsFocus ? style.BackgroundSelected : style.BackgroundNormal);
+                Render2D.FillRectangle(new Rectangle(x, headerRect.Y, headerRect.Width - x, headerRect.Height + 1), style.SecondaryBackground);
             }
         }
 

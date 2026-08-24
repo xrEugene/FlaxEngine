@@ -105,10 +105,27 @@ namespace FlaxEditor.Modules
                     return false;
                 }
 
-                if (item.IsFolder && shortName.EndsWith("."))
+                if (item.IsFolder)
                 {
-                    hint = "Name cannot end with '.'";
-                    return false;
+                    if (shortName.EndsWith('.'))
+                    {
+                        hint = "Name cannot end with '.'";
+                        return false;
+                    }
+
+                    if (shortName.StartsWith('.'))
+                    {
+                        hint = "Folder name cannot start with '.'";
+                        return false;
+                    }
+
+                    if (string.Equals(shortName, "obj", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(shortName, "Properties", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(shortName, "bin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hint = $"Folder name '{shortName}' is reserved.";
+                        return false;
+                    }
                 }
 
                 // Find invalid characters

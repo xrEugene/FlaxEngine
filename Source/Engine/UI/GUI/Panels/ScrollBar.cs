@@ -265,10 +265,14 @@ namespace FlaxEngine.GUI
                 else
                     Value = min;
             }
-            /*else if (Mathf.IsNotInRange(max, viewMin, viewMax))
+            else if (Mathf.IsNotInRange(max, viewMin, viewMax))
             {
-                Value = max - viewSize;
-            }*/
+                var target = max - viewSize;
+                if (fastScroll)
+                    TargetValue = target;
+                else
+                    Value = target;
+            }
         }
 
         private void UpdateThumb()
@@ -400,8 +404,8 @@ namespace FlaxEngine.GUI
             base.Draw();
 
             var style = Style.Current;
-            Render2D.FillRectangle(_trackRect, TrackColor * _thumbOpacity);
-            Render2D.FillRectangle(_thumbRect, (_thumbClicked ? ThumbSelectedColor : ThumbColor) * _thumbOpacity);
+            Render2D.FillRectangle(_trackRect, style.ContentBackground * 1.8f * _thumbOpacity);
+            Render2D.FillRectangle(_thumbRect, (_thumbClicked ? ThumbSelectedColor : style.ContentBackground * 1.8f) * _thumbOpacity);
         }
 
         /// <inheritdoc />

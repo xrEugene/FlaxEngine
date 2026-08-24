@@ -88,7 +88,7 @@ namespace FlaxEditor.GUI
         {
             AutoFocus = false;
             AnchorPreset = AnchorPresets.HorizontalStretchTop;
-            BackgroundColor = Style.Current.LightBackground;
+            BackgroundColor = Style.Current.Background;
             Offsets = new Margin(0, 0, y, height * Editor.Instance.Options.Options.Interface.IconsScale);
             _itemsMargin = new Margin(2, 2, 1, 1);
         }
@@ -170,16 +170,28 @@ namespace FlaxEditor.GUI
         protected override void PerformLayoutBeforeChildren()
         {
             // Arrange controls
-            float x = _itemsMargin.Left;
             float h = ItemsHeight;
+            float xLeft = _itemsMargin.Left;
+            float xRight = Width - _itemsMargin.Right;
+            for (int i = _children.Count - 1; i >= 0; i--)
+            {
+                var c = _children[i];
+                if (c.Visible && c.Tag is string s && s == "AlignRight")
+                {
+                    var w = c.Width;
+                    xRight -= w;
+                    c.Bounds = new Rectangle(xRight, _itemsMargin.Top, w, h);
+                    xRight -= _itemsMargin.Width;
+                }
+            }
             for (int i = 0; i < _children.Count; i++)
             {
                 var c = _children[i];
-                if (c.Visible)
+                if (c.Visible && !(c.Tag is string s && s == "AlignRight"))
                 {
                     var w = c.Width;
-                    c.Bounds = new Rectangle(x, _itemsMargin.Top, w, h);
-                    x += w + _itemsMargin.Width;
+                    c.Bounds = new Rectangle(xLeft, _itemsMargin.Top, w, h);
+                    xLeft += w + _itemsMargin.Width;
                 }
             }
         }

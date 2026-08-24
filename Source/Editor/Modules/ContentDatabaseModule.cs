@@ -1,14 +1,15 @@
 // Copyright (c) Wojciech Figat. All rights reserved.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using FlaxEditor.Content;
 using FlaxEditor.Content.Settings;
 using FlaxEditor.Scripting;
 using FlaxEngine;
 using FlaxEngine.Utilities;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
 
 namespace FlaxEditor.Modules
 {
@@ -580,7 +581,7 @@ namespace FlaxEditor.Modules
                     // Delete old folder
                     try
                     {
-                        Directory.Delete(oldPath, true);
+                        DeleteDirectory(oldPath);
                     }
                     catch (Exception ex)
                     {
@@ -726,7 +727,7 @@ namespace FlaxEditor.Modules
 
                     try
                     {
-                        Directory.Delete(path, true);
+                        DeleteDirectory(path);
                     }
                     catch (Exception ex)
                     {
@@ -762,7 +763,17 @@ namespace FlaxEditor.Modules
                 {
                     // Delete file
                     if (File.Exists(path))
-                        File.Delete(path);
+                    {
+                        try
+                        {
+                            File.SetAttributes(path, FileAttributes.Normal);
+                            File.Delete(path);
+                        }
+                        catch (Exception ex)
+                        {
+                            Editor.LogWarning(ex);
+                        }
+                    }
                 }
 
                 // Unlink from the parent
@@ -774,6 +785,47 @@ namespace FlaxEditor.Modules
 
             if (_enableEvents)
                 WorkspaceModified?.Invoke();
+        }
+
+        private static void DeleteDirectory(string path)
+        {
+            if (!Directory.Exists(path))
+                return;
+
+            // Remove ReadOnly and Hidden attributes recursively (prevents UnauthorizedAccessException on Windows/OneDrive)
+            try
+            {
+                var dirInfo = new DirectoryInfo(path);
+                dirInfo.Attributes = FileAttributes.Normal;
+                foreach (var file in dirInfo.GetFiles("*", SearchOption.AllDirectories))
+                {
+                    if ((file.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden)) != 0)
+                        file.Attributes = FileAttributes.Normal;
+                }
+                foreach (var subDir in dirInfo.GetDirectories("*", SearchOption.AllDirectories))
+                {
+                    if ((subDir.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden)) != 0)
+                        subDir.Attributes = FileAttributes.Normal;
+                }
+            }
+            catch
+            {
+                // Ignore attribute clearing errors and proceed to delete
+            }
+
+            // Retry deletion on transient locks (common with OneDrive / Windows Indexer)
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    Directory.Delete(path, true);
+                    return;
+                }
+                catch (Exception) when (attempt < 4)
+                {
+                    Thread.Sleep(50 * (attempt + 1));
+                }
+            }
         }
 
         /// <summary>
@@ -878,6 +930,30 @@ namespace FlaxEditor.Modules
             }
         }
 
+        private static bool IsIgnoredFolder(ContentFolderTreeNode parentNode, string folderPath)
+        {
+            var folderName = Path.GetFileName(folderPath);
+            if (string.IsNullOrEmpty(folderName))
+                return true;
+
+            // Ignore hidden and system directories
+            if (folderName.StartsWith('.'))
+                return true;
+
+            // Ignore build output and IDE folders inside source code trees
+            if (parentNode.CanHaveScripts || parentNode.FolderType == ContentFolderType.Source)
+            {
+                if (string.Equals(folderName, "obj", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(folderName, "Properties", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(folderName, "bin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private void LoadFolder(ContentFolderTreeNode node, bool checkSubDirs)
         {
             if (node == null)
@@ -901,10 +977,9 @@ namespace FlaxEditor.Modules
                 for (int i = 0; i < folder.Children.Count; i++)
                 {
                     var child = folder.Children[i];
-                    if (!child.Exists)
+                    if (!child.Exists || (child.IsFolder && IsIgnoredFolder(node, child.Path)))
                     {
-                        // Item doesn't exist anymore
-                        Editor.Log(string.Format($"Content item \'{child.Path}\' has been removed"));
+                        // Item doesn't exist anymore or is an ignored directory
                         Delete(child);
                         i--;
                     }
@@ -952,6 +1027,10 @@ namespace FlaxEditor.Modules
             {
                 var childPath = StringUtils.NormalizePath(childFolders[i]);
 
+                // Skip ignored folders completely so they are never added to the database or tree
+                if (IsIgnoredFolder(node, childPath))
+                    continue;
+
                 // Check if node already has that element (skip during init when we want to walk project dir very fast)
                 ContentFolder childFolderNode = _isDuringFastSetup ? null : node.Folder.FindChild(childPath) as ContentFolder;
                 if (childFolderNode == null)
@@ -981,22 +1060,22 @@ namespace FlaxEditor.Modules
             if (sortChildren)
                 node.SortChildren();
 
-            // Ignore some special folders
-            if (node is MainContentFolderTreeNode mainNode && mainNode.Folder.ShortName == "Source")
-            {
-                var mainNodeChild = mainNode.Folder.Find(StringUtils.CombinePaths(mainNode.Path, "obj")) as ContentFolder;
-                if (mainNodeChild != null)
-                {
-                    mainNodeChild.Visible = false;
-                    mainNodeChild.Node.Visible = false;
-                }
-                mainNodeChild = mainNode.Folder.Find(StringUtils.CombinePaths(mainNode.Path, "Properties")) as ContentFolder;
-                if (mainNodeChild != null)
-                {
-                    mainNodeChild.Visible = false;
-                    mainNodeChild.Node.Visible = false;
-                }
-            }
+            // Special folder ignoring is now handled up-front in IsIgnoredFolder
+            //if (node is MainContentFolderTreeNode mainNode && mainNode.Folder.ShortName == "Source")
+            //{
+            //    var mainNodeChild = mainNode.Folder.Find(StringUtils.CombinePaths(mainNode.Path, "obj")) as ContentFolder;
+            //    if (mainNodeChild != null)
+            //    {
+            //        mainNodeChild.Visible = false;
+            //        mainNodeChild.Node.Visible = false;
+            //    }
+            //    mainNodeChild = mainNode.Folder.Find(StringUtils.CombinePaths(mainNode.Path, "Properties")) as ContentFolder;
+            //    if (mainNodeChild != null)
+            //    {
+            //        mainNodeChild.Visible = false;
+            //        mainNodeChild.Node.Visible = false;
+            //    }
+            //}
         }
 
         private void LoadScripts(ContentFolderTreeNode parent, string[] files)

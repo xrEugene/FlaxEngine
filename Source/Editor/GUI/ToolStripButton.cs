@@ -18,6 +18,11 @@ namespace FlaxEditor.GUI
         /// </summary>
         public const int DefaultMargin = 2;
 
+        /// <summary>
+        /// Extra width in pixels added to the auto-computed width during layout.
+        /// </summary>
+        public float ExtraWidth;
+
         private SpriteHandle _icon;
         private string _text;
         private bool _primaryMouseDown;
@@ -138,15 +143,29 @@ namespace FlaxEditor.GUI
             // Cache data
             var style = Style.Current;
             float iconSize = Height - DefaultMargin;
+            float iconDrawSize = iconSize - 6;
+            float iconDrawOffset = DefaultMargin + (iconSize - iconDrawSize) * 0.5f;
             var clientRect = new Rectangle(Float2.Zero, Size);
-            var iconRect = new Rectangle(DefaultMargin, DefaultMargin, iconSize, iconSize);
+            var iconRect = new Rectangle(iconDrawOffset, iconDrawOffset, iconDrawSize, iconDrawSize);
             var textRect = new Rectangle(DefaultMargin, 0, 0, Height);
             bool enabled = EnabledInHierarchy;
             bool mouseButtonDown = _primaryMouseDown || _secondaryMouseDown;
 
             // Draw background
             if (enabled && (IsMouseOver || IsNavFocused || Checked))
-                Render2D.FillRectangle(clientRect, Checked ? style.BackgroundSelected : mouseButtonDown ? style.BackgroundHighlighted : (style.LightBackground * 1.3f));
+            {
+                if (mouseButtonDown || Checked)
+                {
+                    // Pressed/checked: use selected-tab color with a thin blue accent line at the bottom (Restored)
+                    Render2D.FillRectangle(clientRect, style.ContentBackground);
+                    Render2D.FillRectangle(new Rectangle(clientRect.X, clientRect.Bottom - 2, clientRect.Width, 2), style.BackgroundSelected);
+                }
+                else
+                {
+                    // Hover: same as tab hover
+                    Render2D.FillRectangle(clientRect, style.BackgroundHighlighted);
+                }
+            }
 
             // Draw icon
             if (_icon.IsValid)
@@ -159,7 +178,9 @@ namespace FlaxEditor.GUI
             if (!string.IsNullOrEmpty(_text))
             {
                 textRect.Size.X = Width - DefaultMargin - textRect.Left;
-                Render2D.DrawText(style.FontMedium, _text, textRect, enabled ? style.Foreground : style.ForegroundDisabled, TextAlignment.Near, TextAlignment.Center);
+                var textAlign = ExtraWidth > 0 && !_icon.IsValid ? TextAlignment.Center : TextAlignment.Near;
+                var drawRect = textAlign == TextAlignment.Center ? new Rectangle(0, 0, Width, Height) : textRect;
+                Render2D.DrawText(style.FontMedium, _text, drawRect, enabled ? style.Foreground : style.ForegroundDisabled, textAlign, TextAlignment.Center);
             }
         }
 
@@ -176,7 +197,7 @@ namespace FlaxEditor.GUI
             if (!string.IsNullOrEmpty(_text) && style.FontMedium)
                 width += style.FontMedium.MeasureText(_text).X + (hasSprite ? DefaultMargin : 0);
 
-            Width = width;
+            Width = width + ExtraWidth;
         }
 
         /// <inheritdoc />

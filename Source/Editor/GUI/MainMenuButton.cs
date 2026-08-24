@@ -49,7 +49,7 @@ namespace FlaxEditor.GUI
             }
             else
             {
-                BackgroundColorMouseOver = BackgroundColorMouseOverOpened = style.LightBackground * 1.3f;
+                BackgroundColorMouseOver = BackgroundColorMouseOverOpened = style.BackgroundHighlighted;
             }
         }
 
@@ -63,10 +63,22 @@ namespace FlaxEditor.GUI
             var isOpened = ContextMenu.IsOpened;
             bool enabled = EnabledInHierarchy;
 
-            // Draw background
-            if (enabled && hasChildItems && (isOpened || IsMouseOver))
+            // Draw background: active tab background and bottom blue accent line when opened/selected, standard highlight on hover
+            if (enabled && hasChildItems)
             {
-                Render2D.FillRectangle(clientRect, isOpened ? BackgroundColorMouseOverOpened : BackgroundColorMouseOver);
+                if (isOpened)
+                {
+                    // Active tab background color
+                    Render2D.FillRectangle(clientRect, style.ContentBackground);
+
+                    // 2px bottom blue line matching selected dropdown
+                    var accent = new Rectangle(0, clientRect.Height - 2.0f, clientRect.Width, 2.0f);
+                    Render2D.FillRectangle(accent, style.BackgroundSelected);
+                }
+                else if (IsMouseOver)
+                {
+                    Render2D.FillRectangle(clientRect, BackgroundColorMouseOver);
+                }
             }
 
             // Draw text

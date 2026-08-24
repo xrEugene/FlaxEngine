@@ -33,7 +33,7 @@ namespace FlaxEditor.SceneGraph.GUI
         private DragControlType _dragControlType;
         private DragScriptItems _dragScriptItems;
         private DragHandlers _dragHandlers;
-        private List<Rectangle> _highlights;
+        private QueryFilterHelper.Range[] _highlights;
         private bool _hasSearchFilter;
 
         /// <summary>
@@ -178,8 +178,8 @@ namespace FlaxEditor.SceneGraph.GUI
             bool isThisVisible;
             if (noFilter)
             {
-                // Clear filter
-                _highlights?.Clear();
+                // Clear filter highlights
+                _highlights = null;
                 isThisVisible = true;
             }
             else if (filterText.Contains(':'))
@@ -270,20 +270,8 @@ namespace FlaxEditor.SceneGraph.GUI
                         var text = Text;
                         if (QueryFilterHelper.Match(trimmedFilter, text, out QueryFilterHelper.Range[] ranges))
                         {
-                            // Update highlights
-                            if (_highlights == null)
-                                _highlights = new List<Rectangle>(ranges.Length);
-                            else
-                                _highlights.Clear();
-                            var font = Style.Current.FontSmall;
-                            var textRect = TextRect;
-                            for (int i = 0; i < ranges.Length; i++)
-                            {
-                                var range = ranges[i];
-                                var start = font.GetCharPosition(text, range.StartIndex);
-                                var end = font.GetCharPosition(text, range.EndIndex);
-                                _highlights.Add(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height));
-                            }
+                            // Cache matched text ranges to compute positions dynamically at Draw time
+                            _highlights = ranges;
                             hasFilter = true;
                         }
                     }
@@ -297,31 +285,18 @@ namespace FlaxEditor.SceneGraph.GUI
 
                 isThisVisible = hasAllFilters;
                 if (!hasAllFilters)
-                    _highlights?.Clear();
+                    _highlights = null;
             }
             else if (QueryFilterHelper.Match(filterText, Text, out QueryFilterHelper.Range[] ranges))
             {
-                // Update highlights
-                if (_highlights == null)
-                    _highlights = new List<Rectangle>(ranges.Length);
-                else
-                    _highlights.Clear();
-                var font = Style.Current.FontSmall;
-                var textRect = TextRect;
-                var text = Text;
-                for (int i = 0; i < ranges.Length; i++)
-                {
-                    var range = ranges[i];
-                    var start = font.GetCharPosition(text, range.StartIndex);
-                    var end = font.GetCharPosition(text, range.EndIndex);
-                    _highlights.Add(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height));
-                }
+                // Cache matched text ranges to compute positions dynamically at Draw time
+                _highlights = ranges;
                 isThisVisible = true;
             }
             else
             {
-                // Hide
-                _highlights?.Clear();
+                // Hide and clear highlights
+                _highlights = null;
                 isThisVisible = false;
             }
 
@@ -346,13 +321,10 @@ namespace FlaxEditor.SceneGraph.GUI
                 isExpanded = Editor.Instance.ProjectCache.IsExpandedActor(ref id);
             }
 
-            if (!noFilter)
-            {
-                if (isExpanded)
-                    Expand(true);
-                else
-                    Collapse(true);
-            }
+            if (isExpanded)
+                Expand(true);
+            else
+                Collapse(true);
 
             Visible = isThisVisible | isAnyChildVisible;
         }
@@ -492,13 +464,25 @@ namespace FlaxEditor.SceneGraph.GUI
         {
             base.Draw();
 
-            // Draw all highlights
-            if (_highlights != null)
+            // Dynamically calculate and draw highlight rectangles using the post-layout TextRect
+            if (_highlights != null && _highlights.Length > 0)
             {
-                var style = Style.Current;
-                var color = style.ProgressNormal * 0.6f;
-                for (int i = 0; i < _highlights.Count; i++)
-                    Render2D.FillRectangle(_highlights[i], color);
+                var font = TextFont.GetFont();
+                if (font)
+                {
+                    var style = Style.Current;
+                    var color = style.ProgressNormal * 0.6f;
+                    var textRect = TextRect;
+                    var text = Text;
+                    for (int i = 0; i < _highlights.Length; i++)
+                    {
+                        var range = _highlights[i];
+                        var start = font.GetCharPosition(text, range.StartIndex);
+                        var end = font.GetCharPosition(text, range.EndIndex);
+                        var rect = new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height);
+                        Render2D.FillRectangle(rect, color);
+                    }
+                }
             }
         }
 

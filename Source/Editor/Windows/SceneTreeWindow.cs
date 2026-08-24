@@ -51,19 +51,23 @@ namespace FlaxEditor.Windows
             Title = "Scene";
             Icon = editor.Icons.Globe32;
 
+            var style = Style.Current;
+            BackgroundColor = style.ContentBackground;
+
             // Scene searching query input box
             var headerPanel = new ContainerControl
             {
                 AnchorPreset = AnchorPresets.HorizontalStretchTop,
-                BackgroundColor = Style.Current.Background,
+                BackgroundColor = style.ContentBackground,
                 IsScrollable = false,
-                Offsets = new Margin(0, 0, 0, 18 + 6),
+                Offsets = new Margin(0, 0, 0, 23 + 6),
+                Parent = this,
             };
             _searchBox = new SearchBox
             {
                 AnchorPreset = AnchorPresets.HorizontalStretchMiddle,
                 Parent = headerPanel,
-                Bounds = new Rectangle(4, 4, headerPanel.Width - 8, 18),
+                Bounds = new Rectangle(4, 4, headerPanel.Width - 8, 23),
                 TooltipText = "Search the scene tree.\n\nYou can prefix your search with different search operators:\ns: -> Actor with script of type\na: -> Actor type\nc: -> Control type",
             };
             _searchBox.TextChanged += OnSearchBoxTextChanged;
@@ -76,6 +80,7 @@ namespace FlaxEditor.Windows
                 Offsets = new Margin(0, 0, headerPanel.Bottom, 0),
                 IsScrollable = true,
                 ScrollBars = ScrollBars.Both,
+                BackgroundColor = style.ContentBackground,
                 Parent = this,
             };
 
@@ -101,8 +106,6 @@ namespace FlaxEditor.Windows
                     ScrollToSelectedNode();
                 }
             };
-
-            headerPanel.Parent = this;
 
             // Setup input actions
             InputActions.Add(options => options.TranslateMode, () => Editor.MainTransformGizmo.ActiveMode = TransformGizmoBase.Mode.Translate);

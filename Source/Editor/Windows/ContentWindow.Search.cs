@@ -50,12 +50,21 @@ namespace FlaxEditor.Windows
 
                 // Background
                 Render2D.FillRectangle(clientRect, backgroundColor);
-                Render2D.DrawRectangle(clientRect, borderColor);
+                if (enabled && (isOpened || _mouseDown))
+                {
+                    var accent = new Rectangle(0, clientRect.Height - 2.0f, clientRect.Width, 2.0f);
+                    Render2D.FillRectangle(accent, FlaxEngine.GUI.Style.Current.BackgroundSelected);
+                }
+                else
+                {
+                    Render2D.DrawRectangle(clientRect, borderColor);
+                }
 
                 // Draw text
-                float textScale = Height / DefaultHeight;
+                const float textScale = 1.0f;
                 var textRect = new Rectangle(margin, 0, clientRect.Width - boxSize - 2.0f * margin, clientRect.Height);
                 Render2D.PushClip(textRect);
+
                 var textColor = TextColor;
                 Render2D.DrawText(Font.GetFont(), "View", textRect, enabled ? textColor : textColor * 0.5f, TextAlignment.Near, TextAlignment.Center, TextWrapping.NoWrap, 1.0f, textScale);
                 Render2D.PopClip();
@@ -173,6 +182,7 @@ namespace FlaxEditor.Windows
             if (_itemsSearchBox.TextLength == 0 && !_viewDropdown.HasSelection)
             {
                 _view.IsSearching = false;
+                _view.SearchFilterText = null;
                 RefreshView();
                 return;
             }
@@ -180,6 +190,8 @@ namespace FlaxEditor.Windows
             // Apply filter
             var items = new List<ContentItem>(8);
             var query = _itemsSearchBox.Text;
+            _view.SearchFilterText = string.IsNullOrWhiteSpace(query) ? null : query;
+
             var filters = new bool[_viewDropdown.Items.Count];
             if (_viewDropdown.HasSelection)
             {

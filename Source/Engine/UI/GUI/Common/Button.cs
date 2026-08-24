@@ -99,6 +99,11 @@ namespace FlaxEngine.GUI
         public bool IsPressed => _isPressed;
 
         /// <summary>
+        /// Gets or sets if to display default gradient background or display custom properties.
+        /// </summary>
+        public bool DrawDefault { get; set; } = true;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Button"/> class.
         /// </summary>
         public Button()
@@ -198,6 +203,7 @@ namespace FlaxEngine.GUI
             bool enabled = EnabledInHierarchy;
             Color backgroundColor = BackgroundColor;
             Color borderColor = BorderColor;
+            bool isNormal = enabled && !_isPressed && !IsMouseOver && !IsNavFocused;
             if (!enabled)
             {
                 backgroundColor *= 0.5f;
@@ -216,10 +222,60 @@ namespace FlaxEngine.GUI
 
             // Draw background
             if (BackgroundBrush != null)
+            {
                 BackgroundBrush.Draw(clientRect, backgroundColor);
+            }
+            else if (isNormal)
+            {
+                // Default (unselected) state: bottom-to-top gradient from inactive tab gray to active tab gray, no outline
+                var style = Style.Current;
+                if (style != null && DrawDefault)
+                {
+                    var bottom = (Color)style.BackgroundHighlighted;
+                    var top = (Color)style.ContentBackground;
+                    Render2D.FillRectangle(clientRect, bottom, bottom, top, top);
+                }
+                else
+                {
+                    Render2D.FillRectangle(clientRect, backgroundColor);
+                }
+            }
+            else if (enabled && _isPressed)
+            {
+                // Pressed state: bottom-to-top gradient from active tab gray to selected/blue accent, no outline
+                var style = Style.Current;
+                if (style != null && DrawDefault)
+                {
+                    var bottom = (Color)style.ContentBackground;
+                    var top = (Color)style.BackgroundSelected;
+                    Render2D.FillRectangle(clientRect, bottom, bottom, top, top);
+                }
+                else
+                {
+                    Render2D.FillRectangle(clientRect, backgroundColor);
+                }
+            }
+            else if (enabled && (IsMouseOver || IsNavFocused))
+            {
+                // Hover state: bottom-to-top gradient from hover tab color to active tab color, no outline
+                var style = Style.Current;
+                if (style != null && DrawDefault)
+                {
+                    var bottom = (Color)style.BackgroundHighlighted * 1.15f;
+                    bottom.A = 1.0f;
+                    var top = (Color)style.ContentBackground;
+                    Render2D.FillRectangle(clientRect, bottom, bottom, top, top);
+                }
+                else
+                {
+                    Render2D.FillRectangle(clientRect, backgroundColor);
+                }
+            }
             else
+            {
                 Render2D.FillRectangle(clientRect, backgroundColor);
-            if (HasBorder)
+            }
+            if (HasBorder && !isNormal && !(enabled && (_isPressed || IsMouseOver || IsNavFocused)))
                 Render2D.DrawRectangle(clientRect, borderColor, BorderThickness);
 
             // Draw text

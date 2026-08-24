@@ -231,7 +231,7 @@ namespace FlaxEditor.GUI.Tree
         /// <summary>
         /// Gets the arrow rectangle.
         /// </summary>
-        public Rectangle ArrowRect => CustomArrowRect.HasValue ? CustomArrowRect.Value : new Rectangle(_xOffset + 2 + _margin.Left, 2, 12, 12);
+        public Rectangle ArrowRect => CustomArrowRect.HasValue ? CustomArrowRect.Value : new Rectangle(_xOffset + 2 + _margin.Left, (_headerHeight - 12.0f) * 0.5f, 12.0f, 12.0f);
 
         /// <summary>
         /// Gets the header rectangle.
@@ -332,7 +332,7 @@ namespace FlaxEditor.GUI.Tree
             TextColor = style.Foreground;
             BackgroundColorSelected = style.BackgroundSelected;
             BackgroundColorHighlighted = style.BackgroundHighlighted;
-            BackgroundColorSelectedUnfocused = style.LightBackground;
+            BackgroundColorSelectedUnfocused = Color.Lerp(style.ContentBackground, style.BackgroundHighlighted, 0.5f);
             TextFont = new FontReference(style.FontSmall);
         }
 
@@ -340,6 +340,7 @@ namespace FlaxEditor.GUI.Tree
         /// Expand node.
         /// </summary>
         /// <param name="noAnimation">True if skip node expanding animation.</param>
+        /// <param name="nesting">The nesting level.</param>
         public void Expand(bool noAnimation = false)
         {
             // Parents first
@@ -375,6 +376,34 @@ namespace FlaxEditor.GUI.Tree
                 _animationProgress = 1.0f;
             else if (prevState != _opened)
                 _animationProgress = 1.0f - _animationProgress;
+
+            // If any selected tree node is now hidden (a descendant of this collapsed node),
+            // move the selection up to this node so the user still has a valid visible selection.
+            var tree = ParentTree;
+            if (tree != null && tree.Selection.Count > 0)
+            {
+                bool selectionHidden = false;
+                for (int i = 0; i < tree.Selection.Count; i++)
+                {
+                    var selected = tree.Selection[i];
+                    if (selected == this)
+                        continue;
+                    var p = selected?.Parent as TreeNode;
+                    while (p != null)
+                    {
+                        if (p == this)
+                        {
+                            selectionHidden = true;
+                            break;
+                        }
+                        p = p.Parent as TreeNode;
+                    }
+                    if (selectionHidden)
+                        break;
+                }
+                if (selectionHidden)
+                    tree.Select(this);
+            }
 
             // Update
             OnExpandedChanged();
@@ -508,6 +537,10 @@ namespace FlaxEditor.GUI.Tree
         /// <returns>True if event has been handled.</returns>
         protected virtual bool OnMouseDoubleClickHeader(ref Float2 location, MouseButton button)
         {
+            // Only expand/collapse on left double-click
+            if (button != MouseButton.Left)
+                return false;
+
             if (HasAnyVisibleChild && _animationProgress >= 1.0f)
             {
                 // Toggle open state (ignored while an expand/collapse animation is running)
@@ -701,6 +734,22 @@ namespace FlaxEditor.GUI.Tree
             var tree = ParentTree;
             bool isSelected = tree.Selection.Contains(this);
             bool isFocused = tree.ContainsFocus;
+            if (!isFocused)
+            {
+                // Consider the containing dock window's active/selected state so the accent stays visible
+                // when user clicks empty space inside the same window without changing tab.
+                var p = Parent;
+                while (p != null)
+                {
+                    if (p is FlaxEditor.GUI.Docking.DockWindow dw)
+                    {
+                        if (dw.IsSelected)
+                            isFocused = true;
+                        break;
+                    }
+                    p = p.Parent;
+                }
+            }
             var left = _xOffset + 16; // offset + arrow
             var textRect = new Rectangle(left, 0, Width - left, _headerHeight);
             _margin.ShrinkRectangle(ref textRect);
@@ -708,15 +757,21 @@ namespace FlaxEditor.GUI.Tree
             // Draw background
             if (isSelected || _mouseOverHeader)
             {
-                Render2D.FillRectangle(_headerRect, (isSelected && isFocused) ? BackgroundColorSelected : (_mouseOverHeader ? BackgroundColorHighlighted : BackgroundColorSelectedUnfocused));
+                var fill = _mouseOverHeader && !isSelected ? BackgroundColorHighlighted : BackgroundColorSelectedUnfocused;
+                Render2D.FillRectangle(_headerRect, fill);
+                // Thin blue accent line on the left when selected and focused
+                if (isSelected && isFocused)
+                {
+                    var accent = new Rectangle(_headerRect.X, _headerRect.Y, 3.0f, _headerRect.Height);
+                    Render2D.FillRectangle(accent, BackgroundColorSelected);
+                }
             }
             else if (tree != null && _headerHeight > 0.0f)
             {
-                // Alternating (zebra) row background based on this header's Y position in tree coordinates
+                // Alternating (zebra) row background across all tree views (even rows: ContentBackground, odd rows: TreeAlternateRowBackground)
                 float yInTree = PointToParent(tree, Float2.Zero).Y;
                 int rowIndex = Mathf.FloorToInt(yInTree / _headerHeight);
-                if ((rowIndex & 1) != 0)
-                    Render2D.FillRectangle(_headerRect, style.TreeAlternateRowBackground);
+                Render2D.FillRectangle(_headerRect, (rowIndex & 1) != 0 ? style.TreeAlternateRowBackground : style.ContentBackground);
             }
 
             // Draw arrow
@@ -797,7 +852,7 @@ namespace FlaxEditor.GUI.Tree
                     var lineRect1 = new Rectangle(parentNode.TextRect.Left - leftOffset, parentNode.HeaderRect.Top + topOffset, 1, parentNode.HeaderRect.Height - bottomOffset);
                     if (HasAnyVisibleChild && CustomArrowRect.HasValue && CustomArrowRect.Value.Intersects(lineRect1))
                         lineRect1 = Rectangle.Empty; // Skip drawing line if it's overlapping the arrow rectangle
-                    Render2D.FillRectangle(lineRect1, isSelected ? style.ForegroundGrey : style.LightBackground);
+                    Render2D.FillRectangle(lineRect1, isSelected ? style.BackgroundNormal : style.LightBackground);
                     parentNode = parentNode.Parent as TreeNode;
                 }
             }
@@ -963,9 +1018,10 @@ namespace FlaxEditor.GUI.Tree
                         // Add/Remove
                         tree.AddOrRemoveSelection(this);
                     }
-                    else if (button == MouseButton.Right && tree.Selection.Contains(this))
+                    else if (button == MouseButton.Right)
                     {
-                        // Do nothing
+                        // Right-click: don't change selection here, just let the context menu open.
+                        // Changing selection would fire SelectedChanged and can trigger navigation/expansion side-effects.
                     }
                     else
                     {
@@ -974,8 +1030,9 @@ namespace FlaxEditor.GUI.Tree
                     }
                 }
 
-                // Check if mouse hits arrow (ignored while an expand/collapse animation is running)
-                if (_mouseOverArrow && HasAnyVisibleChild && _animationProgress >= 1.0f)
+                // Check if mouse hits arrow (ignored while an expand/collapse animation is running).
+                // Right-click never toggles expand/collapse.
+                if (button == MouseButton.Left && _mouseOverArrow && HasAnyVisibleChild && _animationProgress >= 1.0f)
                 {
                     if (ParentTree.Root.GetKey(KeyboardKeys.Alt))
                     {

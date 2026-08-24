@@ -1096,9 +1096,22 @@ namespace FlaxEditor.Modules
                 }
             }
 
-            // Load current workspace layout
-            if (!LoadLayout(_windowsLayoutPath))
+            // Load current workspace layout (force default once when layout version bumps)
+            const string layoutVersion = "1.0";
+            var layoutVersionPath = StringUtils.CombinePaths(Globals.ProjectCacheFolder, "WindowsLayoutVersion.txt");
+            bool forceDefault = false;
+            try
+            {
+                if (!File.Exists(layoutVersionPath) || File.ReadAllText(layoutVersionPath).Trim() != layoutVersion)
+                    forceDefault = true;
+            }
+            catch { forceDefault = true; }
+
+            if (forceDefault || !LoadLayout(_windowsLayoutPath))
                 LoadDefaultLayout();
+
+            try { File.WriteAllText(layoutVersionPath, layoutVersion); }
+            catch { /* ignore */ }
 
             // Clear timer flag
             _lastLayoutSaveTime = DateTime.UtcNow;

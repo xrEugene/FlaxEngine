@@ -26,8 +26,13 @@ namespace FlaxEditor.GUI.ContextMenu
         {
             base.Draw();
 
-            // Draw separator line
-            Render2D.FillRectangle(new Rectangle(0, 1, Width - 4, 1), Style.Current.LightBackground);
+            // Draw separator line. The separator control is offset by the items margin (left indent),
+            // so extend the line back to the panel origin so left/right insets look symmetrical.
+            const float inset = 6f;
+            const float thickness = 2f;
+            float leftOffset = -X + inset;
+            float width = Width - leftOffset - inset;
+            Render2D.FillRectangle(new Rectangle(leftOffset, 1, width, thickness), Style.Current.BackgroundHighlighted);
         }
     }
 }

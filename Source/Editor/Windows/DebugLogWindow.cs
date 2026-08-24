@@ -74,7 +74,7 @@ namespace FlaxEditor.Windows
             /// <summary>
             /// The default height of the entries.
             /// </summary>
-            public const float DefaultHeight = 32.0f;
+            public const float DefaultHeight = 36.0f;
 
             private DebugLogWindow _window;
             public LogGroup Group;
@@ -134,24 +134,26 @@ namespace FlaxEditor.Windows
                 else if (IsMouseOver)
                     Render2D.FillRectangle(clientRect, style.BackgroundHighlighted);
                 else if (index % 2 == 0)
-                    Render2D.FillRectangle(clientRect, style.Background * 0.9f);
+                    Render2D.FillRectangle(clientRect, style.SecondaryBackground);
+                else
+                    Render2D.FillRectangle(clientRect, style.SecondaryBackground * 1.1f);
 
                 var color = Group == LogGroup.Error ? _window._colorError : (Group == LogGroup.Warning ? _window._colorWarning : _window._colorInfo);
 
                 // Icon
-                Render2D.DrawSprite(Icon, new Rectangle(8, 0, 32, 32), color);
+                Render2D.DrawSprite(Icon, new Rectangle(8, (clientRect.Height - 32) * 0.5f, 32, 32), color);
 
                 // Title
-                var textRect = new Rectangle(43, 2, clientRect.Width - 40, clientRect.Height - 10);
+                var textRect = new Rectangle(43, 0, clientRect.Width - 40, clientRect.Height);
                 Render2D.PushClip(ref clientRect);
                 bool coloredText = _window._colorDebugLogText;
                 if (LogCount == 1)
                 {
-                    Render2D.DrawText(style.FontMedium, Desc.Title, textRect, coloredText ? color : style.Foreground);
+                    Render2D.DrawText(style.FontMedium, Desc.Title, textRect, coloredText ? color : style.Foreground, TextAlignment.Near, TextAlignment.Center);
                 }
                 else if (LogCount > 1)
                 {
-                    Render2D.DrawText(style.FontMedium, $"{Desc.Title} ({LogCount})", textRect, coloredText ? color : style.Foreground);
+                    Render2D.DrawText(style.FontMedium, $"{Desc.Title} ({LogCount})", textRect, coloredText ? color : style.Foreground, TextAlignment.Near, TextAlignment.Center);
                 }
                 Render2D.PopClip();
             }
@@ -328,36 +330,75 @@ namespace FlaxEditor.Windows
         {
             Title = "Debug Log";
             Icon = _iconInfo;
+            BackgroundColor = Style.Current.SecondaryBackground;
             FlaxEditor.Utilities.Utils.SetupCommonInputActions(this);
 
             // Toolstrip
-            var toolstrip = new ToolStrip(22.0f)
+            var toolstrip = new ToolStrip(27.5f)
             {
                 Parent = this,
+                ItemsMargin = new Margin(0, 0, 1, 1),
+                BackgroundColor = Style.Current.ContentBackground,
             };
-            toolstrip.AddButton("Clear", Clear).LinkTooltip("Clears all log entries.");
+
+            var clearButton = new Button
+            {
+                Text = "Clear",
+                Height = toolstrip.ItemsHeight,
+                Width = 56,
+                Parent = toolstrip,
+            };
+            clearButton.Clicked += Clear;
+            clearButton.LinkTooltip("Clears all log entries.");
+            toolstrip.AddSeparator();
+
             _clearOnPlayButton = (ToolStripButton)toolstrip.AddButton("Clear on Play", () =>
             {
                 editor.Options.Options.Interface.DebugLogClearOnPlay = _clearOnPlayButton.Checked;
                 editor.Options.Apply(editor.Options.Options);
             }).SetAutoCheck(true).LinkTooltip("Clears all log entries on enter playmode.");
+            _clearOnPlayButton.ExtraWidth = _clearOnPlayButton.Width * 0.1f;
+            _clearOnPlayButton.PerformLayout();
+            toolstrip.AddSeparator();
+
             _collapseLogsButton = (ToolStripButton)toolstrip.AddButton("Collapse", () =>
             {
                 editor.Options.Options.Interface.DebugLogCollapse = _collapseLogsButton.Checked;
                 editor.Options.Apply(editor.Options.Options);
             }).SetAutoCheck(true).LinkTooltip("Collapses similar logs.");
+            _collapseLogsButton.ExtraWidth = _collapseLogsButton.Width * 0.1f;
+            _collapseLogsButton.PerformLayout();
+            toolstrip.AddSeparator();
+
             _pauseOnErrorButton = (ToolStripButton)toolstrip.AddButton("Pause on Error", () =>
             {
                 editor.Options.Options.Interface.DebugLogPauseOnError = _pauseOnErrorButton.Checked;
                 editor.Options.Apply(editor.Options.Options);
             }).SetAutoCheck(true).LinkTooltip("Performs auto pause on error.");
-            toolstrip.AddSeparator();
+            _pauseOnErrorButton.ExtraWidth = _pauseOnErrorButton.Width * 0.1f;
+            _pauseOnErrorButton.PerformLayout();
+
             _groupButtons[0] = (ToolStripButton)toolstrip.AddButton(editor.Icons.Error32, () => { OnGroupButtonPressed(0); })
                                                          .SetAutoCheck(true).LinkTooltip("Shows/hides error messages.");
+
+            _groupButtons[0].ExtraWidth = 5.0f;
+            _groupButtons[0].Tag = "AlignRight";
+            var sepGroup1 = toolstrip.AddSeparator();
+            sepGroup1.Tag = "AlignRight";
+
             _groupButtons[1] = (ToolStripButton)toolstrip.AddButton(editor.Icons.Warning32, () => { OnGroupButtonPressed(1); })
                                                          .SetAutoCheck(true).LinkTooltip("Shows/hides warning messages.");
+
+            _groupButtons[1].ExtraWidth = 5.0f;
+            _groupButtons[1].Tag = "AlignRight";
+            var sepGroup2 = toolstrip.AddSeparator();
+            sepGroup2.Tag = "AlignRight";
+
             _groupButtons[2] = (ToolStripButton)toolstrip.AddButton(editor.Icons.Info32, () => { OnGroupButtonPressed(2); })
                                                          .SetAutoCheck(true).LinkTooltip("Shows/hides info messages.");
+
+            _groupButtons[2].ExtraWidth = 5.0f;
+            _groupButtons[2].Tag = "AlignRight";
             UpdateCount();
 
             // Split panel
@@ -365,9 +406,12 @@ namespace FlaxEditor.Windows
             {
                 AnchorPreset = AnchorPresets.StretchAll,
                 Offsets = new Margin(0, 0, toolstrip.Bottom, 0),
-                SplitterValue = 0.8f,
+                SplitterValue = 0.675f,
                 Parent = this
             };
+
+            _split.Width += 2f;
+            _split.Panel2.BackgroundColor = Style.Current.ContentBackground;
 
             // Info detail info
             _logInfo = new Label
@@ -388,6 +432,7 @@ namespace FlaxEditor.Windows
                 AnchorPreset = AnchorPresets.HorizontalStretchTop,
                 Pivot = Float2.Zero,
                 Offsets = Margin.Zero,
+                Spacing = 0,
                 IsScrollable = true,
                 Parent = _split.Panel1,
             };
@@ -404,6 +449,23 @@ namespace FlaxEditor.Windows
 
             // Init editor options
             OnEditorOptionsChanged(Editor.Options.Options);
+
+            // Debug: seed 100 test log entries on editor launch
+            for (int i = 0; i < 100; i++)
+            {
+                var type = (i % 3) switch
+                {
+                    0 => LogType.Info,
+                    1 => LogType.Warning,
+                    _ => LogType.Error,
+                };
+                var stackTrace =
+                    "  at FlaxEngine.Debug.Log(Object message) in C:\\Flax\\Engine\\Source\\Engine\\Debug.cs:line 15\n" +
+                    $"  at MyGame.TestScript.Update() in C:\\Flax\\Projects\\MyProject\\Source\\TestScript.cs:line {10 + i}\n" +
+                    "  at FlaxEngine.Scripting.Update() in C:\\Flax\\Engine\\Source\\Engine\\Scripting.cs:line 42\n" +
+                    "  at FlaxEngine.MainLoop.Tick() in C:\\Flax\\Engine\\Source\\Engine\\MainLoop.cs:line 128";
+                LogHandlerOnSendLog(type, $"Test log entry #{i} ({type})", null, stackTrace);
+            }
         }
 
         private void OnGroupButtonPressed(int index)
@@ -789,7 +851,7 @@ namespace FlaxEditor.Windows
         /// <inheritdoc />
         public override void OnLayoutDeserialize()
         {
-            _split.SplitterValue = 0.8f;
+            _split.SplitterValue = 0.675f;
         }
     }
 }

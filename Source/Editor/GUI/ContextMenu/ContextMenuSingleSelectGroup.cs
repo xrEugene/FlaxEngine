@@ -68,6 +68,7 @@ namespace FlaxEditor.GUI.ContextMenu
         private void AddItemToContextMenu(ContextMenu contextMenu, SingleSelectGroupItem item)
         {
             var btn = contextMenu.AddButton(item.Text, () => { SetSelected(item); });
+            btn.SupportsCheck = true;
             if (item.Tooltip != null)
                 btn.TooltipText = item.Tooltip;
             item.Buttons.Add(btn);

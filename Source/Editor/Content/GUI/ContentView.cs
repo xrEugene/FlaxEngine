@@ -177,6 +177,11 @@ namespace FlaxEditor.Content.GUI
         public bool IsSearching;
 
         /// <summary>
+        /// Current search query used to filter items. Used by items to highlight matched name ranges.
+        /// </summary>
+        public string SearchFilterText;
+
+        /// <summary>
         /// Flag used to indicate whenever show full file names including extensions.
         /// </summary>
         public bool ShowFileExtensions;
@@ -681,6 +686,8 @@ namespace FlaxEditor.Content.GUI
 
             if (button == MouseButton.Left)
             {
+                Focus();
+
                 _mousePressLocation = location;
                 _rubberBandRectangle = new Rectangle(_mousePressLocation, 0, 0);
                 _isRubberBandSpanning = true;
@@ -721,7 +728,11 @@ namespace FlaxEditor.Content.GUI
                     _rubberBandRectangle.Size = size;
                 }
                 var itemsInRectangle = _items.Where(t => _rubberBandRectangle.Intersects(t.Bounds)).ToList();
-                Select(itemsInRectangle, Input.GetKey(KeyboardKeys.Shift) || Input.GetKey(KeyboardKeys.Control));
+                bool additive = Input.GetKey(KeyboardKeys.Shift) || Input.GetKey(KeyboardKeys.Control);
+                // Don't clear selection on a plain click in empty area (no drag, no modifier)
+                if (itemsInRectangle.Count == 0 && !additive && _rubberBandRectangle.Size.LengthSquared < 4.0f)
+                    return true;
+                Select(itemsInRectangle, additive);
                 return true;
             }
 

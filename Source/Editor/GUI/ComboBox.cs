@@ -280,15 +280,15 @@ namespace FlaxEditor.GUI
             var style = Style.Current;
             Font = new FontReference(style.FontMedium);
             TextColor = style.Foreground;
-            BackgroundColor = style.BackgroundNormal;
-            BackgroundColorHighlighted = BackgroundColor;
-            BackgroundColorSelected = BackgroundColor;
-            BorderColor = style.BorderNormal;
-            BorderColorHighlighted = style.BorderSelected;
-            BorderColorSelected = BorderColorHighlighted;
+            BackgroundColor = style.ContentBackground;
+            BackgroundColorHighlighted = style.BackgroundHighlighted;
+            BackgroundColorSelected = style.ContentBackground;
+            BorderColor = Color.Transparent;
+            BorderColorHighlighted = Color.Transparent;
+            BorderColorSelected = style.BorderSelected;
             ArrowImage = new SpriteBrush(style.ArrowDown);
             ArrowColor = style.Foreground * 0.6f;
-            ArrowColorSelected = style.BackgroundSelected;
+            ArrowColorSelected = style.Foreground * 0.6f;
             ArrowColorHighlighted = style.Foreground;
         }
 
@@ -536,6 +536,7 @@ namespace FlaxEditor.GUI
             Color backgroundColor = BackgroundColor;
             Color borderColor = BorderColor;
             Color arrowColor = ArrowColor;
+
             if (!enabled)
             {
                 backgroundColor *= 0.5f;
@@ -556,7 +557,16 @@ namespace FlaxEditor.GUI
 
             // Background
             Render2D.FillRectangle(clientRect, backgroundColor);
-            Render2D.DrawRectangle(clientRect.MakeExpanded(-2.0f), borderColor);
+            if (enabled && (isOpened || _mouseDown))
+            {
+                // Draw narrow blue accent line at the bottom when selected/open
+                var accent = new Rectangle(0, clientRect.Height - 2.0f, clientRect.Width, 2.0f);
+                Render2D.FillRectangle(accent, Style.Current.BackgroundSelected);
+            }
+            else
+            {
+                Render2D.DrawRectangle(clientRect.MakeExpanded(-2.0f), borderColor);
+            }
 
             // Check if has selected item
             if (_selectedIndices != null && _selectedIndices.Count > 0)
@@ -567,6 +577,7 @@ namespace FlaxEditor.GUI
                 float textScale = Height / DefaultHeight;
                 var textRect = new Rectangle(margin, 0, clientRect.Width - boxSize - 2.0f * margin, clientRect.Height);
                 Render2D.PushClip(textRect);
+
                 var textColor = TextColor;
                 Render2D.DrawText(Font.GetFont(), text, textRect, enabled ? textColor : textColor * 0.5f, TextAlignment.Near, TextAlignment.Center, TextWrapping.NoWrap, 1.0f, textScale);
                 Render2D.PopClip();

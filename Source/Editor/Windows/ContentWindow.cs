@@ -28,14 +28,13 @@ namespace FlaxEditor.Windows
     {
         private const string ProjectDataLastViewedFolder = "LastViewedFolder";
         private const string ProjectDataExpandedFolders = "ExpandedFolders";
+        private const float DefaultSplitterValue = 0.1725f;
         private bool _isWorkspaceDirty;
         private string _workspaceRebuildLocation;
         private string _lastViewedFolderBeforeReload;
         private SplitPanel _split;
         private TreeViewPanel _treeOnlyPanel;
         private ContainerControl _treePanelRoot;
-        private ContainerControl _treeHeaderPanel;
-        private Panel _contentItemsSearchPanel;
         private Panel _contentViewPanel;
         private Panel _contentTreePanel;
         private ContentView _view;
@@ -159,6 +158,7 @@ namespace FlaxEditor.Windows
             Title = "Content";
             Icon = editor.Icons.Folder32;
             var style = Style.Current;
+            BackgroundColor = style.ContentBackground;
 
             FlaxEditor.Utilities.Utils.SetupCommonInputActions(this);
 
@@ -169,6 +169,7 @@ namespace FlaxEditor.Windows
             _toolStrip = new ToolStrip(34.0f)
             {
                 Parent = this,
+                BackgroundColor = style.ContentBackground,
             };
             _importButton = (ToolStripButton)_toolStrip.AddButton(Editor.Icons.Import64, () => Editor.ContentImporting.ShowImportFileDialog(CurrentViewFolder)).LinkTooltip("Import content.");
             _createNewButton = (ToolStripButton)_toolStrip.AddButton(Editor.Icons.Add64, OnCreateNewItemButtonClicked).LinkTooltip("Create a new asset. Shift + left click to create a new folder.");
@@ -178,12 +179,24 @@ namespace FlaxEditor.Windows
             _navigateUpButton = (ToolStripButton)_toolStrip.AddButton(Editor.Icons.Up64, NavigateUp).LinkTooltip("Navigate up.");
             _toolStrip.AddSeparator();
 
+            // Unified search bar placed inside the toolstrip row (right of the breadcrumb, left of the View dropdown)
+            _foldersSearchBox = new SearchBox
+            {
+                AnchorPreset = AnchorPresets.TopLeft,
+                Parent = this,
+            };
+            // Slightly smaller height for the content window search box so it fits nicely inside the toolstrip
+            _foldersSearchBox.Height = Mathf.Round(_foldersSearchBox.Height * 0.85f);
+            _foldersSearchBox.TextChanged += OnFoldersSearchBoxTextChanged;
+            _foldersSearchBox.TextChanged += UpdateItemsSearch;
+            _itemsSearchBox = _foldersSearchBox;
+
             // Split panel
             _split = new SplitPanel(options.Options.Interface.ContentWindowOrientation, ScrollBars.None, ScrollBars.None)
             {
                 AnchorPreset = AnchorPresets.StretchAll,
                 Offsets = new Margin(0, 0, _toolStrip.Bottom, 0),
-                SplitterValue = 0.2f,
+                SplitterValue = DefaultSplitterValue,
                 Parent = this,
             };
 
@@ -204,31 +217,14 @@ namespace FlaxEditor.Windows
                 Parent = _split.Panel1,
             };
 
-            // Content structure tree searching query input box
-            _treeHeaderPanel = new ContainerControl
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchTop,
-                BackgroundColor = style.Background,
-                IsScrollable = false,
-                Offsets = new Margin(0, 0, 0, 18 + 6),
-                Parent = _treePanelRoot,
-            };
-
-            _foldersSearchBox = new SearchBox
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchMiddle,
-                Parent = _treeHeaderPanel,
-                Bounds = new Rectangle(4, 4, _treeHeaderPanel.Width - 8, 18),
-            };
-            _foldersSearchBox.TextChanged += OnFoldersSearchBoxTextChanged;
-
             // Content tree panel
             _contentTreePanel = new Panel
             {
                 AnchorPreset = AnchorPresets.StretchAll,
-                Offsets = new Margin(0, 0, _treeHeaderPanel.Bottom, 0),
+                Offsets = Margin.Zero,
                 IsScrollable = true,
                 ScrollBars = ScrollBars.Both,
+                BackgroundColor = style.ContentBackground,
                 Parent = _treePanelRoot,
             };
 
@@ -241,26 +237,9 @@ namespace FlaxEditor.Windows
             _tree.SelectedChanged += OnTreeSelectionChanged;
             _treeOnlyPanel.ContentTree = _tree;
 
-            // Content items searching query input box and filters selector
-            _contentItemsSearchPanel = new Panel
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchTop,
-                IsScrollable = true,
-                Offsets = new Margin(0, 0, 0, 18 + 8),
-                Parent = _split.Panel2,
-            };
-
-            _itemsSearchBox = new SearchBox
-            {
-                AnchorPreset = AnchorPresets.HorizontalStretchMiddle,
-                Parent = _contentItemsSearchPanel,
-                Bounds = new Rectangle(4, 4, _contentItemsSearchPanel.Width - 8, 18),
-            };
-            _itemsSearchBox.TextChanged += UpdateItemsSearch;
-
             _viewDropdownPanel = new Panel
             {
-                Width = 50.0f,
+                Width = 75.0f,
                 Parent = this,
                 AnchorPreset = AnchorPresets.TopLeft,
                 BackgroundColor = Color.Transparent,
@@ -271,12 +250,12 @@ namespace FlaxEditor.Windows
                 SupportMultiSelect = true,
                 TooltipText = "Change content view and filter options",
                 Offsets = Margin.Zero,
-                Width = 46.0f,
-                Height = 18.0f,
+                Width = 60.0f,
+                Height = 23.0f,
                 Parent = _viewDropdownPanel,
             };
-            _viewDropdown.LocalX += 2.0f;
-            _viewDropdown.LocalY += _toolStrip.ItemsHeight * 0.5f - 9.0f;
+            _viewDropdown.LocalX += 12.0f;
+            _viewDropdown.LocalY += Mathf.Floor(_toolStrip.ItemsHeight * 0.5f - _viewDropdown.Height * 0.5f);
             _viewDropdown.SelectedIndexChanged += e => UpdateItemsSearch();
             for (int i = 0; i <= (int)ContentItemSearchFilter.Other; i++)
                 _viewDropdown.Items.Add(((ContentItemSearchFilter)i).ToString());
@@ -294,9 +273,10 @@ namespace FlaxEditor.Windows
             _contentViewPanel = new Panel
             {
                 AnchorPreset = AnchorPresets.StretchAll,
-                Offsets = new Margin(0, 0, _contentItemsSearchPanel.Bottom + 4, 0),
+                Offsets = new Margin(0, 0, 0, 0),
                 IsScrollable = true,
                 ScrollBars = ScrollBars.Vertical,
+                BackgroundColor = style.ContentBackground,
                 Parent = _split.Panel2,
             };
 
@@ -326,7 +306,7 @@ namespace FlaxEditor.Windows
 
         private void OnCreateNewItemButtonClicked()
         {
-            if (Input.GetKey(KeyboardKeys.Shift) && CanCreateFolder())
+            if (Input.GetKey(KeyboardKeys.Shift) && CanCreateFolder(CurrentViewFolder))
             {
                 NewFolder();
                 return;
@@ -340,6 +320,7 @@ namespace FlaxEditor.Windows
             CreateNewFolderMenu(menu, CurrentViewFolder, disableUnavaliable);
             CreateNewModuleMenu(menu, CurrentViewFolder, disableUnavaliable);
             menu.AddSeparator();
+            MakeContextMenuUnlimited(menu);
             CreateNewContentItemMenu(menu, CurrentViewFolder, false, disableUnavaliable);
             // Hack: Show the menu once to get the direction, then show it above or below the button depending on the direction.
             menu.Show(this, _createNewButton.UpperLeft);
@@ -436,6 +417,7 @@ namespace FlaxEditor.Windows
             {
                 var filterButton = filters.ContextMenu.AddButton(_viewDropdown.Items[i], OnFilterClicked);
                 filterButton.CloseMenuOnClick = false;
+                filterButton.SupportsCheck = true;
                 filterButton.Tag = i;
             }
             filters.ContextMenu.ButtonClicked += button =>
@@ -471,6 +453,7 @@ namespace FlaxEditor.Windows
                 }
             };
 
+            MakeContextMenuUnlimited(menu);
             return menu;
         }
 
@@ -501,8 +484,6 @@ namespace FlaxEditor.Windows
                 _treeOnlyPanel.Visible = true;
                 _treePanelRoot.Parent = _treeOnlyPanel;
                 _treePanelRoot.Offsets = Margin.Zero;
-                _contentItemsSearchPanel.Visible = false;
-                _itemsSearchBox.Visible = false;
                 _contentViewPanel.Visible = false;
                 RefreshTreeItems();
             }
@@ -512,8 +493,6 @@ namespace FlaxEditor.Windows
                 _split.Visible = true;
                 _treePanelRoot.Parent = _split.Panel1;
                 _treePanelRoot.Offsets = Margin.Zero;
-                _contentItemsSearchPanel.Visible = true;
-                _itemsSearchBox.Visible = true;
                 _contentViewPanel.Visible = true;
                 if (_tree.SelectedNode is ContentItemTreeNode itemNode && itemNode.Parent is TreeNode parentNode)
                     _tree.Select(parentNode);
@@ -817,7 +796,7 @@ namespace FlaxEditor.Windows
 
             // Sort items to remove files first, then folders
             var toDelete = new List<ContentItem>(items);
-            toDelete.Sort((a, b) => a.IsFolder ? 1 : b.IsFolder ? -1 : a.Compare(b));
+            toDelete.Sort((a, b) => a.IsFolder ? (b.IsFolder ? a.Compare(b) : 1) : (b.IsFolder ? -1 : a.Compare(b)));
 
             string singularPlural = toDelete.Count > 1 ? "s" : "";
 
@@ -1110,10 +1089,7 @@ namespace FlaxEditor.Windows
             {
                 // Show folder
                 var folder = (ContentFolder)item;
-                folder.Node.Expand();
                 _tree.Select(folder.Node);
-                if (!_showAllContentInTree)
-                    _view.SelectFirstItem();
                 return;
             }
 
@@ -1533,7 +1509,10 @@ namespace FlaxEditor.Windows
             _importButton.Enabled = folder != null && folder.CanHaveAssets;
             _navigateBackwardButton.Enabled = _navigationUndo.Count > 0;
             _navigateForwardButton.Enabled = _navigationRedo.Count > 0;
-            _navigateUpButton.Enabled = folder != null && _tree.SelectedNode != _root;
+
+            // Fix preventing navigation behind project root folder if already at Root
+            var parent = _tree.SelectedNode.Parent as RootContentFolderTreeNode;
+            _navigateUpButton.Enabled = folder != null && _tree.SelectedNode != _root && parent != _root;
         }
 
         private void UpdateNavigationBarBounds()
@@ -1542,17 +1521,46 @@ namespace FlaxEditor.Windows
             {
                 var bottomPrev = _toolStrip.Bottom;
                 _navigationBar.UpdateBounds(_toolStrip);
+
+                // Reserve space at the right of the toolstrip for the View dropdown and the search box
+                float viewReserved = 0.0f;
                 if (_viewDropdownPanel != null && _viewDropdownPanel.Visible)
+                    viewReserved = _viewDropdownPanel.Width + 8.0f;
+
+                // Compute breadcrumb intrinsic width (children packed left-to-right)
+                float breadcrumbWidth = NavigationBar.DefaultButtonsMargin;
+                for (int i = 0; i < _navigationBar.ChildrenCount; i++)
                 {
-                    var reserved = _viewDropdownPanel.Width + 8.0f;
-                    _navigationBar.Width = Mathf.Max(_navigationBar.Width - reserved, 0.0f);
+                    var child = _navigationBar.GetChild(i);
+                    if (child.IsScrollable)
+                        breadcrumbWidth += child.Width + NavigationBar.DefaultButtonsMargin;
                 }
+
+                // Shrink navigation bar to just fit its buttons so the search box can sit next to it
+                float navBarMax = Mathf.Max(_navigationBar.Width - viewReserved, 0.0f);
+                float navBarWidth = Mathf.Min(breadcrumbWidth, navBarMax);
+                _navigationBar.Width = navBarWidth;
+
+                // Place search box between breadcrumb and view dropdown
+                if (_foldersSearchBox != null)
+                {
+                    float searchLeft = _navigationBar.X + navBarWidth + 8.0f;
+                    float searchRight = _toolStrip.Right - viewReserved;
+                    float searchWidth = Mathf.Max(searchRight - searchLeft + 10.0f, 0.0f);
+                    float searchHeight = _foldersSearchBox.Height;
+                    float searchY = _toolStrip.Y + (_toolStrip.Height - searchHeight) * 0.5f;
+                    _foldersSearchBox.Bounds = new Rectangle(searchLeft, searchY, searchWidth, searchHeight);
+                    _foldersSearchBox.Visible = searchWidth > 40.0f;
+                }
+
                 if (bottomPrev != _toolStrip.Bottom)
                 {
                     // Navigation bar changed toolstrip height
                     _split.Offsets = new Margin(0, 0, _toolStrip.Bottom, 0);
+
                     if (_treeOnlyPanel != null)
                         _treeOnlyPanel.Offsets = new Margin(0, 0, _toolStrip.Bottom, 0);
+
                     PerformLayout();
                 }
                 UpdateViewDropdownBounds();
@@ -1798,7 +1806,36 @@ namespace FlaxEditor.Windows
                 // Find control that is under the mouse
                 var c = GetChildAtRecursive(location);
 
-                if (c is ContentItem item)
+                // Normalize: find the ContentFolderTreeNode whose header actually contains the click.
+                // Walking up from the hit child alone isn't enough because collapsed tree nodes may leave
+                // their (now hidden) children with stale bounds that hit-testing can still return; we
+                // therefore walk all ancestors and take the outermost visible tree node whose header
+                // rect contains the click, which corresponds to what the user actually sees on screen.
+                ContentFolderTreeNode folderNode = null;
+                {
+                    var winPos = PointToWindow(location);
+                    var probe = c;
+                    while (probe != null)
+                    {
+                        if (probe is ContentFolderTreeNode fn && !(fn is RootContentFolderTreeNode))
+                        {
+                            var localPos = fn.PointFromWindow(winPos);
+                            if (localPos.Y >= 0 && localPos.Y < fn.HeaderHeight && localPos.X >= 0 && localPos.X < fn.Width)
+                            {
+                                folderNode = fn; // keep walking to prefer outermost/visible ancestor
+                            }
+                        }
+                        probe = probe.Parent;
+                    }
+                }
+
+                if (folderNode != null)
+                {
+                    if (!_tree.Selection.Contains(folderNode))
+                        _tree.Select(folderNode);
+                    ShowContextMenuForItem(folderNode.Folder, ref location, true);
+                }
+                else if (c is ContentItem item)
                 {
                     if (_view.IsSelected(item) == false)
                         _view.Select(item);
@@ -1810,13 +1847,9 @@ namespace FlaxEditor.Windows
                 }
                 else if (c is ContentItemTreeNode itemNode)
                 {
-                    _tree.Select(itemNode);
+                    if (!_tree.Selection.Contains(itemNode))
+                        _tree.Select(itemNode);
                     ShowContextMenuForItem(itemNode.Item, ref location, false);
-                }
-                else if (c is ContentFolderTreeNode node)
-                {
-                    _tree.Select(node);
-                    ShowContextMenuForItem(node.Folder, ref location, true);
                 }
 
                 return true;
@@ -1864,6 +1897,9 @@ namespace FlaxEditor.Windows
         /// <inheritdoc />
         public override void OnLayoutDeserialize(XmlElement node)
         {
+            // Reset inner split to the default before applying the saved value so restoring
+            // the default layout (which has no Split attribute) resets it too.
+            _split.SplitterValue = DefaultSplitterValue;
             LayoutDeserializeSplitter(node, "Split", _split);
             if (float.TryParse(node.GetAttribute("Scale"), CultureInfo.InvariantCulture, out var value1))
                 _view.ViewScale = value1;
@@ -1887,7 +1923,7 @@ namespace FlaxEditor.Windows
         /// <inheritdoc />
         public override void OnLayoutDeserialize()
         {
-            _split.SplitterValue = 0.2f;
+            _split.SplitterValue = DefaultSplitterValue;
             _view.ViewScale = 1.0f;
             _showAllContentInTree = false;
         }
@@ -1900,9 +1936,7 @@ namespace FlaxEditor.Windows
             _viewDropdown = null;
             _viewDropdownPanel = null;
             _treePanelRoot = null;
-            _treeHeaderPanel = null;
             _treeOnlyPanel = null;
-            _contentItemsSearchPanel = null;
             _newFilesCache = null;
 
             Editor.Options.OptionsChanged -= OnOptionsChanged;

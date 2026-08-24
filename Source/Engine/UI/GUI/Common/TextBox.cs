@@ -133,16 +133,16 @@ namespace FlaxEngine.GUI
         public TextBox(bool isMultiline, float x, float y, float width = 120)
         : base(isMultiline, x, y, width)
         {
-            _layout = TextLayoutOptions.Default;
-            _layout.VerticalAlignment = IsMultiline ? TextAlignment.Near : TextAlignment.Center;
-            _layout.TextWrapping = TextWrapping.NoWrap;
-            _layout.Bounds = new Rectangle(DefaultMargin, 1, Width - 2 * DefaultMargin, Height - 2);
-
             var style = Style.Current;
             Font = new FontReference(style.FontMedium);
             TextColor = style.Foreground;
             WatermarkTextColor = style.ForegroundDisabled;
             SelectionColor = style.BackgroundSelected;
+
+            _layout = TextLayoutOptions.Default;
+            _layout.VerticalAlignment = IsMultiline ? TextAlignment.Near : TextAlignment.Center;
+            _layout.TextWrapping = TextWrapping.NoWrap;
+            _layout.Bounds = TextRectangle;
         }
 
         /// <inheritdoc />
@@ -231,11 +231,8 @@ namespace FlaxEngine.GUI
             if (!font)
                 return;
 
-            // Background
-            Color backColor = BackgroundColor;
-            if (IsMouseOver || IsNavFocused)
-                backColor = BackgroundSelectedColor;
-            Render2D.FillRectangle(rect, backColor);
+            // Background (constant regardless of hover/focus state)
+            Render2D.FillRectangle(rect, BackgroundColor);
             if (HasBorder)
                 Render2D.DrawRectangle(rect, IsFocused ? BorderSelectedColor : BorderColor, BorderThickness);
 

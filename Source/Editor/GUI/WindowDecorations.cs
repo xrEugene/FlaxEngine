@@ -63,7 +63,7 @@ public class WindowDecorations : ContainerControl
             Margin = new Margin(4, 4, 4, 4),
             Brush = new TextureBrush(windowIcon),
             Color = Style.Current.Foreground,
-            BackgroundColor = Style.Current.LightBackground,
+            BackgroundColor = Style.Current.Background,
             KeepAspectRatio = false,
             Parent = this,
         };
@@ -87,52 +87,61 @@ public class WindowDecorations : ContainerControl
                 ClipText = true,
                 TextColor = Style.Current.ForegroundGrey,
                 TextColorHighlighted = Style.Current.ForegroundGrey,
-                BackgroundColor = Style.Current.LightBackground,
+                BackgroundColor = Style.Current.Background,
                 Parent = this,
             };
 
+            // Close, minimize, and maximize buttons styled with flat inactive tab background across normal, hovered, and pressed states
             _closeButton = new Button
             {
+                DrawDefault = false,
                 Text = ((char)EditorAssets.SegMDL2Icons.ChromeClose).ToString(),
                 Font = new FontReference(iconFont),
-                BackgroundColor = Style.Current.LightBackground,
                 BorderColor = Color.Transparent,
                 BorderColorHighlighted = Color.Transparent,
                 BorderColorSelected = Color.Transparent,
                 TextColor = Style.Current.Foreground,
+                TextColorHighlighted = Style.Current.Foreground * 2.0f,
                 Width = 46,
-                BackgroundColorHighlighted = Color.Red,
-                BackgroundColorSelected = Color.Red.RGBMultiplied(1.3f),
+                BackgroundColor = Style.Current.Background,
+                BackgroundColorHighlighted = Style.Current.Background,
+                BackgroundColorSelected = Style.Current.Background,
                 Parent = this,
             };
             _closeButton.Clicked += () => _window.Close(ClosingReason.User);
-
+            
             _minimizeButton = new Button
             {
+                DrawDefault = false,
                 Text = ((char)EditorAssets.SegMDL2Icons.ChromeMinimize).ToString(),
                 Font = new FontReference(iconFont),
-                BackgroundColor = Style.Current.LightBackground,
                 BorderColor = Color.Transparent,
                 BorderColorHighlighted = Color.Transparent,
                 BorderColorSelected = Color.Transparent,
                 TextColor = Style.Current.Foreground,
+                TextColorHighlighted = Style.Current.Foreground * 2.0f,
                 Width = 46,
-                BackgroundColorHighlighted = Style.Current.LightBackground.RGBMultiplied(1.3f),
+                BackgroundColor = Style.Current.Background,
+                BackgroundColorHighlighted = Style.Current.Background,
+                BackgroundColorSelected = Style.Current.Background,
                 Parent = this,
             };
             _minimizeButton.Clicked += () => _window.Minimize();
 
             _maximizeButton = new Button
             {
+                DrawDefault = false,
                 Text = ((char)(_window.IsMaximized ? EditorAssets.SegMDL2Icons.ChromeRestore : EditorAssets.SegMDL2Icons.ChromeMaximize)).ToString(),
                 Font = new FontReference(iconFont),
-                BackgroundColor = Style.Current.LightBackground,
                 BorderColor = Color.Transparent,
                 BorderColorHighlighted = Color.Transparent,
                 BorderColorSelected = Color.Transparent,
                 TextColor = Style.Current.Foreground,
+                TextColorHighlighted = Style.Current.Foreground * 2.0f,
                 Width = 46,
-                BackgroundColorHighlighted = Style.Current.LightBackground.RGBMultiplied(1.3f),
+                BackgroundColor = Style.Current.Background,
+                BackgroundColorHighlighted = Style.Current.Background,
+                BackgroundColorSelected = Style.Current.Background,
                 Parent = this,
             };
             _maximizeButton.Clicked += () =>

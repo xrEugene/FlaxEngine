@@ -63,43 +63,48 @@ namespace FlaxEditor.GUI.Tabs
                 var tabRect = new Rectangle(Float2.Zero, Size);
                 var textOffset = Tabs._orientation == Orientation.Horizontal ? 0 : 8;
 
-                // Draw bar
+                // Draw background
                 if (Tabs.SelectedTab == Tab)
                 {
-                    var color = style.BackgroundSelected;
+                    var accentColor = style.BackgroundSelected;
                     if (!enabled)
-                        color *= 0.6f;
+                        accentColor *= 0.6f;
+
                     if (Tabs._orientation == Orientation.Horizontal)
                     {
-                        Render2D.FillRectangle(tabRect, color);
+                        Render2D.FillRectangle(tabRect, style.ContentBackground);
+                        Render2D.FillRectangle(new Rectangle(0, 0, tabRect.Width, 2.0f), accentColor);
                     }
                     else
                     {
-                        const float lefEdgeWidth = 4;
-                        var leftEdgeRect = tabRect;
-                        leftEdgeRect.Size.X = lefEdgeWidth;
-                        var fillRect = tabRect;
-                        fillRect.Size.X -= lefEdgeWidth;
-                        fillRect.Location.X += lefEdgeWidth;
-                        Render2D.FillRectangle(fillRect, style.Background);
-                        Render2D.FillRectangle(leftEdgeRect, color);
+                        const float leftEdgeWidth = 3.0f;
+                        var leftEdgeRect = new Rectangle(0, 0, leftEdgeWidth, tabRect.Height);
+                        var fillRect = new Rectangle(leftEdgeWidth, 0, tabRect.Width - leftEdgeWidth, tabRect.Height);
+                        Render2D.FillRectangle(fillRect, style.ContentBackground);
+                        Render2D.FillRectangle(leftEdgeRect, accentColor);
                     }
                 }
                 else if (IsMouseOver && enabled)
                 {
                     Render2D.FillRectangle(tabRect, style.BackgroundHighlighted);
                 }
+                else
+                {
+                    Render2D.FillRectangle(tabRect, style.SecondaryBackground);
+                }
 
                 // Draw icon
                 if (Tab.Icon.IsValid)
                 {
-                    Render2D.DrawSprite(Tab.Icon, tabRect.MakeExpanded(-8), style.Foreground);
+                    var iconColor = enabled ? (Tabs.SelectedTab == Tab || IsMouseOver ? style.Foreground : style.ForegroundGrey) : style.ForegroundDisabled;
+                    Render2D.DrawSprite(Tab.Icon, tabRect.MakeExpanded(-8), iconColor);
                 }
 
                 // Draw text
                 if (!string.IsNullOrEmpty(Tab.Text))
                 {
-                    Render2D.DrawText(style.FontMedium, Tab.Text, new Rectangle(tabRect.X + textOffset, tabRect.Y, tabRect.Width - textOffset, tabRect.Height), style.Foreground, Tabs.TabsTextHorizontalAlignment, Tabs.TabsTextVerticalAlignment);
+                    var textColor = enabled ? (Tabs.SelectedTab == Tab || IsMouseOver ? style.Foreground : style.ForegroundGrey) : style.ForegroundDisabled;
+                    Render2D.DrawText(style.FontMedium, Tab.Text, new Rectangle(tabRect.X + textOffset, tabRect.Y, tabRect.Width - textOffset, tabRect.Height), textColor, Tabs.TabsTextHorizontalAlignment, Tabs.TabsTextVerticalAlignment);
                 }
             }
         }
@@ -316,7 +321,7 @@ namespace FlaxEditor.GUI.Tabs
 
             TabsPanel = new TabsHeader(this);
 
-            TabStripColor = Style.Current.LightBackground;
+            TabStripColor = Style.Current.SecondaryBackground;
 
             TabsPanel.Parent = this;
         }

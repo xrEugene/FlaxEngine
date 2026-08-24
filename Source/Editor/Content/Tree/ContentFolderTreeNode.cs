@@ -20,7 +20,9 @@ public class ContentFolderTreeNode : TreeNode
 {
     private DragItems _dragOverItems;
     private DragActors _dragActors;
-    private List<Rectangle> _highlights;
+    private QueryFilterHelper.Range[] _highlightRanges;
+    private bool _filterChangedExpansion;
+    private bool _expandedBeforeFilter;
 
     /// <summary>
     /// The folder.
@@ -30,12 +32,12 @@ public class ContentFolderTreeNode : TreeNode
     /// <summary>
     /// Whether this node can be deleted.
     /// </summary>
-    public virtual bool CanDelete => true;
-    
+    public virtual bool CanDelete => !(this is MainContentFolderTreeNode) && !(ParentNode is ProjectFolderTreeNode) && !(this is ProjectFolderTreeNode) && !(this is RootContentFolderTreeNode);
+
     /// <summary>
     /// Whether this node can be duplicated.
     /// </summary>
-    public virtual bool CanDuplicate => true;
+    public virtual bool CanDuplicate => !(this is MainContentFolderTreeNode) && !(ParentNode is ProjectFolderTreeNode) && !(this is ProjectFolderTreeNode) && !(this is RootContentFolderTreeNode);
 
     /// <summary>
     /// Gets the content folder item.
@@ -142,6 +144,7 @@ public class ContentFolderTreeNode : TreeNode
         Editor.Instance.Windows.ContentWin.ScrollingOnTreeView(false);
         var dialog = RenamePopup.Show(this, TextRect, _folder.ShortName, false);
         dialog.Tag = _folder;
+        dialog.Validate += (popup, value) => Editor.Instance.ContentEditing.IsValidAssetName((ContentItem)popup.Tag, value, out _);
         dialog.Renamed += popup =>
         {
             Editor.Instance.Windows.ContentWin.Rename((ContentFolder)popup.Tag, popup.Text);
@@ -158,39 +161,36 @@ public class ContentFolderTreeNode : TreeNode
     {
         bool noFilter = string.IsNullOrWhiteSpace(filterText);
 
+        // Snapshot pre-filter expansion state before any recursion. This must happen for every node
+        // (not just those whose state changes here), because child nodes' Expand() calls ExpandAllParents()
+        // and force-opens ancestors, which would otherwise never record their original state and thus
+        // fail to restore it when the search is cleared.
+        if (!noFilter && !_filterChangedExpansion)
+        {
+            _filterChangedExpansion = true;
+            _expandedBeforeFilter = IsExpanded;
+        }
+
         // Update itself
         bool isThisVisible;
         if (noFilter)
         {
             // Clear filter
-            _highlights?.Clear();
+            _highlightRanges = null;
             isThisVisible = true;
         }
         else
         {
-            var text = Text;
-            if (QueryFilterHelper.Match(filterText, text, out QueryFilterHelper.Range[] ranges))
+            if (QueryFilterHelper.Match(filterText, Text, out QueryFilterHelper.Range[] ranges))
             {
-                // Update highlights
-                if (_highlights == null)
-                    _highlights = new List<Rectangle>(ranges.Length);
-                else
-                    _highlights.Clear();
-                var style = Style.Current;
-                var font = style.FontSmall;
-                var textRect = TextRect;
-                for (int i = 0; i < ranges.Length; i++)
-                {
-                    var start = font.GetCharPosition(text, ranges[i].StartIndex);
-                    var end = font.GetCharPosition(text, ranges[i].EndIndex);
-                    _highlights.Add(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height));
-                }
+                // Store the ranges; rectangles are recomputed at draw time to stay aligned with the current layout
+                _highlightRanges = ranges;
                 isThisVisible = true;
             }
             else
             {
                 // Hide
-                _highlights?.Clear();
+                _highlightRanges = null;
                 isThisVisible = false;
             }
         }
@@ -213,8 +213,20 @@ public class ContentFolderTreeNode : TreeNode
 
         if (!noFilter)
         {
-            bool isExpanded = isAnyChildVisible;
-            if (isExpanded)
+            bool wantExpanded = isAnyChildVisible;
+            if (wantExpanded != IsExpanded)
+            {
+                if (wantExpanded)
+                    Expand(true);
+                else
+                    Collapse(true);
+            }
+        }
+        else if (_filterChangedExpansion)
+        {
+            // Restore expanded state that was changed by the previous search
+            _filterChangedExpansion = false;
+            if (_expandedBeforeFilter)
                 Expand(true);
             else
                 Collapse(true);
@@ -238,13 +250,23 @@ public class ContentFolderTreeNode : TreeNode
     {
         base.Draw();
 
-        // Draw all highlights
-        if (_highlights != null)
+        // Draw all highlights (positions recomputed each frame to stay aligned with the current layout)
+        if (_highlightRanges != null && _highlightRanges.Length > 0)
         {
             var style = Style.Current;
             var color = style.ProgressNormal * 0.6f;
-            for (int i = 0; i < _highlights.Count; i++)
-                Render2D.FillRectangle(_highlights[i], color);
+            var font = style.FontSmall;
+
+            var text = Text;
+            var textRect = TextRect;
+
+            for (int i = 0; i < _highlightRanges.Length; i++)
+            {
+                var start = font.GetCharPosition(text, _highlightRanges[i].StartIndex);
+                var end = font.GetCharPosition(text, _highlightRanges[i].EndIndex);
+
+                Render2D.FillRectangle(new Rectangle(start.X + textRect.X, textRect.Y, end.X - start.X, textRect.Height), color);
+            }
         }
 
         var contentWindow = Editor.Instance.Windows.ContentWin;

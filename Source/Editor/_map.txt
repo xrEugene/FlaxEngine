@@ -1,0 +1,746 @@
+﻿RelativePath                                                      AOM Annotation
+------------                                                      --------------
+\Editor.cs                                                        [P] Facade/Central Hub (Singleton) {D} All Modules, NativeInterop (F) Init -> RegisterModules -> EndInit -> Update -> Exit [S] Global Persistent
+\Editor.Build.cs                                                  [P] Module Configuration {D} Flax.Build, NativeCpp (F) Setup -> AddPlatformTools -> GetFilesToDeploy [S] Static/Build-time
+\ProjectInfo.cs                                                   [P] DTO/Serialization {D} Newtonsoft.Json (F) Load -> ResolveRefs -> Save [S] Persistent (.flaxproj)
+\Modules                                                          [P] Modular Kernel {D} Editor (F) Register -> OnInit -> OnUpdate -> OnExit [S] Persistent Lifecycle
+\Modules\EditorModule.cs                                          [P] Kernel Lifecycle {D} Editor (F) OnInit -> OnUpdate -> OnExit [S] Managed
+\Modules\UIModule.cs                                              [P] Interface Facade {D} MainMenu, MasterDockPanel (F) OnInit -> UpdateToolstrip -> UpdateStatusBar [S] Persistent UI Root
+\Modules\WindowsModule.cs                                         [P] Workspace Manager {D} EditorWindow, XmlDocument (F) LoadLayout -> SaveLayout -> Restore [S] Persistent (Layouts)
+\Modules\ContentDatabaseModule.cs                                 [P] Service/Registry {D} ProjectFolderTreeNode, ContentProxy (F) OnInit -> LoadProjects -> Rebuild [S] Persistent (Disk-Sync)
+\Modules\SceneModule.cs                                           [P] Hierarchy Master {D} RootNode, Level (F) OnSceneLoaded -> BuildTree -> MarkEdited [S] Managed (Living Scenes)
+\Modules\SceneEditingModule.cs                                    [P] Interaction Controller {D} SceneGraphNode, Undo (F) Select -> Spawn -> Delete -> Paste [S] Volatile Session State
+\Modules\PrefabsModule.cs                                         [P] Manager/Factory {D} Actor, Prefab (F) CreatePrefab -> OnCreated -> ApplyAll [S] Persistent Reference
+\Modules\ContentEditingModule.cs                                  [P] Mediator/Router {D} ContentItem, EditorWindow (F) Open -> FindProxy -> Launch Window [S] Volatile
+\Modules\ContentImportingModule.cs                                [P] Task Queue/Worker {D} IFileEntryAction, Thread (F) Import -> WorkerMain -> Execute [S] Task-bound
+\Modules\ContentFindingModule.cs                                  [P] Search Provider {D} ContentSearchWindow, SceneGraphNode (F) Search (Regex/ID) -> Open [S] Volatile
+\Modules\SimulationModule.cs                                      [P] PIE State Machine {D} PlayingState, Level (F) RequestStartPlay -> GoToState [S] Volatile Environment
+\Modules\ProgressReportingModule.cs                               [P] Orchestrator {D} ProgressHandler, UIModule (F) RegisterHandler -> UpdateProgress [S] Managed Service
+\Modules\ProjectCacheModule.cs                                    [P] Local Storage {D} BinaryReader/Writer (F) Load -> SetCustomData -> AutoSave [S] Persistent (Disk-bound)
+\States                                                           [P] Editor Lifecycle FSM {D} EditorStateMachine (F) ChangeState -> OnEnter -> Update -> OnExit [S] Volatile Control State
+\States\EditorStateMachine.cs                                     [P] State Manager {D} All EditorStates (F) Update -> SwitchState [S] Persistent
+\States\EditorState.cs                                            [P] Abstract State {D} EditorStateMachine (F) Update -> UpdateFPS [S] Managed lifecycle
+\States\LoadingState.cs                                           [P] Initial State {D} ScriptsBuilder (F) StartInitEnding -> Compilation -> EndInit [S] Volatile
+\States\EditingSceneState.cs                                      [P] Interactive State {D} ScriptsBuilder (F) OnScriptsReloadBegin -> Transition [S] Persistent session
+\States\ChangingScenesState.cs                                    [P] Transition State {D} Level (F) Load/Unload Async -> OnSceneEvent [S] Volatile
+\States\PlayingState.cs                                           [P] Simulation State {D} DuplicateScenes, GameSettings (F) Duplicate -> InitializePlugins -> Play -> Restore [S] Volatile
+\States\ReloadingScriptsState.cs                                  [P] Reload State {D} ScriptsBuilder (F) OnScriptsReloadEnd -> Finish [S] Volatile
+\States\BuildingScenesState.cs                                    [P] Composite Build State {D} GeneralOptions (F) CSG -> Env -> Light -> Nav -> Compile [S] Volatile
+\States\BuildingLightingState.cs                                  [P] Task State {D} Internal_BakeLightmaps (F) OnEnter -> Bake -> OnExit [S] Volatile
+\States\ClosingState.cs                                           [P] Terminal State (F) OnEnter -> Deselect -> Exit [S] Volatile
+\States\InvalidStateException.cs                                  [P] Exception [S] N/A
+\Scripting                                                        [P] Polyglot Metadata Layer {D} IScriptType, TypeUtils (F) Scan Assemblies -> Wrap -> Reflect [S] Static Registry
+\Scripting\ScriptsBuilder.cs                                      [P] Build Process Orchestrator {D} EventType (F) CompilationBegin -> Reload -> End [S] Global Static
+\Scripting\ScriptType.cs                                          [P] Metadata Value Object {D} IScriptType, MemberInfo (F) CreateInstance -> GetMembers [S] Managed/Serializable
+\Scripting\TypeUtils.cs                                           [P] Reflection Service {D} IScriptTypesContainer (F) GetObjectType -> GetDerivedTypes [S] Static Registry
+\Scripting\ScriptType.Custom.cs                                   [P] Adapter [S] N/A
+\Scripting\ScriptType.Interfaces.cs                               [P] Interface [S] N/A
+\Modules\SourceCodeEditing\CodeEditingModule.cs                   [P] IDE Orchestrator {D} ISourceCodeEditor, CachedTypes (F) SyncOptions -> SelectEditor -> ClearTypes [S] Static Registry
+\Modules\SourceCodeEditing\ISourceCodeEditor.cs                   [P] Interface [S] N/A
+\Modules\SourceCodeEditing\DefaultSourceCodeEditor.cs             [P] Platform Strategy {D} CodeEditorTypes (F) UpdateCurrentEditor [S] Volatile
+\Modules\SourceCodeEditing\InBuildSourceCodeEditor.cs             [P] External Command {D} CodeEditingManager (F) OpenSolution -> OpenFile [S] Volatile
+\Modules\SourceCodeEditing\CachedTypesCollection.cs               [P] Registry Cache {D} TypeUtils (F) Get -> Search (Reflection Scan) [S] In-Memory (Assembly-bound)
+\Modules\SourceCodeEditing\CachedCustomAnimGraphNodesCollection.cs [P] Reflection Cache {D} NodeArchetype (F) Search -> GetArchetype (Factory Invoke) [S] In-Memory
+\Modules\SourceCodeEditing\CodeDocsModule.cs                      [P] Documentation Provider {D} ScriptType, DebugCommands (F) GetTooltip -> XML Doc Fetch [S] In-Memory Cache
+\History                                                          [P] Memento/Command Stack {D} IHistoryAction (F) Push -> Undo -> Redo [S] Persistent Session State
+\History\HistoryStack.cs                                          [P] Command Stack {D} IHistoryAction (F) Push -> PopHistory -> PopReverse [S] Persistent
+\History\IHistoryAction.cs                                        [P] Interface [S] N/A
+\History\UndoActionObject.cs                                      [P] Memento Action {D} ObjectSnapshot (F) Undo -> Redo (Swap snapshots) [S] Serialized State
+\Undo                                                             [P] Command Pattern {D} HistoryStack, EditorUndo (F) RecordBegin -> Modify -> RecordEnd [S] Persistent Session State
+\Undo\EditorUndo.cs                                               [P] Singleton Facade {D} EditorStateMachine, ISceneEditAction (F) CheckSceneEdited (Auto-dirty) [S] Global Persistent
+\Undo\Undo.cs                                                     [P] Controller {D} HistoryStack, ObjectSnapshot (F) RecordAction -> RecordBegin -> End [S] Managed
+\Undo\IUndoAction.cs                                              [P] Interface [S] N/A
+\Undo\ISceneEditAction.cs                                         [P] Interface [S] N/A
+\Undo\UndoActionBase.cs                                           [P] Serializable Command {D} SceneTreeNodeConverter (F) Data (JSON Serialize/Deserialize) [S] Serialized
+\Undo\MultiUndoAction.cs                                          [P] Composite Command {D} IUndoAction (F) Do -> Undo (Reversed order) [S] Managed
+\Undo\UndoBlock.cs                                                [P] RAII Pattern {D} Undo (F) Ctor (Begin) -> Dispose (End) [S] Volatile
+\Undo\UndoMultiBlock.cs                                           [P] RAII Pattern {D} Undo (F) Ctor (BeginMulti) -> Dispose (EndMulti) [S] Volatile
+\Undo\Actions\TransformObjectsAction.cs                           [P] Performance Command {D} SceneGraphNode, Navigation (F) Do -> Undo -> InvalidateBounds [S] Serialized
+\Undo\Actions\DeleteActorsAction.cs                               [P] CRUD Command {D} Actor, SceneGraphFactory (F) Delete -> Create (Restore linkage) [S] Serialized
+\Undo\Actions\AddRemoveScriptAction.cs                            [P] CRUD Command {D} Script, TypeUtils (F) DoAdd -> DoRemove [S] Serialized
+\Undo\Actions\ParentActorsAction.cs                               [P] Hierarchy Command {D} SceneObject (F) Do (SetParent) -> Undo (Restore transform/order) [S] Serialized
+\Undo\Actions\PasteActorsAction.cs                                [P] Factory Command {D} Actor, IdsMapping (F) Do (Duplicate/Paste) -> Undo (Delete) [S] Serialized
+\Undo\Actions\EditSplineAction.cs                                 [P] Data Command {D} Spline, BezierCurve (F) Do -> Undo (Swap keyframes) [S] Serialized
+\Undo\Actions\ChangeScriptAction.cs                               [P] Property Command {D} Script (F) Do (Enable/Reorder) [S] Serialized
+\Undo\Actions\BreakPrefabLinkAction.cs                            [P] Utility Command {D} SceneObject, Prefab (F) DoBreak -> Link [S] Serialized
+\Undo\Actions\SelectionChangeAction.cs                            [P] State Command {D} SceneGraphNode [S] Volatile
+\Utilities                                                        [P] Toolbox/Static Helpers {D} Reflection, IO, ShuntingYard (F) Snapshot -> Compare -> Format [S] Static / Transient
+\Utilities\Utils.cs                                               [P] Global Toolbox {D} IO, Serialization, UI (F) FormatBytes -> ReadStr -> ByteArrayToStructure [S] Static
+\Utilities\Extensions.cs                                          [P] Reflection Utility {D} MemberComparison [S] Static
+\Utilities\Constants.cs                                           [P] Config Registry [S] Static Config
+\Utilities\Units.cs                                               [P] Formatting Utility [S] Static Config
+\Utilities\ObjectSnapshot.cs                                      [P] Memento Factory {D} reflection, JsonSerializer (F) CaptureSnapshot -> Compare [S] Transient Data
+\Utilities\MemberComparison.cs                                    [P] Comparison DTO {D} MemberInfoPath (F) SetMemberValue [S] Transient Data
+\Utilities\MemberInfoPath.cs                                      [P] Path Flyweight {D} ScriptMemberInfo (F) GetLastMember -> GetValue [S] Transient State
+\Utilities\ShuntingYardParser.cs                                  [P] Interpreter {D} Tokenizer (F) Tokenize -> OrderTokens -> EvaluateRPN [S] Static Logic
+\Utilities\QueryFilterHelper.cs                                   [P] Matching Engine (F) Match (Char Loop/Ranges) [S] Static
+\Utilities\DuplicateScenes.cs                                     [P] Memento Helper {D} Level (F) Gather -> Create -> Restore [S] Transient Byte State
+\Utilities\SelectionCache.cs                                      [P] State Helper {D} SceneGraphFactory (F) Cache -> Restore [S] Volatile Identifiers
+\SceneGraph                                                       [P] ViewModel Proxy Layer {D} Actor, SceneGraphFactory (F) BuildTree -> RayCast -> Dispose [S] Living Session State
+\SceneGraph\SceneGraphFactory.cs                                  [P] Dependency Injection/Factory {D} CustomNodesTypes (F) BuildActorNode (Reflection) [S] Static Registry
+\SceneGraph\SceneGraphNode.cs                                     [P] Base Node {D} RayCastData, StateData (F) ParentSet -> RayCast -> Dispose [S] Persistent Identity (Guid)
+\SceneGraph\ActorNode.cs                                          [P] ViewModel Proxy {D} Actor, ActorTreeNode (F) LinkNode -> PostSpawn -> RayCast [S] Managed Reference
+\SceneGraph\RootNode.cs                                           [P] Tree Entry {D} RayCastData, ISceneEditingContext (F) RayCast -> Spawn [S] Global Session
+\SceneGraph\LocalSceneGraph.cs                                    [P] Sandbox Manager {D} RootNode, Actor (F) MainActor Set -> BuildTree [S] Volatile lifecycle
+\SceneGraph\SceneGraphTools.cs                                    [P] Graph Traversal Utility {D} SceneGraphNode (F) BuildNodesParents -> BuildAllNodes [S] Static
+\SceneGraph\ActorChildNode.cs                                     [P] Composite Part {D} ActorNode (F) Unlink -> Dispose [S] Volatile UI Proxy
+\SceneGraph\ActorNodeWithIcon.cs                                  [P] Visual Proxy {D} ViewportIconsRenderer (F) RayCastSelf (Sphere Hit) [S] Static Config
+\SceneGraph\Actors\SceneNode.cs                                   [P] Scene Controller {D} Scene, SceneTreeNode (F) Save/Unload [S] Living/Edited
+\SceneGraph\Actors\StaticModelNode.cs                             [P] Mesh Proxy {D} StaticModel, CollisionDataProxy (F) OnVertexSnap -> AddCollider [S] living
+\SceneGraph\Actors\AnimatedModelNode.cs                           [P] Extension Proxy {D} Ragdoll (F) BuildRagdoll [S] Volatile
+\SceneGraph\Actors\RigidBodyNode.cs                               [P] Physics Proxy {D} RigidBody [S] Volatile
+\SceneGraph\Actors\ColliderNode.cs                                [P] Physics Proxy {D} Collider (F) RayCast (Filter triggers) [S] Volatile
+\SceneGraph\Actors\BoxColliderNode.cs                             [P] Visual Controller {D} BoxCollider (F) AutoResize [S] Volatile
+\SceneGraph\Actors\BoxBrushNode.cs                                [P] Geometry Controller {D} BoxBrush, SideLinkNode (F) SideLink.Transform -> Brush.Size [S] living
+\SceneGraph\Actors\SplineNode.cs                                  [P] Hierarchical Controller {D} Spline, SplinePointNode (F) SyncKeyframes -> EditWithSnap [S] living
+\SceneGraph\Actors\CameraNode.cs                                  [P] View Controller {D} Camera (F) OnContextMenu (Move to View) [S] Volatile
+\SceneGraph\Actors\AudioSourceNode.cs                             [P] Actor Node Proxy {D} AudioSource [S] Volatile
+\SceneGraph\Actors\AudioListenerNode.cs                           [P] Actor Node Proxy {D} AudioListener [S] Volatile
+\SceneGraph\Actors\PointLightNode.cs                              [P] Actor Node Proxy {D} PointLight [S] Volatile
+\SceneGraph\Actors\DirectionalLightNode.cs                        [P] Actor Node Proxy {D} DirectionalLight [S] Volatile
+\SceneGraph\Actors\SpotLightNode.cs                               [P] Actor Node Proxy {D} SpotLight [S] Volatile
+\SceneGraph\Actors\SkyLightNode.cs                                [P] Actor Node Proxy {D} SkyLight [S] Volatile
+\SceneGraph\Actors\EnvironmentProbeNode.cs                        [P] Actor Node Proxy {D} EnvironmentProbe [S] Volatile
+\SceneGraph\Actors\ExponentialHeightFogNode.cs                    [P] Actor Node Proxy {D} ExponentialHeightFog [S] Volatile
+\SceneGraph\Actors\SkyNode.cs                                     [P] Actor Node Proxy {D} Sky [S] Volatile
+\SceneGraph\Actors\SkyboxNode.cs                                  [P] Actor Node Proxy {D} Skybox [S] Volatile
+\SceneGraph\Actors\ParticleEffectNode.cs                          [P] Actor Node Proxy {D} ParticleEffect [S] Volatile
+\SceneGraph\Actors\DecalNode.cs                                   [P] Actor Node Proxy {D} Decal [S] Volatile
+\SceneGraph\Actors\SpriteRenderNode.cs                            [P] Visual Controller {D} SpriteRender (F) RayCast (Billboard calc) [S] living
+\SceneGraph\Actors\TextRenderNode.cs                              [P] Actor Node Proxy {D} TextRender [S] Volatile
+\SceneGraph\Actors\TerrainNode.cs                                 [P] Resource Controller {D} Terrain (F) Delete (Data cleanup) [S] Volatile/Restorable
+\SceneGraph\Actors\FoliageNode.cs                                 [P] Actor Node Proxy {D} Foliage [S] Volatile
+\SceneGraph\Actors\NavMeshBoundsVolumeNode.cs                     [P] Volume Proxy {D} NavMeshBoundsVolume [S] Volatile
+\SceneGraph\Actors\NavModifierVolumeNode.cs                       [P] Volume Proxy {D} NavModifierVolume [S] Volatile
+\SceneGraph\Actors\NavLinkNode.cs                                 [P] Logic Controller {D} NavLink, LinkNode [S] Volatile
+\SceneGraph\Actors\PostFxVolumeNode.cs                            [P] Volume Proxy {D} PostFxVolume [S] Volatile
+\SceneGraph\Actors\BoxVolumeNode.cs                               [P] Geometry Controller {D} BoxVolume, SideLinkNode [S] Volatile
+\SceneGraph\Actors\JointNode.cs                                   [P] Actor Node Proxy {D} Joint (F) PostConvert (Preserve targets) [S] Volatile
+\SceneGraph\Actors\BoneSocketNode.cs                              [P] Actor Node Proxy {D} BoneSocket [S] Volatile
+\SceneGraph\Actors\ClothNode.cs                                   [P] Actor Node Proxy {D} Cloth [S] Volatile
+\SceneGraph\Actors\SceneAnimationPlayerNode.cs                    [P] Actor Node Proxy {D} SceneAnimationPlayer [S] Volatile
+\SceneGraph\Actors\UICanvasNode.cs                                [P] UI Controller {D} UICanvas (F) PostSpawn (CanvasScaler) [S] living
+\SceneGraph\Actors\UIControlNode.cs                               [P] UI Controller {D} UIControl (F) PostPaste (Layout update) [S] living
+\SceneGraph\Actors\VideoPlayerEditor.cs                           [P] Component Editor {D} VideoPlayer (F) Play/Pause/Stop [S] Volatile UI
+\SceneGraph\ISceneEditingContext.cs                               [P] Interface [S] N/A
+\Content                                                          [P] Composite/Hierarchical {D} ContentDatabase, AssetProxy (F) Items -> Proxies -> Windows [S] Persistent (Disk-bound)
+\EditorAssets.cs                                                  [P] Resource Registry {D} FlaxEngine.Content (F) Static Asset Path Access [S] Persistent/Immutable
+\Content\Items\ContentItem.cs                                     [P] Base Entity {D} IContentItemOwner (F) AddReference -> RequestThumbnail [S] Managed Reference
+\Content\Items\AssetItem.cs                                       [P] Abstract Entity {D} ContentItem (F) LoadAsync -> Reload [S] Persistent Reference
+\Content\Items\ContentFolder.cs                                   [P] Composite {D} ContentFolderTreeNode, DragItems (F) FindChild -> OnDragDrop [S] Persistent Reference
+\Content\Items\BinaryAssetItem.cs                                 [P] Entity {D} BinaryAsset [S] Persistent Reference
+\Content\Items\JsonAssetItem.cs                                   [P] Entity [S] Persistent
+\Content\Items\PrefabItem.cs                                      [P] Leaf Entity {D} PrefabManager [S] Persistent
+\Content\Items\SceneItem.cs                                       [P] Leaf Entity {D} Level [S] Persistent
+\Content\Items\ScriptItem.cs                                      [P] Abstract Entity {D} ScriptsBuilder (F) FilterScriptName -> MarkWorkspaceDirty [S] Persistent
+\Content\Items\CSharpScriptItem.cs                                [P] Leaf Entity [S] Persistent
+\Content\Items\CppScriptItem.cs                                   [P] Leaf Entity [S] Persistent
+\Content\Items\VisualScriptItem.cs                                [P] Entity {D} VisualScriptType, VisualScript (F) OnEditorDrop -> CreateInstance [S] Persistent
+\Content\Items\ShaderSourceItem.cs                                [P] Leaf Entity [S] Persistent
+\Content\Items\VideoItem.cs                                       [P] Leaf Entity [S] Persistent
+\Content\Items\FileItem.cs                                        [P] Leaf Entity [S] Persistent
+\Content\Items\NewItem.cs                                         [P] Mock UI Entity {D} ContentProxy [S] Volatile
+\Content\Proxy\ContentProxy.cs                                    [P] Proxy Base [S] Static
+\Content\Proxy\AssetProxy.cs                                      [P] Abstract Factory Base {D} ThumbnailRequest (F) Open -> ConstructItem -> DrawThumbnail [S] Static
+\Content\Proxy\BinaryAssetProxy.cs                                [P] Factory Proxy {D} BinaryAssetItem [S] Static
+\Content\Proxy\JsonAssetProxy.cs                                  [P] Factory Proxy {D} JsonAssetWindow, GenericJsonCreateEntry [S] Static
+\Content\Proxy\PrefabProxy.cs                                     [P] Asset Proxy {D} PrefabPreview, PrefabManager [S] Static
+\Content\Proxy\SceneProxy.cs                                      [P] Asset Proxy {D} SceneModule (F) OpenScene [S] Static
+\Content\Proxy\ScriptProxy.cs                                     [P] Template Base {D} CodeEditingModule [S] Static
+\Content\Proxy\CSharpProxy.cs                                     [P] Template Factory {D} ProjectInfo (F) Create (Format Source) [S] Static
+\Content\Proxy\CppProxy.cs                                        [P] Template Factory {D} ProjectInfo (F) Create (Format Header/Source) [S] Static
+\Content\Proxy\VisualScriptProxy.cs                               [P] Registry Proxy {D} VisualScriptItem, TypeUtils [S] Static
+\Content\Proxy\MaterialProxy.cs                                   [P] Asset Proxy {D} MaterialWindow [S] Static
+\Content\Proxy\MaterialInstanceProxy.cs                           [P] Asset Proxy {D} MaterialInstanceWindow [S] Static
+\Content\Proxy\MaterialBaseProxy.cs                               [P] Abstract Factory {D} MaterialPreview, MaterialInstance [S] Static
+\Content\Proxy\MaterialFunctionProxy.cs                           [P] Asset Proxy {D} MaterialFunctionWindow [S] Static
+\Content\Proxy\ModelProxy.cs                                      [P] Asset Proxy {D} ModelPreview, CollisionDataProxy [S] Static
+\Content\Proxy\SkinnedModelProxy.cs                               [P] Asset Proxy {D} AnimatedModelPreview, AnimationGraph [S] Static
+\Content\Proxy\AnimationProxy.cs                                  [P] Asset Proxy {D} AnimationWindow [S] Static
+\Content\Proxy\AnimationGraphProxy.cs                             [P] Asset Proxy {D} AnimationGraphWindow [S] Static
+\Content\Proxy\AnimationGraphFunctionProxy.cs                     [P] Asset Proxy {D} AnimationGraphFunctionWindow [S] Static
+\Content\Proxy\ParticleSystemProxy.cs                             [P] Asset Proxy {D} ParticleSystemWindow, ParticleEmitterPreview [S] Static
+\Content\Proxy\ParticleEmitterProxy.cs                            [P] Asset Proxy {D} ParticleEmitterPreview, ParticleSystem [S] Static
+\Content\Proxy\ParticleEmitterFunctionProxy.cs                    [P] Asset Proxy {D} ParticleEmitterFunctionWindow [S] Static
+\Content\Proxy\TextureProxy.cs                                    [P] Asset Proxy {D} SimpleTexturePreview [S] Static
+\Content\Proxy\CubeTextureProxy.cs                                [P] Asset Proxy {D} CubeTexturePreview [S] Static
+\Content\Proxy\SpriteAtlasProxy.cs                                [P] Asset Proxy {D} SimpleSpriteAtlasPreview [S] Static
+\Content\Proxy\FontProxy.cs                                       [P] Asset Proxy [S] Static
+\Content\Proxy\AudioClipProxy.cs                                  [P] Pool Proxy {D} AudioClipPreview [S] Static
+\Content\Proxy\BehaviorTreeProxy.cs                               [P] Asset Proxy {D} BehaviorTreeWindow [S] Static
+\Content\Proxy\GameplayGlobalsProxy.cs                            [P] Asset Proxy {D} GameplayGlobals [S] Static
+\Content\Proxy\LocalizedStringTableProxy.cs                       [P] Asset Proxy {D} LocalizedStringTableWindow [S] Static
+\Content\Proxy\SceneAnimationProxy.cs                             [P] Asset Proxy {D} SceneAnimationPlayer [S] Static
+\Content\Proxy\CollisionDataProxy.cs                              [P] Utility Proxy {D} CookMeshCollision, MeshCollider [S] Static
+\Content\Proxy\IESProfileProxy.cs                                 [P] Asset Proxy {D} IESProfilePreview [S] Static
+\Content\Proxy\SkeletonMaskProxy.cs                               [P] Asset Proxy {D} SkeletonMaskWindow [S] Static
+\Content\Proxy\VideoProxy.cs                                      [P] Asset Proxy {D} VideoWindow [S] Static
+\Content\Proxy\ShaderProxy.cs                                     [P] Source Provider {D} Editor.GetShaderSourceCode [S] Static
+\Content\Proxy\ShaderSourceProxy.cs                               [P] Template Factory [S] Static
+\Content\Proxy\FileProxy.cs                                       [P] OS Handler {D} Platform.CreateProcess [S] Static
+\Content\Proxy\SettingsProxy.cs                                   [P] Factory Proxy {D} SettingsCreateEntry [S] Static
+\Content\Proxy\PreviewsCacheProxy.cs                              [P] Asset Proxy [S] Static
+\Content\Thumbnails                                               [P] Render Pipeline (Service) {D} GPUTexture, RenderTask (F) Request -> Atlas.Occupy -> Render [S] Managed Cache
+\Content\Thumbnails\ThumbnailsModule.cs                           [P] Service/Manager {D} RenderTask, PreviewsCache (F) OnInit -> RequestPreview -> OnRender -> Flush [S] Persistent Cache
+\Content\Thumbnails\ThumbnailRequest.cs                           [P] Lifecycle Object {D} AssetItem, AssetProxy (F) Created -> Prepared -> Rendered [S] Volatile
+\Content\PreviewsCache.cs                                         [P] Constants/Config {D} PixelFormat [S] Static Config
+\Content\AssetItemConverter.cs                                    [P] JSON Serializer {D} AssetItem (F) WriteJson (Guid-format) [S] Static
+\Content\AssetPickerValidator.cs                                  [P] State Filter {D} ScriptType (F) IsValid (Type/Ext check) -> OnSelectedItemChanged [S] Volatile
+\Content\Create                                                   [P] Factory Branch {D} IFileEntryAction (F) Entry -> Dialog -> Execution [S] Volatile
+\Content\IFileEntryAction.cs                                      [P] Command Interface (F) Execute [S] N/A
+\Content\Create\CreateFileEntry.cs                                [P] Strategy/Command {D} IFileEntryAction (F) Execute -> Create [S] Volatile
+\Content\Create\CreateFilesDialog.cs                              [P] View {D} CustomEditorPresenter, CreateFileEntry (F) Select -> OnSubmit [S] Volatile
+\Content\Create\PrefabCreateEntry.cs                              [P] Factory Entry {D} PrefabManager (F) CreateInstance -> CreatePrefab [S] Static
+\Content\Create\VisualScriptCreateEntry.cs                        [P] Factory Entry {D} Editor.CreateVisualScript [S] Static
+\Content\Create\ParticleEmitterCreateEntry.cs                     [P] Factory Entry {D} ContentEditing.CloneAssetFile (F) Create (Template-based) [S] Static
+\Content\Create\SettingsCreateEntry.cs                            [P] Linking Factory {D} GameSettings, SettingsProxy (F) Create -> SaveJson -> AutoLink [S] Persistent
+\Content\Import                                                   [P] Adapter Pipeline {D} Engine.Import, Tools (F) Request -> Settings -> Engine Backend [S] Volatile
+\Content\Import\ImportFileEntry.cs                                [P] Strategy Factory {D} Request (F) CreateEntry -> Execute [S] Volatile
+\Content\Import\ImportFilesDialog.cs                              [P] View {D} ImportFileEntry, CustomEditorPresenter (F) OnSelectedChanged -> OnSubmit [S] Volatile
+\Content\Import\AssetImportEntry.cs                               [P] Adapter {D} Editor.Import [S] Volatile
+\Content\Import\ModelImportEntry.cs                               [P] Proxy Entry {D} ModelTool [S] Volatile
+\Content\Import\TextureImportEntry.cs                             [P] Heuristic Entry {D} TextureTool (F) GuessFormat -> Import [S] Volatile
+\Content\Import\AudioImportSettings.cs                            [P] DTO Proxy {D} AudioTool [S] Volatile
+\Content\Import\FolderImportEntry.cs                              [P] Recursive Command {D} ContentImporting (F) CreateDir -> Import Children [S] Volatile
+\Content\Import\Request.cs                                        [P] Data Container [S] Volatile
+\Options                                                          [P] Serialized Config {D} JsonSerializer (F) Load -> Apply -> Save [S] Persistent (Disk-bound)
+\Options\OptionsModule.cs                                         [P] Service/Orchestrator {D} EditorOptions, JsonSerializer (F) Load -> Apply -> Save [S] Persistent (Disk-bound)
+\Options\EditorOptions.cs                                         [P] Root DTO {D} General/Visual/Input Options [S] Serializable
+\Options\GeneralOptions.cs                                        [P] Data Model {D} StartupSceneModes [S] Serializable
+\Options\InputOptions.cs                                          [P] Data Model [S] Serializable
+\Options\InputBinding.cs                                          [P] Value Object {D} KeyboardKeys (F) TryParse -> Process [S] Serializable
+\Options\InterfaceOptions.cs                                      [P] Data Model {D} FontReference [S] Serializable
+\Options\SourceCodeOptions.cs                                     [P] Data Model {D} ISourceCodeEditor [S] Serializable
+\Options\ThemeOptions.cs                                          [P] Data Model {D} Style [S] Serializable
+\Options\ViewportOptions.cs                                       [P] Data Model [S] Serializable
+\Options\VisualOptions.cs                                         [P] Data Model [S] Serializable
+\Content\Settings                                                 [P] Configuration Models {D} GameCooker [S] Persistent Settings
+\Content\Settings\BuildPreset.cs                                  [P] Data Model {D} BuildTarget [S] Persistent
+\Content\Settings\BuildTarget.cs                                  [P] Data Model {D} BuildPlatform, BuildConfiguration [S] Persistent
+\GUI                                                              [P] UI Framework (Retained-ish) {D} FlaxEngine.GUI, Style (F) OnMouseDown -> PerformLayout -> Draw [S] Volatile State
+\EditorIcons.cs                                                   [P] Flyweight/Cache {D} SpriteAtlas, Reflection (F) LoadIcons (Reflection Field Mapping) [S] Persistent/In-Memory Cache
+\GUI\WindowDecorations.cs                                         [P] Chrome {D} Window, Button (F) OnHitTest -> DrawBorders [S] Persistent (Window-linked)
+\GUI\MainMenu.cs                                                  [P] Container {D} MainMenuButton (F) PerformLayout [S] Persistent
+\GUI\MainMenuButton.cs                                            [P] Menu Trigger {D} ContextMenu (F) OnMouseDown -> Selected [S] Volatile
+\GUI\ToolStrip.cs                                                 [P] Button Strip {D} ToolStripButton (F) PerformLayout [S] Persistent UI
+\GUI\ToolStripButton.cs                                           [P] Command {D} SpriteHandle (F) Draw -> OnClicked [S] Volatile
+\GUI\ToolStripSeparator.cs                                        [P] Visual Divider [S] Static
+\GUI\StatusBar.cs                                                 [P] View {D} ContainerControl (F) Draw (Status/Line) [S] Persistent UI
+\GUI\NavigationBar.cs                                             [P] Path View {D} ToolStrip, Panel (F) UpdateBounds -> Arrange [S] Volatile
+\GUI\NavigationButton.cs                                          [P] Command {D} Button [S] Volatile
+\GUI\Splitter.cs                                                  [P] Layout Tool {D} Control (F) OnMouseMove -> Moved [S] Volatile
+\GUI\Table.cs                                                     [P] Data Grid {D} ColumnDefinition, Row (F) PerformLayout -> DrawColumn [S] Volatile
+\GUI\Row.cs                                                       [P] Composite {D} Table (F) Draw -> OnMouseUp (Collapse) [S] Volatile
+\GUI\ColumnDefinition.cs                                          [P] Descriptor (DTO) {D} Table (F) ClampColumnSize [S] Static Config
+\GUI\Tabs\Tabs.cs                                                 [P] Navigation Container {D} TabHeader, TabsHeader (F) AddTab -> OnSelectedTabChanged [S] Volatile
+\GUI\Tabs\Tab.cs                                                  [P] Page Leaf {D} Tabs [S] Volatile
+\GUI\Tree\Tree.cs                                                 [P] Collection View {D} TreeNode (F) Select -> SelectRange -> Update [S] Volatile UI State
+\GUI\Tree\TreeNode.cs                                             [P] Hierarchy Node {D} Tree, DragTracks (F) Expand -> OnDragDropHeader -> Draw [S] Volatile UI State
+\GUI\Tree\TreeNodeWithAddons.cs                                   [P] Decorator {D} Control (F) OnMouseDown (Addons loop) [S] Volatile
+\GUI\ContextMenu\ContextMenu.cs                                   [P] Popup Menu {D} ItemsPanel, ContextMenuItem (F) AddButton -> Show -> SortButtons [S] Volatile
+\GUI\ContextMenu\ContextMenuBase.cs                               [P] Windowed Popup {D} Window, RootControl (F) Show -> Hide -> OnWindowLostFocus [S] Volatile
+\GUI\ContextMenu\ContextMenuButton.cs                             [P] Command Item {D} ContextMenu (F) Click -> Draw (Zebra/Checked) [S] Volatile
+\GUI\ContextMenu\ContextMenuChildMenu.cs                          [P] Recursive Menu {D} ContextMenu (F) OnMouseEnter -> ShowChild [S] Volatile
+\GUI\ContextMenu\ContextMenuItem.cs                               [P] Base Item {D} ContextMenu (F) OnMouseEnter [S] N/A
+\GUI\ContextMenu\ContextMenuSeparator.cs                          [P] Visual Divider [S] Static
+\GUI\ContextMenu\ContextMenuSingleSelectGroup.cs                  [P] Option Group {D} ContextMenuButton (F) SetSelected [S] Volatile
+\GUI\ItemsListContextMenu.cs                                      [P] Searchable Menu {D} SearchBox, Panel (F) OnSearchFilterChanged -> SortItems [S] Volatile
+\GUI\Docking\MasterDockPanel.cs                                   [P] Docking Root {D} DockPanel, FloatWindowDockPanel (F) ResetLayout -> HitTest [S] Persistent Registry
+\GUI\Docking\DockPanel.cs                                         [P] MDI Layout {D} SplitPanel, DockWindow (F) DockWindow -> SelectTab -> HitTest [S] Persistent (Serializable Layout)
+\GUI\Docking\DockWindow.cs                                        [P] Dockable Page {D} MasterDockPanel (F) Show -> Undock -> Close [S] Persistent UI State
+\GUI\Docking\DockPanelProxy.cs                                    [P] View Adapter {D} DockPanel, DockWindow (F) Draw (Tabs) -> GetTabAtPos [S] Volatile
+\GUI\Docking\FloatWindowDockPanel.cs                              [P] Floating Host {D} WindowRootControl (F) BeginDrag -> OnClosing [S] Volatile
+\GUI\Docking\WindowDragHelper.cs                                  [P] Interaction Mediator {D} FloatWindowDockPanel (F) StartDragging -> UpdateRects -> Dispose [S] Volatile Drag State
+\GUI\Drag\DragHandlers.cs                                         [P] Composite Handler {D} DragHelper (F) OnDragEnter -> OnDragDrop [S] Volatile
+\GUI\Drag\DragHelper.cs                                           [P] Strategy Base {D} DragData (F) OnDragEnter -> FromDragData [S] Volatile
+\GUI\Drag\DragAssets.cs                                           [P] Typed Handler {D} AssetItem [S] Volatile
+\GUI\Drag\DragItems.cs                                            [P] Asset Handler {D} ContentItem [S] Volatile
+\GUI\Drag\DragActors.cs                                           [P] Typed Handler {D} ActorNode [S] Volatile
+\GUI\Drag\DragScripts.cs                                          [P] Instance Handler {D} Script [S] Volatile
+\GUI\Drag\DragScriptItems.cs                                      [P] Script Handler {D} ScriptItem [S] Volatile
+\GUI\Drag\DragActorType.cs                                        [P] Typed Handler {D} ScriptType [S] Volatile
+\GUI\Drag\DragControlType.cs                                      [P] Typed Handler {D} ScriptType [S] Volatile
+\GUI\Drag\DragNames.cs                                            [P] Name Handler [S] Volatile
+\GUI\Drag\DragEventArgs.cs                                        [P] Data Container [S] N/A
+\GUI\Dialogs\Dialog.cs                                            [P] Modal Window {D} Window (F) ShowDialog -> Close [S] Volatile
+\GUI\Dialogs\ColorPickerDialog.cs                                 [P] Modal Dialog {D} ColorSelector, Tabs (F) SelectedColor -> OnSubmit [S] Volatile
+\GUI\Dialogs\ColorSelector.cs                                     [P] Visual Picker {D} MaterialBase (F) UpdateMouse (HSV) [S] Volatile
+\GUI\Input\ValueBox.cs                                            [P] Numeric Logic Base {D} ShuntingYard (F) ApplySliding -> UpdateText [S] Volatile
+\GUI\Input\FloatValueBox.cs                                       [P] Numeric Editor [S] Volatile
+\GUI\Input\DoubleValueBox.cs                                      [P] Numeric Editor [S] Volatile
+\GUI\Input\IntValueBox.cs                                         [P] Numeric Editor [S] Volatile
+\GUI\Input\LongValueBox.cs                                        [P] Numeric Editor [S] Volatile
+\GUI\Input\UIntValueBox.cs                                        [P] Numeric Editor [S] Volatile
+\GUI\Input\ULongValueBox.cs                                       [P] Numeric Editor [S] Volatile
+\GUI\Input\ColorValueBox.cs                                       [P] Visual Trigger {D} ColorPickerDialog (F) OnSubmit -> OnColorChanged [S] Volatile
+\GUI\Input\SliderControl.cs                                       [P] Compound Editor {D} Slider, TextBox [S] Volatile
+\GUI\Input\SearchBox.cs                                           [P] Input View {D} Button (F) Clear [S] Volatile
+\GUI\Popups\RenamePopup.cs                                        [P] Inline Editor {D} TextBox (F) Validate -> Renamed [S] Volatile
+\GUI\Popups\AssetSearchPopup.cs                                   [P] Picker {D} ContentItemView [S] Volatile
+\GUI\Popups\ActorSearchPopup.cs                                   [P] Picker {D} ActorItemView (F) Find [S] Volatile
+\GUI\Popups\ScriptSearchPopup.cs                                  [P] Picker {D} ScriptItemView [S] Volatile
+\GUI\Popups\TypeSearchPopup.cs                                    [P] Type Picker {D} ScriptType [S] Volatile
+\GUI\AssetPicker.cs                                               [P] Mediator/Picker {D} Validator, ContentItem (F) DoDrag -> Draw -> OnSubmit [S] Volatile
+\GUI\ComboBox.cs                                                  [P] Items Picker (Native Window) {D} ContextMenu (F) OnItemClicked -> ShowPopup [S] Volatile
+\GUI\EnumComboBox.cs                                              [P] Enum Resolver {D} ComboBox, Reflection (F) BuildEntriesDefault -> Value [S] Volatile
+\GUI\ClickableLabel.cs                                            [P] Event Decorator {D} Label (F) OnMouseUp (Left/Right) [S] Volatile
+\GUI\PlatformSelector.cs                                          [P] Options Picker {D} TilesPanel, Image (F) Selected [S] Volatile
+\GUI\PrefabDiffContextMenu.cs                                     [P] Decision Dialog {D} Tree (F) RevertAll -> ApplyAll [S] Volatile
+\IEditable.cs                                                     [P] Interface (State Pattern) {D} None (F) Event Action OnEdited [S] State Management Hook
+\CustomEditors                                                    [P] Model-View-Presenter (MVP) {D} CustomEditorPresenter, LayoutElementsContainer (F) Init -> BuildUI -> Refresh -> SetValue [S] Volatile UI
+\CustomEditors\CustomEditorPresenter.cs                           [P] Facade/Root Controller {D} RootEditor, Undo (F) Select -> BuildLayout -> Update [S] Volatile UI State
+\CustomEditors\CustomEditor.cs                                    [P] Abstract Base {D} LayoutElementsContainer, ValueContainer (F) Initialize -> Refresh -> SetValue [S] Managed
+\CustomEditors\CustomEditorsUtil.cs                               [P] Static Factory {D} GenericEditor, AssetRefEditor (F) CreateEditor (Type Matching) [S] Static
+\CustomEditors\LayoutElementsContainer.cs                         [P] Composite UI Builder {D} GroupElement, PropertiesListElement (F) Group -> Property -> AddElement [S] Volatile
+\CustomEditors\LayoutElement.cs                                   [P] UI Primitive Base {D} Control [S] Volatile
+\CustomEditors\SyncPointEditor.cs                                 [P] Observer/Decorator {D} Undo (F) OnDirty -> RecordMultiBegin -> RecordMultiEnd [S] Volatile
+\CustomEditors\Values\ValueContainer.cs                           [P] Data Proxy {D} ScriptMemberInfo (F) Refresh -> Set -> ValueEquals [S] Managed Value State
+\CustomEditors\Values\CustomValueContainer.cs                     [P] Adapter {D} ValueContainer (F) Refresh/Set (Delegate-based) [S] Volatile
+\CustomEditors\Values\ListValueContainer.cs                       [P] Adapter {D} IList (F) Refresh/Set (Index-based access) [S] Volatile
+\CustomEditors\Values\DictionaryValueContainer.cs                 [P] Adapter {D} IDictionary (F) Refresh/Set (Key-based access) [S] Volatile
+\CustomEditors\Values\ReadOnlyValueContainer.cs                   [P] Restricted Adapter [S] Immutable
+\CustomEditors\GUI\PropertiesList.cs                              [P] Layout Container {D} PropertiesListElement (F) UpdateSplitRect -> AutoSizeSplitter [S] Volatile UI
+\CustomEditors\GUI\PropertyNameLabel.cs                           [P] View {D} CustomEditor (F) LinkEditor -> UpdateHighlights -> OnMouseUp (Revert/Copy/Paste menu) [S] Volatile
+\CustomEditors\GUI\CheckablePropertyNameLabel.cs                  [P] Decorator {D} CheckBox, PropertiesList (F) UpdateStyle (Enable/Disable Children) [S] Volatile
+\CustomEditors\GUI\ClickablePropertyNameLabel.cs                  [P] Event Proxy {D} PropertyNameLabel (F) OnMouseUp -> MouseLeftClick [S] Volatile
+\CustomEditors\GUI\DraggablePropertyNameLabel.cs                  [P] Drag Provider {D} ClickablePropertyNameLabel (F) OnMouseLeave -> DoDragDrop [S] Volatile
+\CustomEditors\Editors\GenericEditor.cs                           [P] Reflection Inspector {D} ItemInfo, VisibleIfCache (F) GetItemsForType -> OnGroup -> SpawnProperty [S] Volatile
+\CustomEditors\Editors\ActorTransformEditor.cs                    [P] Transform Aggregate {D} Vector3Editor, QuaternionEditor (F) LinkValues (Uniform Scale) [S] Volatile UI
+\CustomEditors\Editors\AssetRefEditor.cs                          [P] Reference Picker {D} AssetPicker, AssetPickerValidator (F) OnSelectedItemChanged [S] Volatile
+\CustomEditors\Editors\FlaxObjectRefEditor.cs                     [P] Scene Reference Picker {D} FlaxObjectRefPickerControl, ActorTreeNode (F) DoDrag -> OnMouseDoubleClick [S] Volatile
+\CustomEditors\Editors\CollectionEditor.cs                        [P] Hierarchical Editor {D} ListValueContainer, CollectionItemLabel (F) Move -> Shift -> Duplicate [S] Volatile
+\CustomEditors\Editors\ArrayEditor.cs                             [P] Collection Editor {D} TypeUtils (F) Resize -> Allocate [S] Volatile
+\CustomEditors\Editors\ListEditor.cs                              [P] Collection Editor {D} IList [S] Volatile
+\CustomEditors\Editors\DictionaryEditor.cs                        [P] Key-Value Editor {D} IDictionary, DictionaryValueContainer (F) ChangeKey -> Remove [S] Volatile
+\CustomEditors\Editors\EnumEditor.cs                              [P] Options Picker {D} EnumComboBox [S] Volatile
+\CustomEditors\Editors\BooleanEditor.cs                           [P] Primitive Editor {D} CheckBox [S] Volatile
+\CustomEditors\Editors\IntegerEditor.cs                           [P] Numeric Editor {D} IntValueBox, LongValueBox [S] Volatile
+\CustomEditors\Editors\FloatEditor.cs                             [P] Numeric Editor {D} FloatValueElement, SliderControl [S] Volatile
+\CustomEditors\Editors\DoubleEditor.cs                            [P] Numeric Editor {D} DoubleValueBox [S] Volatile
+\CustomEditors\Editors\StringEditor.cs                            [P] Text Editor {D} TextBoxElement (F) Initialize (Watermark/Multiline) [S] Volatile
+\CustomEditors\Editors\ColorEditor.cs                             [P] Visual Picker {D} ColorValueBox [S] Volatile
+\CustomEditors\Editors\Vector2Editor.cs                           [P] Numeric Vector {D} Float2, Double2, Int2 [S] Volatile
+\CustomEditors\Editors\Vector3Editor.cs                           [P] Numeric Vector {D} Float3, Double3, Int3 [S] Volatile
+\CustomEditors\Editors\Vector4Editor.cs                           [P] Numeric Vector {D} Float4, Double4, Int4 [S] Volatile
+\CustomEditors\Editors\QuaternionEditor.cs                        [P] Visual Rotation {D} EulerAngles (F) OnValueChanged (UnwindDegrees) [S] Volatile
+\CustomEditors\Editors\MatrixEditor.cs                            [P] Visual Matrix {D} Matrix [S] Volatile
+\CustomEditors\Editors\GuidEditor.cs                              [P] ID Editor {D} AssetPicker (F) OnEditEnd (Parse Guid) [S] Volatile
+\CustomEditors\Editors\TypeEditor.cs                              [P] Registry Picker {D} TypePickerControl, TypeSearchPopup (F) OnDragDrop [S] Volatile
+\CustomEditors\Editors\TagEditor.cs                               [P] Tree Picker {D} Tags, LayersAndTagsSettings (F) OnAddTagButtonClicked -> Save Asset [S] Persistent
+\CustomEditors\Editors\ActorLayerEditor.cs                        [P] Named Picker {D} LayersAndTagsSettings, ComboBox (F) UpdateLayerItems [S] Volatile UI
+\CustomEditors\Editors\ActorStaticFlagsEditor.cs                  [P] Flags Editor {D} StaticFlags (F) OnValueChanged (Recursive Apply) [S] Volatile UI
+\CustomEditors\Editors\ObjectSwitcherEditor.cs                    [P] Polymorphic Picker {D} OptionType (F) OnSelectedIndexChanged (Instantiate type) [S] Volatile
+\CustomEditors\Editors\LocalizedStringEditor.cs                   [P] Localization Bridge {D} LocalizationSettings (F) OnAddStringClicked (Key gen/Save) [S] Volatile
+\CustomEditors\Editors\ColorTrackball.cs                          [P] Grading Tool {D} ColorSelector, FloatValueElement (F) OnColorWheelChanged [S] Volatile
+\CustomEditors\Editors\SpriteHandleEditor.cs                      [P] Atlas Picker {D} SpriteAtlas (F) OnSelectedIndexChanged [S] Volatile
+\CustomEditors\Editors\MarginEditor.cs                            [P] Structural Editor {D} Margin [S] Volatile
+\CustomEditors\Editors\InputEditor.cs                             [P] Settings Picker {D} Input (F) Initialize (Mapping fetch) [S] Volatile
+\CustomEditors\Editors\KeyboardKeysEditor.cs                      [P] Input Listener {D} KeyboardKeys (F) OnKeyUp [S] Volatile
+\CustomEditors\Editors\MouseButtonEditor.cs                       [P] Input Listener {D} MouseButton (F) OnMouseUp [S] Volatile
+\CustomEditors\Editors\GamepadButtonEditor.cs                     [P] Input Listener {D} Input.Gamepads (F) OnUpdate (Polling) [S] Volatile
+\CustomEditors\Editors\BindableButtonEditor.cs                    [P] Input Listener {D} Button (F) OnButtonClicked -> SetupButton (Listen state) [S] Volatile UI
+\CustomEditors\Editors\ControlReferenceEditor.cs                  [P] UI Picker {D} UIControlRefPickerControl, IControlReference [S] Volatile
+\CustomEditors\Editors\BehaviorKnowledgeSelectorEditor.cs         [P] Context Picker {D} BehaviorKnowledgeSelectorAny (F) ShowPicker (Blackboard/Goal Tree) [S] Volatile
+\CustomEditors\Editors\SkeletonNodeEditor.cs                      [P] Hierarchy Picker {D} AnimatedModel (F) Initialize (Nodes fetch) [S] Volatile
+\CustomEditors\Editors\TerrainLayerEditor.cs                      [P] Terrain Bridge {D} LayersAndTagsSettings [S] Volatile
+\CustomEditors\Editors\ModelInstanceEntryEditor.cs                [P] Slot Editor {D} ModelInstanceActor, AssetRefEditor (F) OnSelectedMaterialChanged [S] Volatile
+\CustomEditors\Editors\CultureInfoEditor.cs                       [P] Locale Picker {D} CultureInfo (F) CreatePicker (Tree construction) [S] Volatile
+\CustomEditors\Editors\IBrushEditor.cs                            [P] Type Switcher {D} IBrush [S] Volatile
+\CustomEditors\Editors\StyleEditor.cs                             [P] Visual Editor {D} Style, StyleEditorWindow [S] Volatile
+\CustomEditors\Editors\VersionEditor.cs                           [P] Data Editor {D} Version [S] Volatile
+\CustomEditors\Editors\DummyEditor.cs                             [P] Fallback Editor [S] Volatile
+\CustomEditors\Dedicated\ActorEditor.cs                           [P] Specialized Decorator {D} Actor, Prefab, ScriptsEditor (F) Initialize (Prefab Link) -> ViewChanges [S] Volatile
+\CustomEditors\Dedicated\ScriptsEditor.cs                         [P] Collection Manager {D} Script, AddRemoveScript, DragAreaControl (F) AddScripts -> Reorder [S] Volatile
+\CustomEditors\Dedicated\AnimatedModelEditor.cs                   [P] Component Editor {D} AnimatedModel, SurfaceUtils (F) Initialize (Runtime Params) [S] Volatile
+\CustomEditors\Dedicated\ParticleEffectEditor.cs                  [P] Component Editor {D} ParticleEffect, SurfaceUtils (F) DisplayGraphParameters [S] Volatile
+\CustomEditors\Dedicated\AudioSourceEditor.cs                     [P] Component Editor {D} AudioSource (F) Initialize (Playback Controls) -> Refresh [S] Volatile
+\CustomEditors\Dedicated\RigidBodyEditor.cs                       [P] Component Editor {D} RigidBody (F) Initialize (Info Box) [S] Volatile
+\CustomEditors\Dedicated\UIControlEditor.cs                       [P] UI Layout Editor {D} UIControl, AnchorPresetsEditorPopup (F) SetType -> SetStyle [S] Volatile
+\CustomEditors\Dedicated\TerrainEditor.cs                         [P] Component Editor {D} Terrain (F) Initialize (Info Box) [S] Volatile
+\CustomEditors\Dedicated\ClothEditor.cs                           [P] Tool Bridge {D} Cloth, ClothPaintingGizmoMode (F) Initialize (Gizmo Link) [S] Volatile
+\CustomEditors\Dedicated\SplineEditor.cs                          [P] Visual Path Editor {D} Spline, EditSplineAction (F) OnSetMode (Tangent Modes) [S] Volatile
+\CustomEditors\Dedicated\RagdollEditor.cs                         [P] Visual Builder {D} Ragdoll, AnimatedModelNode (F) Rebuild -> OnRebuildBone [S] Volatile
+\CustomEditors\Dedicated\NavMeshBoundsVolumeEditor.cs             [P] Utility Editor {D} NavMeshBoundsVolume (F) OnBuildClicked [S] Volatile
+\CustomEditors\Dedicated\EnvironmentProbeEditor.cs                [P] Component Editor {D} EnvironmentProbe (F) BakeButtonClicked [S] Volatile
+\CustomEditors\Dedicated\SkyLightEditor.cs                        [P] Component Editor {D} SkyLight (F) BakeButtonClicked [S] Volatile
+\CustomEditors\Dedicated\SceneAnimationPlayerEditor.cs            [P] Component Editor {D} SceneAnimationPlayer (F) Play/Pause/Stop [S] Volatile
+\CustomEditors\Dedicated\PostProcessSettingsEditor.cs             [P] Aggregate Editor {D} PostProcessSettings (F) CheckBoxOnCheckChanged (OverrideFlags) [S] Volatile
+\CustomEditors\Dedicated\LocalizationSettingsEditor.cs            [P] Service Dashboard {D} LocalizationSettings, LocalizedStringTable (F) Initialize (Stats/Export) [S] Volatile
+\CustomEditors\Dedicated\MeshReferenceEditor.cs                   [P] Reference Picker {D} ModelInstanceActor, MeshRefPickerControl (F) ShowDropDownMenu [S] Volatile
+\CustomEditors\Dedicated\FontReferenceEditor.cs                   [P] Data Editor {D} FontReference [S] Volatile
+\CustomEditors\Dedicated\GPUTextureEditor.cs                      [P] Visual Viewer {D} GPUTextureBrush (F) OnImageClicked (Capture/Resize) [S] Volatile
+\CustomEditors\Dedicated\LayersMaskEditor.cs                      [P] Data Editor {D} LayersAndTagsSettings (F) Initialize (Checkboxes) [S] Volatile
+\CustomEditors\Dedicated\LayersMatrixEditor.cs                    [P] Visual Matrix {D} PhysicsSettings (F) Initialize (Grid/Highlight) [S] Volatile
+\CustomEditors\Dedicated\PhysicalMaterialEditor.cs                [P] Data Editor {D} PhysicalMaterial [S] Volatile
+\CustomEditors\Dedicated\TextureGroupEditor.cs                    [P] Settings Picker {D} StreamingSettings [S] Volatile
+\CustomEditors\Dedicated\CurveObjectEditor.cs                     [P] Data Editor {D} BezierCurveEditor (F) Initialize (Splitter/Height Cache) [S] Volatile
+\CustomEditors\Dedicated\NavAgentMaskEditor.cs                    [P] Data Editor {D} NavigationSettings [S] Volatile
+\CustomEditors\Dedicated\ModelPrefabEditor.cs                     [P] Reimport Utility {D} ModelPrefab, ModelTool (F) OnReimport [S] Volatile
+\CustomEditors\Dedicated\ScriptingObjectEditor.cs                 [P] Debug Viewer {D} NetworkReplicator (F) Initialize (Network Role/Owner) [S] Volatile
+\CustomEditors\Dedicated\MissingScriptEditor.cs                   [P] Error Handler {D} MissingScript, AddRemoveScript (F) ReplaceScript (Multi-Cast) [S] Volatile
+\CustomEditors\Elements\Container\PropertiesListElement.cs        [P] Wrapper {D} PropertiesList (F) Property -> Object -> LinkLabel [S] Volatile UI
+\CustomEditors\Elements\Container\GroupElement.cs                 [P] Wrapper {D} DropPanel (F) AddSettingsButton [S] Volatile UI
+\CustomEditors\Elements\Container\HorizontalPanelElement.cs       [P] Wrapper {D} HorizontalPanel [S] Volatile UI
+\CustomEditors\Elements\Container\VerticalPanelElement.cs         [P] Wrapper {D} VerticalPanel [S] Volatile UI
+\CustomEditors\Elements\Container\TreeElement.cs                  [P] Wrapper {D} Tree [S] Volatile UI
+\CustomEditors\Elements\Container\TreeNodeElement.cs              [P] Wrapper {D} TreeNode [S] Volatile UI
+\CustomEditors\Elements\Container\CustomElement.cs                [P] Wrapper {D} Control, ContainerControl [S] Volatile
+\CustomEditors\Elements\Container\SpaceElement.cs                 [P] Wrapper {D} Spacer [S] Volatile UI
+\CustomEditors\Elements\LabelElement.cs                           [P] Wrapper {D} ClickableLabel [S] Volatile
+\CustomEditors\Elements\ButtonElement.cs                          [P] Wrapper {D} Button [S] Volatile
+\CustomEditors\Elements\CheckBoxElement.cs                        [P] Wrapper {D} CheckBox [S] Volatile
+\CustomEditors\Elements\TextBoxElement.cs                         [P] Wrapper {D} TextBox [S] Volatile
+\CustomEditors\Elements\ComboBoxElement.cs                        [P] Wrapper {D} ComboBox [S] Volatile
+\CustomEditors\Elements\EnumElement.cs                            [P] Wrapper {D} EnumComboBox [S] Volatile
+\CustomEditors\Elements\IntegerValueElement.cs                    [P] Wrapper {D} IntValueBox, LongValueBox, ULongValueBox [S] Volatile
+\CustomEditors\Elements\FloatValueElement.cs                      [P] Wrapper {D} FloatValueBox [S] Volatile
+\CustomEditors\Elements\DoubleValueElement.cs                     [P] Wrapper {D} DoubleValueBox [S] Volatile
+\CustomEditors\Elements\SliderElement.cs                          [P] Wrapper {D} SliderControl [S] Volatile
+\CustomEditors\Elements\ImageElement.cs                           [P] Wrapper {D} Image [S] Volatile
+\CustomEditors\Elements\IFloatValueEditor.cs                      [P] Interface [S] N/A
+\CustomEditors\Elements\IIntegerValueEditor.cs                    [P] Interface [S] N/A
+\Surface\VisjectSurface.cs                                        [P] Master Controller {D} SurfaceRootControl, IVisjectSurfaceOwner (F) Update -> MarkAsEdited [S] Volatile Instance
+\Surface                                                          [P] Visual Scripting Engine {D} SurfaceNode, VisjectSurfaceContext, NodeArchetype (F) Load -> OnContextChanged -> Save [S] Persistent Graph
+\Surface\VisjectSurfaceContext.cs                                 [P] Graph Scope {D} SurfaceRootControl, SurfaceNode (F) SpawnNode -> MarkAsModified [S] Persistent State
+\Surface\SurfaceNode.cs                                           [P] Graph Node Model {D} NodeArchetype, ISurfaceNodeElement (F) Ctor -> AddElement -> ResizeAuto [S] Volatile State
+\Surface\NodeArchetype.cs                                         [P] Blueprint Factory {D} ScriptType, SurfaceNode (F) Create (Delegate) [S] Static Registry
+\Surface\GroupArchetype.cs                                        [P] Registry DTO {D} NodeArchetype [S] Static Data
+\Surface\NodeFactory.cs                                           [P] Abstract Factory {D} GroupArchetype, SurfaceNode (F) CreateNode (Registry Scan) [S] Static
+\Surface\SurfaceRootControl.cs                                    [P] Canvas Layout {D} SurfaceComment (F) DrawComments -> DrawChildren [S] Volatile UI
+\Surface\SurfaceControl.cs                                        [P] Base UI Component {D} VisjectSurfaceContext (F) CanSelect -> OnLoaded [S] Volatile UI
+\Surface\VisjectSurface.Drawing.cs                                [P] View Renderer {D} Render2D (F) DrawBackground -> DrawConnections -> DrawSelection [S] Frame-bound
+\Surface\VisjectSurface.Input.cs                                  [P] Interaction Handler {D} InputActionsContainer (F) OnMouseDown -> OnMouseWheel [S] Volatile interaction
+\Surface\VisjectSurface.Connecting.cs                             [P] Edge Logic {D} IConnectionInstigator (F) ConnectingStart -> ConnectingEnd [S] Volatile interaction
+\Surface\VisjectSurface.ContextMenu.cs                            [P] Picker logic {D} VisjectCM, NodesCache (F) Get -> OnShowPrimaryMenu [S] Volatile UI
+\Surface\VisjectSurface.Parameters.cs                             [P] Scoped Mediator {D} SurfaceParameter (F) OnParamCreated -> IsParamUsed [S] Volatile
+\Surface\VisjectSurface.Context.cs                                [P] Hierarchy Manager {D} VisjectSurfaceContext (F) OpenContext -> CloseContext [S] Volatile Stack
+\Surface\VisjectSurface.CopyPaste.cs                              [P] Serializer {D} Clipboard, DataModel (F) Copy -> Paste (id Remapping) [S] Volatile Data
+\Surface\VisjectSurface.Serialization.cs                          [P] I/O Hub {D} VisjectSurfaceContext (F) Load -> Save [S] Static
+\Surface\VisjectSurface.Formatting.cs                             [P] Layout Solver {D} Sugiyama Algorithm (F) FormatGraph -> AlignNodes [S] Volatile
+\Surface\VisjectSurface.DragDrop.cs                               [P] Input Handler {D} DragHandlers, DragAssets (F) OnDragDrop -> HandleDragDropAssets [S] Volatile interaction
+\Surface\VisjectSurfaceContext.Serialization.cs                   [P] Binary Engine {D} BinaryReader/Writer (F) SaveGraph -> LoadGraph [S] Persistent I/O
+\Surface\SurfaceParameter.cs                                      [P] Variable Model {D} ScriptType, SurfaceMeta [S] Persistent Data
+\Surface\SurfaceMeta.cs                                           [P] Metadata Hub {D} JsonSerializer (F) Load -> Save -> SetAttributes [S] Persistent Meta
+\Surface\SurfaceStyle.cs                                          [P] Visual Theme {D} Style (F) GetConnectionColor -> DrawStraightConnection [S] Static
+\Surface\SurfaceUtils.cs                                          [P] Static Utility {D} CustomEditors, GraphParameter (F) DisplayGraphParameters [S] Static
+\Surface\Constants.cs                                             [P] UI Registry {D} None [S] Static Constants
+\Surface\VisualScriptSurface.cs                                   [P] Specialized Surface {D} VisualScript, Breakpoints (F) IterateNodesCache [S] Volatile Graph
+\Surface\MaterialSurface.cs                                       [P] Asset Surface {D} MaterialBase, Texture (F) HandleDragDropAssets [S] Volatile Graph
+\Surface\MaterialFunctionSurface.cs                               [P] Specialized Surface {D} MaterialSurface, IFunctionSurface (F) CanUseNodeType [S] Volatile UI
+\Surface\AnimGraphSurface.cs                                      [P] Asset Surface {D} AnimGraphTraceEvent, VisjectCM (F) OnScriptsReloadBegin -> OnContextChanged [S] Volatile Graph
+\Surface\AnimationGraphFunctionSurface.cs                         [P] Specialized Surface {D} AnimGraphSurface, IFunctionSurface (F) CanUseNodeType [S] Volatile UI
+\Surface\ParticleEmitterSurface.cs                                [P] Asset Surface {D} ParticleModuleNode, ParticleEmitterNode (F) ArrangeModulesNodes [S] Volatile Graph
+\Surface\ParticleEmitterFunctionSurface.cs                        [P] Specialized Surface {D} ParticleEmitterSurface, IFunctionSurface (F) CanUseNodeType [S] Volatile UI
+\Surface\BehaviorTreeSurface.cs                                   [P] Asset Surface {D} BehaviorTree, BehaviorTreeNode (F) Load -> OnControlSpawned [S] Volatile Graph
+\Surface\Archetypes\VisualScript.cs                               [P] Logic Registry {D} SurfaceNode, VisualScript [S] Static
+\Surface\Archetypes\Material.cs                                   [P] Shader Registry {D} SurfaceNodeMaterial, CustomCodeNode [S] Static
+\Surface\Archetypes\Animation.cs                                  [P] Registry {D} SurfaceNode, SkeletonMaskSample [S] Static
+\Surface\Archetypes\Animation.StateMachine.cs                     [P] Scoped Context {D} StateMachine, StateMachineEntry, StateMachineState [S] Persistent
+\Surface\Archetypes\Particles.cs                                  [P] Root Registry {D} ParticleEmitterNode, ParticleAttributeNode [S] Static
+\Surface\Archetypes\ParticleModules.cs                            [P] Module Registry {D} ParticleModuleNode, SortModuleNode [S] Static
+\Surface\Archetypes\BehaviorTree.cs                               [P] Node Registry {D} BehaviorTreeNode, Decorator [S] Static
+\Surface\Archetypes\Function.cs                                   [P] Method Registry {D} FunctionNode, InvokeMethodNode, ReturnNode [S] Static
+\Surface\Archetypes\Parameters.cs                                 [P] Property Registry {D} SurfaceNodeParamsGet, SurfaceNodeParamsSet [S] Static
+\Surface\Archetypes\Math.cs                                       [P] Operation Registry [S] Static
+\Surface\Archetypes\Comparisons.cs                                [P] Operation Registry {D} SwitchOnEnumNode [S] Static
+\Surface\Archetypes\Boolean.cs                                    [P] Operation Registry [S] Static
+\Surface\Archetypes\Bitwise.cs                                    [P] Operation Registry [S] Static
+\Surface\Archetypes\Flow.cs                                       [P] Control Registry {D} SequenceNode, BranchOnEnumNode [S] Static
+\Surface\Archetypes\Constants.cs                                  [P] Constant Registry {D} ConvertToParameterNode, EnumNode, ArrayNode [S] Static
+\Surface\Archetypes\Collections.cs                                [P] Operation Registry {D} ScriptType (F) GetArrayItemType [S] Static
+\Surface\Archetypes\Packing.cs                                    [P] Struct Registry {D} AppendNode, StructureNode [S] Static
+\Surface\Archetypes\Layers.cs                                     [P] Material Registry [S] Static
+\Surface\Archetypes\Textures.cs                                   [P] Asset Registry {D} TextureSamplerNode, TriplanarSampleTextureNode [S] Static
+\Surface\Archetypes\Tools.cs                                      [P] Utility Registry {D} ColorGradientNode, CurveNode, ThisNode [S] Static
+\Surface\Archetypes\Custom.cs                                     [P] Bridge [S] Static
+\Surface\Archetypes\Animation.MultiBlend.cs                       [P] Widget {D} BlendPointsEditor, MultiBlend1D, MultiBlend2D [S] Volatile interaction
+\Surface\Archetypes\Animation.TransitionEditor.cs                 [P] Popup {D} ContextMenuBase, CustomEditorPresenter [S] Volatile UI
+\Surface\ContextMenu\VisjectCM.cs                                 [P] Search Controller {D} VisjectCMGroup, VisjectCMItem (F) Show -> UpdateFilters [S] Volatile UI
+\Surface\ContextMenu\VisjectCMGroup.cs                            [P] Composite UI {D} VisjectCMItem (F) ResetView -> UpdateFilter [S] Volatile UI
+\Surface\ContextMenu\VisjectCMItem.cs                             [P] Leaf UI {D} NodeArchetype (F) UpdateScore -> CanConnectTo [S] Volatile UI
+\Surface\Elements\Box.cs                                          [P] Socket Model {D} ScriptType (F) ConnectionTick -> CreateConnection [S] Volatile interaction
+\Surface\Elements\InputBox.cs                                     [P] Input Socket {D} IDefaultValueEditor (F) CreateDefaultEditor [S] Volatile interaction
+\Surface\Elements\OutputBox.cs                                    [P] Output Socket {D} BezierCurve (F) DrawConnections [S] Volatile interaction
+\Surface\SurfaceNodeElementControl.cs                             [P] Inline UI Element {D} SurfaceNode, NodeElementArchetype [S] Volatile UI
+\Surface\ResizableSurfaceNode.cs                                  [P] Decorator View {D} ResizeBorder (F) OnMouseMove -> Resize [S] Volatile UI State
+\Surface\SurfaceComment.cs                                        [P] Resizable Container {D} ResizableSurfaceNode (F) StartRenaming -> OnColorChanged [S] Persistent
+\Surface\Elements\AssetSelect.cs                                  [P] Picker {D} AssetSelect (F) OnNodeValuesChanged [S] Volatile UI
+\Surface\Elements\ActorSelect.cs                                  [P] Picker {D} ActorSelect (F) OnNodeValuesChanged [S] Volatile UI
+\Surface\Elements\SkeletonBoneIndexSelectElement.cs               [P] Picker {D} ComboBoxElement, SkinnedModel [S] Volatile
+\Surface\Elements\SkeletonNodeNameSelectElement.cs                [P] Picker {D} ComboBoxElement, SkinnedModel [S] Volatile
+\Surface\Elements\ComboBoxElement.cs                              [P] Dropdown {D} ComboBox [S] Volatile
+\Surface\Elements\EnumValue.cs                                    [P] Dropdown {D} EnumComboBox [S] Volatile
+\Surface\Elements\BoolValue.cs                                    [P] Widget {D} BoolValue (F) Draw -> Toggle [S] Volatile
+\Surface\Elements\IntegerValue.cs                                 [P] Numeric {D} IntValueBox [S] Volatile
+\Surface\Elements\UnsignedIntegerValue.cs                         [P] Numeric {D} UIntValueBox [S] Volatile
+\Surface\Elements\FloatValue.cs                                   [P] Numeric {D} FloatValueBox [S] Volatile
+\Surface\Elements\ColorValue.cs                                   [P] Picker {D} ColorValueBox, Color [S] Volatile
+\Surface\Elements\BoxValue.cs                                     [P] Widget {D} RealValueBox, BoundingBox [S] Volatile
+\Surface\Elements\TextView.cs                                     [P] Label {D} SurfaceNodeElementControl [S] Volatile
+\Surface\Elements\TextBoxView.cs                                  [P] Input {D} TextBox [S] Volatile
+\Surface\Undo\AddRemoveNodeAction.cs                              [P] Command {D} NodeFactory (F) Do/Undo [S] Volatile Undo
+\Surface\Undo\MoveNodesAction.cs                                  [P] Command {D} ContextHandle (F) Do/Undo [S] Volatile Undo
+\Surface\Undo\ConnectBoxesAction.cs                               [P] Command {D} BoxHandle (F) Do/Undo [S] Volatile Undo
+\Surface\Undo\EditNodeConnections.cs                              [P] Command {D} BoxHandle (F) Do/Undo [S] Volatile Undo
+\Surface\Undo\EditNodeValuesAction.cs                             [P] Command {D} ContextHandle (F) Do/Undo [S] Volatile Undo
+\Surface\Undo\ContextHandle.cs                                    [P] Handle Flyweight {D} ISurfaceContext [S] Static Handle
+\Surface\Undo\BoxHandle.cs                                        [P] Handle Flyweight {D} Box [S] Static Handle
+\Surface\AttributesEditor.cs                                      [P] Property Grid Popup {D} CustomEditorPresenter, ObjectSwitcherEditor (F) Select -> Modified -> Edited [S] Volatile UI
+\Surface\NodeElementArchetype.cs                                  [P] Builder Factory {D} NodeElementType (F) Input/Output/Float [S] Static Registry
+\Surface\ISurfaceContext.cs                                       [P] Interface (Data Context) {D} Asset (F) OnContextCreated [S] N/A
+\Surface\IVisjectSurfaceOwner.cs                                  [P] Interface (Mediator) {D} ISurfaceContext, Undo [S] N/A
+\Surface\ISurfaceNodeElement.cs                                   [P] Interface (Component) {D} SurfaceNode, NodeElementArchetype [S] N/A
+\Surface\IFunctionDependantNode.cs                                [P] Interface (Observer) (F) OnFunctionCreated/Edited/Deleted [S] N/A
+\Surface\IParametersDependantNode.cs                              [P] Interface (Observer) (F) OnParamCreated/Renamed/Edited/Deleted [S] N/A
+\Surface\NodeAlignmentType.cs                                     [P] Enum [S] N/A
+\Surface\NodeElementType.cs                                       [P] Enum [S] N/A
+\Surface\NodeFlags.cs                                             [P] Enum (Flags) [S] N/A
+\Surface\TransformCoordinateSystem.cs                             [P] Enum [S] N/A
+\Surface\GUI\VisjectContextNavigationButton.cs                    [P] Nav Button {D} NavigationButton (F) OnClick -> ChangeContext [S] Volatile UI
+\Viewport                                                         [P] Subsystem-Root. Core UI-to-GPU bridge for scene interaction.
+\Viewport\EditorViewport.cs                                       [P] TemplateMethod/RenderControl. {D} ViewportCamera, InputActions, EditorOptions. (F) GatherInput -> UpdateView -> CopyViewData. [S] Yaw/Pitch, CameraSpeed, Planes.
+\Viewport\EditorGizmoViewport.cs                                  [P] Bridge/GizmoOwner. {D} SceneRenderTask, Undo. (F) Ctor -> OnUpdate -> OnDestroy. [S] GizmoCollection, InputState.
+\Viewport\MainEditorGizmoViewport.cs                              [P] Mediator/RootViewport. {D} TransformGizmo, SelectionOutline, EditorSprites. (F) OnBegin -> OnCollectDrawCalls -> OnPostRender. [S] GameViewMode, DebugDrawData.
+\Viewport\PrefabWindowViewport.cs                                 [P] Specialization/Preview. {D} PrefabPreview, UIEditorRoot. (F) SetUIMode -> ChangeScaling. [S] ShowUI, UIScalingIndex.
+\Gizmo                                                            [P] Strategy/Interaction Tools {D} IGizmoOwner, SceneGraph (F) Pick -> StartTransform -> Apply -> EndTransform [S] Volatile State
+\Gizmo\GizmosCollection.cs                                        [P] Registry/Manager {D} GizmoBase, EditorGizmoMode (F) Add -> SetActiveMode [S] Persistent Lifecycle
+\Gizmo\GizmoBase.cs                                               [P] Interaction Interface {D} IGizmoOwner (F) Activate -> OnActivated -> OnSelectionChanged [S] Volatile
+\Gizmo\TransformGizmo.cs                                          [P] Transformation Tool {D} TransformGizmoBase (F) Pick -> SnapToGround -> OnEndTransforming (Undo Action) [S] Volatile
+\Gizmo\TransformGizmoBase.cs                                      [P] Abstract Tool Logic {D} GizmoBase (F) UpdateMatrices -> UpdateTranslateScale -> StartTransforming [S] Volatile
+\Gizmo\TransformGizmoBase.Draw.cs                                 [P] Tool Visuals {D} Model, MaterialInstance (F) Draw (LOD/Mesh draw calls) [S] Static Assets
+\Gizmo\TransformGizmoBase.Selection.cs                            [P] Hitting Logic {D} Ray (F) SelectAxis (Collision check) -> IntersectsRotateCircle [S] Volatile
+\Gizmo\TransformGizmoBase.Settings.cs                             [P] Tool Config (F) ToggleTransformSpace [S] Persistent Settings
+\Gizmo\DirectionGizmo.cs                                          [P] Viewport Tool {D} IGizmoOwner (F) DrawSelf (Project unit vectors) -> OrientViewToAxis [S] Volatile UI
+\Gizmo\GridGizmo.cs                                               [P] Background Helper {D} PostProcessEffect, GPUPipelineState (F) Render (Draw grid shader) [S] Persistent
+\Gizmo\SelectionOutline.cs                                        [P] PostProcess {D} MaterialInstance, SceneRenderTask (F) DrawSelectionDepth -> Render [S] Volatile (Frame)
+\Gizmo\EditorPrimitives.cs                                        [P] Render Pass {D} PostProcessEffect, IEditorPrimitivesOwner (F) Render -> DrawEditorPrimitives [S] Volatile (Frame)
+\Gizmo\UIEditorGizmo.cs                                           [P] UI Layout Tool {D} UIEditorRoot, UIEditorCamera (F) OnMouseMove -> Resize control -> StartUndo [S] Volatile UI
+\Gizmo\ViewportRubberBandSelector.cs                              [P] Batch Selector {D} IGizmoOwner (F) UpdateRubberBand (Frustum culling/Points loop) [S] Volatile UI
+\Gizmo\IGizmoOwner.cs                                             [P] Interface [S] N/A
+\Viewport\Cameras\ViewportCamera.cs                               [P] Abstract-Base. {D} EditorViewport, Gizmos. (F) FocusSelection -> SetArcBallView. [S] ViewportRef.
+\Viewport\Cameras\FPSCamera.cs                                    [P] Strategy/Camera. {D} Viewport, TransformGizmo. (F) UpdateView (Dolly/Pan/Orbit) -> MoveViewport(Anim). [S] TargetPoint, ZoomFOV.
+\Viewport\Cameras\ArcBallCamera.cs                                [P] Strategy/Camera. {D} Viewport. (F) UpdatePosition -> UpdateView. [S] OrbitCenter, OrbitRadius.
+\Viewport\Cameras\IViewportCamera.cs                              [P] Interface/Contract. (F) Update, UpdateView.
+\Viewport\Modes\EditorGizmoMode.cs                                [P] State-Strategy. {D} IGizmoOwner. (F) OnActivated -> OnDeactivated.
+\Viewport\Modes\TransformGizmoMode.cs                             [P] Strategy-Impl. (F) OnActivated -> SetsGizmo.
+\Viewport\Modes\NoGizmoMode.cs                                    [P] Null-Object. (F) OnActivated -> NullsGizmo.
+\ViewportDebugDrawData.cs                                         [P] Batcher/Collector {D} DebugDraw, RenderContext (F) Add/Highlight -> OnDraw -> Clear [S] Volatile (Frame-bound)
+\Viewport\Previews\AssetPreview.cs                                [P] Abstract-Base/Preview. {D} SceneRenderTask, Light, Sky. (F) Ctor -> SetArcBallView -> DrawEditorPrimitives. [S] SceneActors, DebugDrawContext.
+\Viewport\Previews\ModelBasePreview.cs                            [P] Generic-Model-Preview. {D} StaticModel, AnimatedModel. (F) OnBegin -> AdjustScale. [S] ScaleToFit.
+\Viewport\Previews\ModelPreview.cs                                [P] Asset-Specific-Preview. {D} StaticModel, MeshDataCache. (F) ComputeLOD -> OnDebugDraw(Normals/Tangents). [S] ShowLOD, MeshDatas.
+\Viewport\Previews\AnimatedModelPreview.cs                        [P] Preview-Sandbox. {D} AnimatedModel, DebugDraw. (F) Play -> Stop -> OnDebugDraw. [S] AnimationState, ShowNodes.
+\Viewport\Previews\SkinnedModelPreview.cs                         [P] Asset-Specific-Preview. {D} AnimatedModelPreview. (F) ComputeLOD -> DrawLODStats. [S] ShowCurrentLOD.
+\Viewport\Previews\AnimationPreview.cs                            [P] Asset-Specific-Preview. {D} AnimatedModelPreview. (F) PlayPause -> ResetCamera. [S] RootMotion.
+\Viewport\Previews\MaterialPreview.cs                             [P] Preview-Sandbox. {D} StaticModel, Decal, Terrain, ParticleEffect. (F) UpdateMaterial (Domain Switch) -> OnSurfaceEdited. [S] SelectedModelIndex.
+\Viewport\Previews\ParticleEmitterPreview.cs                      [P] Particle-Sandbox. {D} ParticleSystem, ParticleEmitter. (F) SetEmitter -> ResetSimulation. [S] PlaybackDuration.
+\Viewport\Previews\ParticleSystemPreview.cs                       [P] Particle-Sandbox. {D} ParticleEffect, FPSCamera. (F) UpdateSimulation -> FitIntoView -> OnDebugDraw. [S] PlaySimulation, ShowBounds.
+\Viewport\Previews\PrefabPreview.cs                               [P] Actor-Sandbox. {D} Prefab, PrefabManager, UIControl. (F) PrefabChanged -> SpawnPrefab -> UpdateLinkage (UI Support). [S] InstanceRef, UILinkedFlag.
+\Viewport\Previews\TexturePreview.cs                              [P] UI-Sandbox/Material-Bridge. {D} TextureBase, MaterialInstance. (F) UpdateTextureRect -> DrawMaterial -> OnMouseWheel(Zoom). [S] ViewPos, ViewScale, ChannelFlags.
+\Viewport\Previews\CubeTexturePreview.cs                          [P] Material-Sandbox. {D} MaterialInstance, CubeTexture. (F) SetCubeTexture -> UpdateMask. [S] ChannelFlags, MipLevel.
+\Viewport\Previews\IESProfilePreview.cs                           [P] Material-Sandbox. {D} MaterialInstance, IESProfile. (F) AssetChanged -> DrawTexture.
+\Viewport\Previews\AudioClipPreview.cs                            [P] Visualizer. {D} AudioClip. (F) AssetChanged -> DownloadData(Async) -> DrawPCM. [S] PCMDataBuffer, ViewScale.
+\Viewport\Widgets\ViewportWidgetsContainer.cs                     [P] Layout-Container. {D} ViewportWidgetLocation. (F) PerformLayout -> ArrangeWidgets (Static). [S] WidgetLocation.
+\Viewport\Widgets\ViewportWidgetButton.cs                         [P] UI-Control/Command-Trigger. {D} ContextMenu, Style. (F) OnMouseDown -> Clicked/Toggled. [S] Checked, AutoCheck.
+\Viewport\ViewportDraggingHelper.cs                               [P] Command/Handler. {D} DragAssets, DragActorType. (F) DragEnter -> GetHitLocation -> Spawn. [S] Volatile-PreviewStates.
+\GUI\Timeline\Timeline.cs                                         [P] Orchestrator {D} Track, Splitter, Undo (F) AddTrack -> DeleteSelectedTracks -> ArrangeTracks [S] Persistent (Serializable)
+\GUI\Timeline\Timeline.Data.cs                                    [P] Serializer {D} BinaryReader/Writer (F) Load -> Save [S] Static
+\GUI\Timeline\Timeline.UI.cs                                      [P] View {D} TimeIntervalsHeader, PropertiesEditPopup [S] Volatile UI
+\GUI\Timeline\Track.cs                                            [P] Sequence Row {D} Media, DragTracks, Undo (F) Expand -> Rename -> OnTimelineArrange [S] Volatile/Serializable
+\GUI\Timeline\Media.cs                                            [P] Sequence Segment {D} Track (F) OnTimelineZoomChanged -> Split -> Delete [S] Volatile/Serializable
+\GUI\Timeline\TrackArchetype.cs                                   [P] Metadata/Factory Registry {D} Track [S] Static Config
+\GUI\Timeline\AnimationTimeline.cs                                [P] Sequence Editor {D} AnimationPreview (F) Load -> UpdatePlaybackState -> OnSeek [S] Persistent
+\GUI\Timeline\SceneAnimationTimeline.cs                           [P] Sequence Editor {D} SceneAnimationPlayer, EditCurveTrackGizmo (F) Update -> ShowSelected3dTrack [S] Persistent
+\GUI\Timeline\ParticleSystemTimeline.cs                           [P] Sequence Editor {D} ParticleSystemPreview (F) Load -> SaveTimelineCustomData [S] Persistent
+\GUI\Timeline\GUI\KeyframesEditor.cs                              [P] Points Canvas {D} KeyframePoint (F) OnMove -> UpdateKeyframes -> OnKeyframesPaste [S] Volatile
+\GUI\Timeline\GUI\Background.cs                                   [P] Grid View {D} Timeline (F) Draw (Tracks/Ticks/Header) -> OnMouseWheel [S] Volatile
+\GUI\Timeline\GUI\BackgroundArea.cs                               [P] Scroll Container {D} Timeline (F) OnMouseMove (Panning) [S] Volatile
+\GUI\Timeline\GUI\PositionHandle.cs                               [P] Playhead {D} Timeline (F) Draw (Icon/Label/Line) [S] Volatile
+\GUI\Timeline\GUI\TimelineEdge.cs                                 [P] Range Bound {D} TimelineUndoBlock (F) OnMouseMove (Duration) [S] Volatile
+\GUI\Timeline\GUI\GradientEditor.cs                               [P] Visual Curve {D} StopControl (F) SetStopFrame -> SetStopColor [S] Volatile
+\GUI\Timeline\Tracks\ObjectTrack.cs                               [P] Managed Host {D} CustomEditorsUtil (F) AddProperties -> AddEvents [S] Persistent
+\GUI\Timeline\Tracks\ActorTrack.cs                                [P] Object Host {D} Actor, ScriptTrack (F) OnShowAddContextMenu -> SetActor [S] Persistent
+\GUI\Timeline\Tracks\ScriptTrack.cs                               [P] Object Host {D} Script [S] Persistent
+\GUI\Timeline\Tracks\AnimationChannelTrack.cs                     [P] Sub-Sequence Host [S] Persistent
+\GUI\Timeline\Tracks\AnimationEventTrack.cs                       [P] Event Host {D} AnimationEventMedia (F) OnAddAnimEvent [S] Persistent
+\GUI\Timeline\Tracks\AudioTrack.cs                                [P] Asset Sequence {D} AudioClip, AudioVolumeTrack (F) OnAddVolumeTrack [S] Persistent
+\GUI\Timeline\Tracks\CameraCutTrack.cs                            [P] Specialized Host {D} Camera, CameraCutMedia (F) OnClickedPilotCamera [S] Persistent
+\GUI\Timeline\Tracks\CurvePropertyTrack.cs                        [P] Animateable Row {D} BezierCurveEditor (F) Load -> Save [S] Persistent
+\GUI\Timeline\Tracks\KeyframesPropertyTrack.cs                    [P] Animateable Row {D} KeyframesEditor (F) Load -> Save [S] Persistent
+\GUI\Timeline\Tracks\ObjectPropertyTrack.cs                       [P] Hierarchical Row {D} ObjectTrack (F) OnAddButtonClicked [S] Persistent
+\GUI\Timeline\Tracks\ObjectReferencePropertyTrack.cs              [P] Animateable Row {D} KeyframesEditor [S] Persistent
+\GUI\Timeline\Tracks\EventTrack.cs                                [P] Animateable Row {D} KeyframesEditor, MethodInfo (F) OnAddKeyClicked [S] Persistent
+\GUI\Timeline\Tracks\StringPropertyTrack.cs                       [P] Animateable Row [S] Persistent
+\GUI\Timeline\Tracks\StructPropertyTrack.cs                       [P] Animateable Row {D} FieldInfo [S] Persistent
+\GUI\Timeline\Tracks\MemberTrack.cs                               [P] Reflection Bridge {D} MemberInfo (F) Evaluate -> TryGetValue [S] Volatile
+\GUI\Timeline\Tracks\ParticleEmitterTrack.cs                      [P] Asset Sequence {D} ParticleEmitter [S] Persistent
+\GUI\Timeline\Tracks\PostProcessMaterialTrack.cs                  [P] Asset Sequence {D} MaterialBase [S] Persistent
+\GUI\Timeline\Tracks\NestedAnimationTrack.cs                      [P] Asset Sequence {D} Animation [S] Persistent
+\GUI\Timeline\Tracks\NestedSceneAnimationTrack.cs                 [P] Asset Sequence {D} SceneAnimation [S] Persistent
+\GUI\Timeline\Tracks\SingleMediaTrack.cs                          [P] Base Sequence {D} Media [S] Persistent
+\GUI\Timeline\Tracks\SingleMediaAssetTrack.cs                     [P] Base Sequence {D} AssetPicker [S] Persistent
+\GUI\Timeline\Tracks\ScreenFadeTrack.cs                           [P] specialized Row {D} ScreenFadeMedia [S] Persistent
+\GUI\Timeline\Tracks\FolderTrack.cs                               [P] Organizational Row {D} ColorValueBox [S] Persistent
+\GUI\Timeline\Tracks\ConductorTrack.cs                            [P] Proxy Base {D} KeyframesEditor (F) LoadProxy -> SaveProxy [S] Volatile State
+\GUI\Timeline\Undo\TimelineUndoBlock.cs                           [P] RAII [S] Volatile
+\GUI\Timeline\Undo\TrackUndoBlock.cs                              [P] RAII [S] Volatile
+\GUI\Timeline\Undo\AddRemoveTrackAction.cs                        [P] Command {D} TrackArchetype [S] Undo-State
+\GUI\Timeline\Undo\EditTimelineAction.cs                          [P] Command [S] Undo-State
+\GUI\Timeline\Undo\EditTrackAction.cs                             [P] Command [S] Undo-State
+\GUI\Timeline\Undo\RenameTrackAction.cs                           [P] Command [S] Undo-State
+\GUI\Timeline\Undo\ReorderTrackAction.cs                          [P] Command [S] Undo-State
+\GUI\Timeline\Undo\EditFpsAction.cs                               [P] Command [S] Undo-State
+\GUI\Timeline\EditCurveTrackGizmo.cs                              [P] Viewport Tool {D} BezierCurveEditor, TransformObjectsAction (F) OnApplyTransformation [S] Volatile
+\GUI\KeyframesEditorUtils.cs                                      [P] Clipboard Helper {D} IKeyframesEditor (F) Copy -> Paste [S] Static
+\GUI\IKeyframesEditor.cs                                          [P] Interface [S] N/A
+\GUI\IKeyframesEditorContext.cs                                   [P] Interface [S] N/A
+\Tools                                                            [P] Mediator Module Registry {D} GizmoModes, ToolboxWindow (F) Register -> Activate -> Interaction [S] Volatile Logic
+\Tools\Terrain                                                    [P] Landscape/Heightfield Toolkit {D} Terrain actor, TerrainTools (F) Sculpt -> Paint -> NavMesh Bake [S] Session State
+\Tools\Terrain\Brushes                                            [P] Strategy Registry {D} virtual MaterialInstances (F) Sample -> GetBrushMaterial [S] In-Memory Cache
+\Tools\Terrain\Brushes\Brush.cs                                   [P] Abstract Strategy {D} virtual MaterialInstance (F) CacheMaterial -> Sample [S] In-Memory Cache
+\Tools\Terrain\Brushes\CircleBrush.cs                             [P] Concrete Strategy {D} FalloffTypes (F) Sample -> CalculateFalloff [S] Volatile
+\Tools\Terrain\Sculpt                                             [P] Vertex Deformation Strategy {D} Float buffers, PerlinNoise (F) Apply -> LoopPatches -> ModifyHeightMap [S] Volatile
+\Tools\Terrain\Sculpt\Mode.cs                                     [P] Strategy Template {D} SculptTerrainGizmoMode (F) GetAffectedPatches -> ApplyBrush [S] Volatile
+\Tools\Terrain\Sculpt\SculptMode.cs                               [P] Displacement Logic {D} Strength (F) ApplyBrushToPatch -> Height + Delta [S] Volatile
+\Tools\Terrain\Sculpt\FlattenMode.cs                              [P] Linear Logic {D} Lerp (F) ApplyBrushToPatch -> BlendToTarget [S] Volatile
+\Tools\Terrain\Sculpt\SmoothMode.cs                               [P] Filter Strategy {D} Kernel Sum (F) ApplyBrush -> Kernel Average -> ModifyHeightMap [S] Volatile
+\Tools\Terrain\Sculpt\NoiseMode.cs                                [P] Generation Logic {D} PerlinNoise (F) ApplyBrushToPatch -> Height + Sample [S] Volatile
+\Tools\Terrain\Sculpt\HolesMode.cs                                [P] Masking Logic {D} Threshold (F) ApplyBrushToPatch -> ModifyHolesMask [S] Volatile
+\Tools\Terrain\Paint                                              [P] Weighted Blending Strategy {D} Color32 temp buffers (F) Apply -> CalculateWeights -> ModifySplatMap [S] Volatile
+\Tools\Terrain\Paint\Mode.cs                                      [P] Abstract Strategy/Loop {D} ApplyParams (F) Apply -> LoopPatches -> Apply(ref) [S] Volatile
+\Tools\Terrain\Paint\SingleLayerMode.cs                           [P] Blending Logic {D} TerrainTools (F) Apply -> SumOtherLayers -> ModifySplatMap [S] Volatile
+\Tools\Terrain\Undo                                               [P] Binary Memento Command {D} Marshal/Unmanaged Memory (F) AddPatch -> RecordEnd -> Do/Undo [S] Persistent session
+\Tools\Terrain\Undo\EditTerrainMapAction.cs                       [P] Binary Memento Command {D} PatchData, Navigation (F) AddPatch -> RecordEnd -> Undo [S] Serialized/Unmanaged
+\Tools\Terrain\Undo\EditTerrainHeightMapAction.cs                 [P] Command {D} TerrainTools.ModifyHeightMap [S] Serialized
+\Tools\Terrain\Undo\EditTerrainSplatMapAction.cs                  [P] Command {D} TerrainTools.ModifySplatMap [S] Serialized
+\Tools\Terrain\Undo\EditTerrainHolesMapAction.cs                  [P] Command {D} TerrainTools.ModifyHolesMask [S] Serialized
+\Tools\Terrain\CarveTab.cs                                        [P] Root Mediator {D} SculptTab, PaintTab, EditTab (F) OnSelected -> UpdateGizmoMode [S] Persistent UI
+\Tools\Terrain\SculptTab.cs                                       [P] Model-View {D} ProxyObject, CustomEditorPresenter [S] Volatile UI
+\Tools\Terrain\PaintTab.cs                                        [P] Model-View {D} ProxyObject, CustomEditorPresenter [S] Volatile UI
+\Tools\Terrain\EditTab.cs                                         [P] Feature View {D} EditTerrainGizmoMode, Undo (F) OnSelectionChanged -> UpdateUI [S] Volatile UI
+\Tools\Terrain\EditTerrainGizmoMode.cs                            [P] Strategy Context {D} EditTerrainGizmo (F) Init -> OnActivated [S] Volatile
+\Tools\Terrain\EditTerrainGizmo.cs                                [P] Hit Strategy {D} Ray, TerrainNode (F) Pick -> RayCast -> SetSelectedChunk [S] Volatile
+\Tools\Terrain\SculptTerrainGizmoMode.cs                          [P] Context Mediator {D} HeightmapData (F) SetCursor -> OnPaintStarted -> OnPaintEnded [S] Unmanaged Cache
+\Tools\Terrain\SculptTerrainGizmo.cs                              [P] Spatial Interaction {D} SculptTerrainGizmoMode (F) Update -> PaintUpdate -> Apply [S] Volatile
+\Tools\Terrain\PaintTerrainGizmoMode.cs                           [P] Context Mediator {D} SplatmapData (F) SetCursor -> OnPaintStarted -> OnPaintEnded [S] Unmanaged Cache
+\Tools\Terrain\PaintTerrainGizmo.cs                               [P] Spatial Interaction {D} PaintTerrainGizmoMode (F) Update -> PaintUpdate -> Apply [S] Volatile
+\Tools\Terrain\CreateTerrainDialog.cs                             [P] Async Factory {D} TerrainTools.Generate (F) OnSubmit -> Thread(Generate) -> Setup [S] Task-bound
+\Tools\Foliage                                                    [P] Instanced Population Toolkit {D} Foliage actor, FoliageType (F) Paint -> Cluster Rebuild [S] Session State
+\Tools\Foliage\Brush.cs                                           [P] Strategy {D} FoliageBrush material (F) GetBrushMaterial -> SetParams [S] Volatile
+\Tools\Foliage\FoliageTab.cs                                      [P] Root Mediator {D} FoliageNode (F) InitModes -> UpdateGizmoMode [S] Persistent UI
+\Tools\Foliage\PaintTab.cs                                        [P] Model-View {D} ProxyObject (F) OnSelectedFoliageChanged -> UpdateList [S] Volatile UI
+\Tools\Foliage\EditTab.cs                                         [P] Model-View {D} ProxyObject, CustomEditorPresenter (F) OnSelectedInstanceChanged -> Select [S] Volatile UI
+\Tools\Foliage\FoliageTypesTab.cs                                 [P] Collection View {D} ProxyObject, FoliageType (F) UpdateList -> OnModified [S] Volatile UI
+\Tools\Foliage\PaintFoliageGizmoMode.cs                           [P] Strategy Context {D} PaintFoliageGizmo, Brush [S] Volatile
+\Tools\Foliage\PaintFoliageGizmo.cs                               [P] Spatial Interaction {D} FoliageTools.Paint (F) Update -> RayCast -> PaintUpdate [S] Volatile
+\Tools\Foliage\EditFoliageGizmoMode.cs                            [P] Strategy Context {D} SelectionOutline, EditFoliageGizmo (F) Init -> OnActivated [S] Volatile
+\Tools\Foliage\EditFoliageGizmo.cs                                [P] Interaction Bridge {D} TransformGizmoBase (F) Pick -> Transform -> RecordEnd [S] Volatile
+\Tools\Foliage\EditFoliageSelectionOutline.cs                     [P] PostProcess View {D} Renderer, StaticModel (F) DrawSelectionDepth -> Render [S] Frame-bound
+\Tools\Foliage\Undo\EditFoliageAction.cs                          [P] Binary Memento {D} Foliage (F) RecordEnd -> Do/Undo (Swap JSON) [S] Serialized
+\Tools\Foliage\Undo\DeleteInstanceAction.cs                       [P] Command {D} Foliage (F) Do (Remove) -> Undo (Add) [S] Serialized
+\Tools\Foliage\Undo\EditInstanceAction.cs                         [P] Atomic Memento {D} Transform (F) Do/Undo (Swap local transform) [S] Serialized
+\Tools\Foliage\Undo\EditSelectedInstanceIndexAction.cs            [P] State Memento {D} ToolboxWin (F) Do/Undo (Set index) [S] Volatile
+\Tools\ClothPainting.cs                                           [P] Strategy/Interaction {D} Cloth, EditClothPaintAction (F) Update -> Intersects -> PaintUpdate [S] Volatile/Restorable
+\Tools\VertexPainting.cs                                          [P] Strategy/Interaction {D} StaticModel, MeshDataCache (F) Update -> RayCast -> PaintUpdate [S] Volatile/Restorable
+\Cooker                                                           [P] Process Pipeline {D} BuildPlatform, GamePlugins (F) Collect -> Cook -> Deploy [S] Task-bound (Process)
+\Cooker\GameCooker.cs                                             [P] Pipeline Facade (Static) {D} BuildPlatform, BuildOptions (F) CollectAssets -> OnEvent -> OnProgress [S] Process-bound
+\Progress                                                         [P] Observable Reporting {D} ProgressHandler (F) Start -> Update -> End [S] Volatile (Task-bound)
+\Progress\ProgressHandler.cs                                      [P] Observable Subject {D} ProgressDelegate (F) OnStart -> OnUpdate -> OnEnd [S] Volatile
+\Progress\Handlers\CompileScriptsProgress.cs                      [P] Task Observer {D} ScriptsBuilder, SelectionCache (F) Cache -> Reload -> Restore [S] Task-bound
+\Progress\Handlers\ImportAssetsProgress.cs                        [P] Task Observer {D} ContentImporting [S] Task-bound
+\Progress\Handlers\LoadAssetsProgress.cs                          [P] Task Observer {D} Content.Stats [S] Task-bound
+\Progress\Handlers\BuildingGameProgress.cs                        [P] Task Observer {D} GameCooker (F) OnGameCookerProgress [S] Task-bound
+\Progress\Handlers\NavMeshBuildingProgress.cs                     [P] Task Observer {D} Navigation (F) Update (Poll Backend) [S] Task-bound
+\Progress\Handlers\BakeEnvProbesProgress.cs                       [P] Task Observer {D} EnvironmentProbe (F) OnBakeStart -> UpdateProgress [S] Task-bound
+\Progress\Handlers\BakeLightmapsProgress.cs                       [P] Task Observer {D} GPUDevice (F) OnLightmapsBakeProgress [S] Task-bound
+\Progress\Handlers\GenerateScriptsProjectFilesProgress.cs         [P] Task Observer {D} ScriptsBuilder [S] Task-bound
+\Progress\Handlers\CodeEditorOpenProgress.cs                      [P] Task Observer {D} ScriptsBuilder [S] Task-bound
+\Plugins                                                          [P] Extension Bridge {D} EditorPlugin, GamePlugin (F) Init -> InitializeEditor -> Deinit [S] Managed
+\Plugins\EditorPlugin.cs                                          [P] Extension Lifecycle {D} Editor (F) Initialize_Internal -> InitializeEditor [S] Managed
+\Plugins\PluginUtils.cs                                           [P] Metadata Utility {D} Assembly (F) TryGetPluginIcon -> GetPluginToExport [S] Static
+\Windows                                                          [P] Mediator-Subsystem. Root for all Editor UI interactions.
+\Windows\EditorWindow.cs                                          [P] Abstract-Base/Dockable. {D} Editor. (F) OnInit -> OnUpdate -> OnExit -> OnDestroy.
+\Windows\SceneEditorWindow.cs                                     [P] Bridge/Editor-Logic. {D} SceneEditing, Viewport. (F) DeleteSelection -> FocusSelection -> Spawn.
+\Windows\EditGameWindow.cs                                        [P] Primary-Scene-Editor. {D} MainEditorGizmoViewport, CameraPreview. (F) PilotActor -> UpdateCameraPreview. [S] ViewportState.
+\Windows\GameWindow.cs                                            [P] PIE-Output (Play In Editor). {D} MainRenderTask, UIEditorRoot. (F) OnPlayBegin -> ResizeViewport -> Draw. [S] AspectRatio, ContentScale.
+\Windows\PropertiesWindow.cs                                      [P] Inspector/Mediator. {D} CustomEditorPresenter, SceneEditing. (F) OnSelectionChanged -> SelectObjects. [S] ActorScrollCache, LockedFlag.
+\Windows\ContentWindow.cs                                         [P] Project-Navigator/Outward-View. {D} ContentDatabase, ContentView, Tree. (F) OnInit -> Navigate -> RefreshView. [S] NavigationHistory, SearchQuery.
+\Windows\ContentWindow.ContextMenu.cs                             [P] Factory/Menu. {D} ContentProxy, ContentImporting. (F) ShowContextMenuForItem.
+\Windows\ContentWindow.Navigation.cs                              [P] Command-Iterator/History. {D} Tree. (F) NavigateBackward/Forward -> DoNavigate. [S] NavigationUndo/Redo Stacks.
+\Windows\ContentWindow.Search.cs                                  [P] Query-Filter/Provider. {D} QueryFilterHelper, ContentView. (F) UpdateItemsSearch -> FilterResults.
+\Content\GUI\ContentView.cs                                       [P] Grid/List Controller {D} ContentItem, InputActions (F) ShowItems -> BulkSelect -> DragDrop [S] Volatile UI
+\Content\GUI\ContentNavigation.cs                                 [P] Navigation Command {D} ContentFolderTreeNode (F) OnClick -> Navigate [S] Volatile
+\Content\Tree\TreeViewPanel.cs                                    [P] Panel Controller {D} Tree, InputActions (F) Rename -> Delete -> Copy -> Paste [S] Volatile UI
+\Content\Tree\RootContentTreeNode.cs                              [P] Tree Root [S] Static
+\Content\Tree\MainContentTreeNode.cs                              [P] Specialized Node {D} FileSystemWatcher (F) OnDirectoryEvent -> ContentDatabase [S] Persistent Observer
+\Content\Tree\ProjectTreeNode.cs                                  [P] Workspace Root {D} ProjectInfo [S] Static
+\Content\Tree\ContentFolderTreeNode.cs                            [P] Composite UI Node {D} ContentFolder, DragActors (F) UpdateFilter -> PerformLayout -> OnDragDrop [S] Volatile UI
+\Content\Tree\ContentItemTreeNode.cs                              [P] Leaf UI Node {D} ContentItem, AssetPickerValidator (F) UpdateFilter -> Draw [S] Volatile UI
+\SceneGraph\GUI\SceneTreeNode.cs                                  [P] Scene UI View {D} SceneNode (F) UpdateText (Edited star) [S] Volatile UI
+\SceneGraph\GUI\ActorTreeNode.cs                                  [P] Tree Controller {D} ActorNode, DragHandlers (F) UpdateFilter -> OnDragDrop -> SortChildren [S] Volatile UI
+\Windows\SceneTreeWindow.cs                                       [P] Outliner-View. {D} SceneRoot, DragHandlers. (F) OnInit -> TreeSelectedChanged -> UpdateFilter. [S] UpdatingSelectionFlag.
+\Windows\SceneTreeWindow.ContextMenu.cs                           [P] Factory/Menu. {D} ActorContextMenu, Prefabs. (F) CreateContextMenu.
+\Windows\SceneTreeWindow.RenameWindow.cs                          [P] Multi-Rename-Command. {D} Actor. (F) RenameActors -> RenameUndoAction.
+\Windows\ToolboxWindow.cs                                         [P] Registry/Spawner-Palette. {D} ScriptType, DragData, Gizmos. (F) OnInit -> RefreshActorTabs -> OnSearchBoxTextChanged.
+\Windows\Assets\AssetEditorWindow.cs                              [P] Abstract-Base/IEditable. {D} AssetItem. (F) OnScriptsReloadBegin -> Save -> UnlinkItem. [S] IsEditedFlag.
+\Windows\Assets\PrefabWindow.cs                                   [P] Composite-Mediator. {D} LocalSceneGraph, PrefabWindowViewport. (F) Save (ApplyAll) -> OnPrefabApplied. [S] LiveReloadFlag.
+\Windows\Assets\PrefabWindow.Hierarchy.cs                         [P] Hierarchy-Bridge. {D} DragHandlers, SceneGraphFactory. (F) Spawn -> ShowContextMenu.
+\Windows\Assets\PrefabWindow.Selection.cs                         [P] Observer. {D} Tree. (F) OnTreeSelectedChanged -> OnSelectionChanges. [S] SelectionList.
+\Windows\Assets\PrefabWindow.Actions.cs                           [P] Hierarchy-Commands. {D} ActorNode, Undo. (F) SetRoot/Cut/Copy/Paste/Duplicate.
+\Windows\Assets\VisualScriptWindow.cs                             [P] Runtime-Logic-Editor. {D} VisualScriptSurface, VisualScriptingDebugFlow. (F) OnDebugBreakpointHit -> OnDebuggerStepOver. [S] BreakpointDataMap.
+\Windows\Assets\MaterialWindow.cs                                 [P] Shader-Compiler-Host. {D} MaterialSurface, MaterialPreview. (F) ShowSourceCode -> SaveSurface. [S] MaterialInfo-Persistent.
+\Windows\Assets\MaterialInstanceWindow.cs                         [P] Parameter-Proxy/Decorator. {D} MaterialInstance, MaterialPreview. (F) OnRevertAllParameters -> SetOverrides. [S] RestoreParamsCache.
+\Windows\Assets\MaterialFunctionWindow.cs                         [P] Specialized-Visject. {D} MaterialFunctionSurface.
+\Windows\Assets\AnimationWindow.cs                                [P] Sequence-Editor/ClonedAsset. {D} AnimationTimeline, AnimationPreview. (F) OnTimelineModified -> RefreshTempAsset -> SaveToOriginal.
+\Windows\Assets\AnimationGraphWindow.cs                           [P] Graph-Editor/Simulation-Host. {D} AnimGraphSurface, AnimatedModelPreview. (F) OnDebugFlow -> HighlightConnections. [S] PropertiesProxy, DebugFlowCache.
+\Windows\Assets\AnimationGraphFunctionWindow.cs                   [P] Specialized-Visject. {D} AnimationGraphFunction. (F) LoadSurface -> UpdateNavigationBar.
+\Windows\Assets\ModelBaseWindow.cs                                [P] Multi-Tab-Host. {D} MeshDataCache. (F) OnAssetLoaded -> UpdateEffectsOnAsset. [S] TabsCollection.
+\Windows\Assets\ModelWindow.cs                                    [P] Mesh-Processor. {D} Model, SDF, ModelPreview. (F) OnRebuildSDF -> UpdateEffects. [S] ModelSdfOptions.
+\Windows\Assets\SkinnedModelWindow.cs                             [P] Mesh-Outliner/Retargeter. {D} SkinnedModelPreview, MeshDataCache. (F) OnCopySetup -> OnPasteSetup -> OnSave. [S] RetargetSetupsMap.
+\Windows\Assets\ParticleSystemWindow.cs                           [P] Time-Sequence-Mediator. {D} ParticleSystemTimeline, ParticleSystemPreview. (F) OnTimelineModified -> Save. [S] EmitterParametersOverrides.
+\Windows\Assets\ParticleEmitterWindow.cs                          [P] GPU-Shader-Host. {D} ParticleEmitterSurface, ParticleEmitterPreview. (F) ShowSourceCode -> SaveSurface.
+\Windows\Assets\ParticleEmitterFunctionWindow.cs                  [P] Specialized-Visject. {D} ParticleEmitterFunctionSurface.
+\Windows\Assets\SceneAnimationWindow.cs                           [P] Frame-Sequencer/Renderer. {D} SceneAnimationTimeline, VideoOutput. (F) StartRendering -> Tick -> OnPostRender. [S] StagingTextureBuffer.
+\Windows\Assets\BehaviorTreeWindow.cs                             [P] Specialized-Visject. {D} BehaviorTreeSurface, Behavior. (F) OnNodeSelectionChanged -> UpdateKnowledge. [S] BlackboardCache.
+\Windows\Assets\JsonAssetWindow.cs                                [P] Generic-JSON-Presenter. {D} JsonSerializer. (F) OnAssetLoaded -> SelectObjects. [S] RegisteredForScriptsReloadFlag.
+\Windows\Assets\LocalizedStringTableWindow.cs                     [P] Translation-Editor. {D} LocalizedStringTable. (F) OnExport -> MarkAsEdited. [S] LocaleProxy.
+\Windows\Assets\AudioClipWindow.cs                                [P] Signal-Visualizer. {D} AudioClipPreview, AudioSource. (F) OnPlay -> UpdateToolstrip. [S] AudioImportSettings.
+\Windows\Assets\TextureWindow.cs                                  [P] Multi-Tab-Host. {D} Texture, TexturePreview. (F) OnLoad -> BuildLayout. [S] TextureGroupEditor.
+\Windows\Assets\CubeTextureWindow.cs                              [P] Texture-Sandbox. {D} CubeTexturePreview, TextureTool. (F) OnLoad -> Reimport. [S] ImportSettings.
+\Windows\Assets\SpriteAtlasWindow.cs                              [P] Rect-Editor. {D} SpriteAtlasPreview. (F) AddSprite -> SaveSprites. [S] SpriteEntryCollection.
+\Windows\Assets\FontWindow.cs                                     [P] Raster-Sandbox. {D} FontAsset, FontOptions. (F) OnTextChanged -> OnPropertyEdited -> Save.
+\Windows\Assets\CollisionDataWindow.cs                            [P] Processing-Sandbox. {D} ModelTool, MeshDataCache. (F) Cook -> UpdateWiresModel. [S] CookingOptions.
+\Windows\Assets\SkeletonMaskWindow.cs                             [P] Tree-Filter/Editor. {D} AnimatedModelPreview. (F) BuildSkeletonNodeTree -> OnCheckChanged. [S] NodesMask-Volatile.
+\Windows\Assets\GameplayGlobalsWindow.cs                          [P] KV-Store-Editor. {D} GameplayGlobals. (F) Add/RemoveParam -> OnUndo. [S] DefaultValuesMap.
+\Windows\Assets\IESProfileWindow.cs                               [P] Specialized-Preview. {D} IESProfilePreview.
+\Windows\Assets\VideoWindow.cs                                    [P] Media-Player. {D} VideoPlayer, VideoBrush. (F) PlayPause -> Seek.
+\Windows\Assets\VisjectFunctionSurfaceWindow.cs                   [P] Abstract-Visject-Host. {D} VisjectSurface. (F) RefreshTempAsset -> Update. [S] TmpAssetIsDirtyFlag.
+\Windows\Assets\PreviewsCacheWindow.cs                            [P] Utility-Viewer. {D} TexturePreview.
+\Windows\Profiler\ProfilerWindow.cs                               [P] Profiler-Host/Mediator. {D} ProfilerMode. (F) OnUpdate -> UpdateModes. [S] LiveRecordingFlag, FrameIndex.
+\Windows\Profiler\ProfilerMode.cs                                 [P] Abstract-Base/Tab. {D} SharedUpdateData. (F) Update -> UpdateView.
+\Windows\Profiler\Overall.cs                                      [P] Metrics-Summary. {D} MainStats. (F) Update -> AddSample. [S] Fps/Mem/DrawCharts.
+\Windows\Profiler\CPU.cs                                          [P] Flame-Graph-Visualizer. {D} ProfilingTools. (F) UpdateTimeline -> UpdateTable. [S] ThreadEventsBuffer.
+\Windows\Profiler\GPU.cs                                          [P] GPU-Pipeline-Visualizer. {D} ProfilerGPU. (F) UpdateTimeline -> UpdateTable. [S] GpuEventsBuffer.
+\Windows\Profiler\Memory.cs                                       [P] Alloc-Breakdown. {D} ProfilerMemory. (F) Update -> SortGroups. [S] MemoryGroupsBuffer.
+\Windows\Profiler\MemoryGPU.cs                                    [P] VRAM-Tracker. {D} GPUDevice. (F) GetResources -> UpdateTable. [S] AssetPathToIdMap.
+\Windows\Profiler\Network.cs                                      [P] Traffic-Monitor. {D} NetworkPeer. (F) UpdateStats -> UpdateTable. [S] NetworkEventsBuffer.
+\Windows\Profiler\Physics.cs                                      [P] Sim-Stats-Tracker. {D} PhysicsStatistics. (F) Update -> AddSample. [S] ActiveBodiesCharts.
+\Windows\Profiler\Assets.cs                                       [P] Resource-Tracker. {D} Content.GetAssets. (F) Update -> UpdateTable. [S] ResourceCache.
+\Windows\Profiler\Timeline.cs                                     [P] Sequence-Layout. {D} Timeline.Event. (F) Draw -> MeasureText.
+\Windows\Profiler\SamplesBuffer.cs                                [P] Ring-Buffer. (F) Add -> Get. [S] TypedDataArray.
+\Windows\Profiler\SingleChart.cs                                  [P] Plot-Canvas. (F) Draw -> OnClick (SelectFrame). [S] FloatSamples.
+\Windows\DebugLogWindow.cs                                        [P] Log-Aggregator. {D} Debug.Logger. (F) OnSendLog -> AddEntry -> UpdateIcon. [S] PendingEntriesQueue, LogCount.
+\Windows\OutputLogWindow.cs                                       [P] Terminal/RichText-Aggregator. {D} DebugCommands. (F) ReadOutputLogs -> ParseTextBlocks -> ExecuteCommand. [S] CommandHistory.
+\Windows\EditorOptionsWindow.cs                                   [P] Dynamic-Settings-Editor. {D} EditorOptions, CustomEditorPresenter. (F) GatherData -> MarkAsEdited -> SaveData. [S] ClonedOptionsState.
+\Windows\GameCookerWindow.cs                                      [P] Deployment-Strategy/Build-Proxy. {D} GameCooker, BuildPlatform. (F) GatherData -> Build -> OnGameCookerEvent. [S] BuildPresets.
+\Windows\PluginsWindow.cs                                         [P] Plugin-Manager/Downloader. {D} PluginManager, HttpClient. (F) OnPluginsChanged -> CloneButtonClicked -> AddModuleReferences. [S] CategoryMap.
+\Windows\GraphicsQualityWindow.cs                                 [P] Runtime-Settings-Bridge. {D} Graphics, Streaming. (F) OnInit -> ApplyingSettings -> Save. [S] ProjectDefaults-Persistent.
+\Windows\AssetReferencesGraphWindow.cs                            [P] Dependency-Crawler/Visualizer. {D} ContentDatabase, VisjectSurface. (F) Load -> SearchRefs -> BuildGraph -> Arrange. [S] Guid-Ref-Map.
+\Windows\StyleEditorWindow.cs                                     [P] Theme-Sandbox. {D} Style, CustomEditorPresenter. (F) CreatePreview -> OnEdited -> OnOk.
+\Windows\VisualScriptDebuggerWindow.cs                            [P] Debug-State-Viewer. {D} Simulation, VisualScriptWindow. (F) OnBreakpointHangBegin -> RefreshStack/Locals. [S] RootNode-Volatile.
+\Windows\Search\ContentFinder.cs                                  [P] Search-Popup (Ctrl+P). {D} Editor.ContentFinding. (F) OnTextChanged -> BuildList. [S] MatchedItemsList.
+\Windows\Search\ContentSearchWindow.cs                            [P] Deep-Asset-Crawler. {D} VisjectSurfaceContext, Task. (F) SearchAsync -> SearchInnerVisject. [S] PendingResultsQueue.
+\Windows\Search\SearchItem.cs                                     [P] Search-Result-View. {D} ContentItem. (F) DrawThumbnail -> OnMouseUp (Open). [S] AssetProxyAccentColor.
+\Windows\AboutDialog.cs                                           [P] Info-View. {D} Editor. [S] EngineVersion, Credits.
+\CustomEditorWindow.cs                                            [P] Wrapper/Proxy {D} CustomEditorPresenter, EditorWindow (F) Ctor -> Win.Set -> BuildLayout [S] Volatile (Auto-restore on script reload)
+\Options\Editor.cs                                                [P] View Wrapper {D} CustomEditor, LayoutElementsContainer (F) Initialize -> ResetValues [S] Volatile UI
+\GUI\StyleValueEditor.cs                                          [P] Visual Editor {D} Style, StyleEditorWindow [S] Volatile

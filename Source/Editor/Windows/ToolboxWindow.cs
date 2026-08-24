@@ -1,7 +1,6 @@
 // Copyright (c) Wojciech Figat. All rights reserved.
 
-using System;
-using System.Collections.Generic;
+using FlaxEditor.GUI;
 using FlaxEditor.GUI.ContextMenu;
 using FlaxEditor.GUI.Input;
 using FlaxEditor.GUI.Tabs;
@@ -14,6 +13,8 @@ using FlaxEditor.Utilities;
 using FlaxEditor.Viewport.Modes;
 using FlaxEngine;
 using FlaxEngine.GUI;
+using System;
+using System.Collections.Generic;
 
 namespace FlaxEditor.Windows
 {
@@ -23,6 +24,73 @@ namespace FlaxEditor.Windows
     /// <seealso cref="Tab" />
     public class SpawnTab : Tab
     {
+        private class CategoryTabHeader : Tabs.TabHeader
+        {
+            public CategoryTabHeader(Tabs tabs, Tab tab)
+            : base(tabs, tab)
+            {
+            }
+
+            /// <inheritdoc />
+            public override void Draw()
+            {
+                var style = Style.Current;
+                var enabled = EnabledInHierarchy && Tab.EnabledInHierarchy;
+                var tabRect = new Rectangle(Float2.Zero, Size);
+                const float textOffset = 8;
+
+                // 1. When selected: Background
+                if (Tabs.SelectedTab == Tab)
+                {
+                    var color = style.BackgroundSelected;
+                    if (!enabled)
+                        color *= 0.6f;
+
+                    const float leftEdgeWidth = 4;
+                    var leftEdgeRect = new Rectangle(0, 0, leftEdgeWidth, tabRect.Height);
+                    var fillRect = new Rectangle(leftEdgeWidth, 0, tabRect.Width - leftEdgeWidth, tabRect.Height);
+                    Render2D.FillRectangle(fillRect, style.Background);
+                    Render2D.FillRectangle(leftEdgeRect, color);
+                }
+                // 2. When hovered over: no changes
+                else if (IsMouseOver && enabled)
+                {
+                    Render2D.FillRectangle(tabRect, style.BackgroundHighlighted);
+                }
+                // 3. When Inactive: ContentBackground
+                else
+                {
+                    Render2D.FillRectangle(tabRect, style.ContentBackground);
+                }
+
+                // Draw icon
+                if (Tab.Icon.IsValid)
+                {
+                    Render2D.DrawSprite(Tab.Icon, tabRect.MakeExpanded(-8), style.Foreground);
+                }
+
+                // Draw text
+                if (!string.IsNullOrEmpty(Tab.Text))
+                {
+                    Render2D.DrawText(style.FontMedium, Tab.Text, new Rectangle(tabRect.X + textOffset, tabRect.Y, tabRect.Width - textOffset, tabRect.Height), style.Foreground, Tabs.TabsTextHorizontalAlignment, Tabs.TabsTextVerticalAlignment);
+                }
+            }
+        }
+
+        private class CategoryTab : Tab
+        {
+            public CategoryTab(string title)
+            : base(title)
+            {
+            }
+
+            /// <inheritdoc />
+            public override Tabs.TabHeader CreateHeader()
+            {
+                return new CategoryTabHeader((Tabs)Parent, this);
+            }
+        }
+
         private class Item : TreeNode
         {
             private DragData _dragData;
@@ -37,7 +105,7 @@ namespace FlaxEditor.Windows
             : base(false, icon, icon)
             {
                 Text = text;
-                Height = 20;
+                HeaderHeight = 20;
                 TextMargin = new Margin(-5.0f, 2.0f, 2.0f, 2.0f);
                 _dragData = dragData;
             }
@@ -50,12 +118,40 @@ namespace FlaxEditor.Windows
             /// <inheritdoc />
             public override void Draw()
             {
-                base.Draw();
+                var style = Style.Current;
+                var tree = ParentTree;
+                bool isSelected = tree != null && tree.Selection.Contains(this);
+                bool isMouseOver = IsMouseOver;
+                var headerRect = HeaderRect;
+
+                // Background
+                if (isSelected || isMouseOver)
+                {
+                    var fill = isMouseOver && !isSelected ? BackgroundColorHighlighted : BackgroundColorSelectedUnfocused;
+                    Render2D.FillRectangle(headerRect, fill);
+                    if (isSelected)
+                    {
+                        var accent = new Rectangle(headerRect.X, headerRect.Y, 3.0f, headerRect.Height);
+                        Render2D.FillRectangle(accent, BackgroundColorSelected);
+                    }
+                }
+                else if (tree != null && HeaderHeight > 0.0f)
+                {
+                    float yInTree = PointToParent(tree, Float2.Zero).Y;
+                    int rowIndex = Mathf.FloorToInt(yInTree / HeaderHeight);
+                    if (rowIndex % 2 == 0)
+                        Render2D.FillRectangle(headerRect, style.SecondaryBackground);
+                    else
+                        Render2D.FillRectangle(headerRect, style.SecondaryBackground * 1.1f);
+                }
+
+                // Text
+                Color textColor = Enabled ? TextColor : TextColor * 0.6f;
+                Render2D.DrawText(TextFont.GetFont(), Text, TextRect, textColor, TextAlignment.Near, TextAlignment.Center);
 
                 // Draw all highlights
                 if (_highlights != null)
                 {
-                    var style = Style.Current;
                     var color = style.ProgressNormal * 0.6f;
                     for (int i = 0; i < _highlights.Count; i++)
                         Render2D.FillRectangle(_highlights[i], color);
@@ -113,7 +209,8 @@ namespace FlaxEditor.Windows
         private ContainerControl _groupSearch;
         private Tabs _actorGroups;
         private ContainerControl groupPrimitives;
-        private Button _viewDropdown;
+        private DropdownButton _viewDropdown;
+        private ContextMenu _filterMenu;
         private int _searchFilterMask = (int)SearchFilter.Default;
 
         /// <summary>
@@ -130,6 +227,7 @@ namespace FlaxEditor.Windows
         : base(string.Empty, icon)
         {
             Editor = editor;
+            BackgroundColor = Style.Current.Background;
             Selected += tab => Editor.Windows.EditWin.Viewport.Gizmos.SetActiveMode<TransformGizmoMode>();
             ScriptsBuilder.ScriptsReload += OnScriptsReload;
             ScriptsBuilder.ScriptsReloadEnd += OnScriptsReloadEnd;
@@ -141,24 +239,30 @@ namespace FlaxEditor.Windows
                 AnchorPreset = AnchorPresets.StretchAll,
                 Offsets = Margin.Zero,
                 TabsSize = new Float2(90, 32),
+                TabStripColor = Style.Current.ContentBackground,
                 Parent = this,
             };
 
             _groupSearch = CreateGroupWithList(_actorGroups, "Search", 26);
 
-            _viewDropdown = new Button(2, 2, 45.0f, TextBoxBase.DefaultHeight)
+            _filterMenu = new ContextMenu();
+            AddSearchFilterButton(_filterMenu, SearchFilter.UI, "UI");
+            AddSearchFilterButton(_filterMenu, SearchFilter.Actors, "Actors");
+            AddSearchFilterButton(_filterMenu, SearchFilter.Primitives, "Primitives");
+
+            _viewDropdown = new DropdownButton(2, 2, 45.0f, TextBoxBase.DefaultHeight + 5.0f)
             {
                 TooltipText = "Change search filter options.",
                 Text = "Filters",
+                ContextMenu = _filterMenu,
                 Parent = _groupSearch.Parent.Parent,
             };
-            _viewDropdown.Clicked += OnViewButtonClicked;
 
             _searchBox = new SearchBox
             {
                 AnchorPreset = AnchorPresets.HorizontalStretchTop,
+                Offsets = new Margin(_viewDropdown.Right + 2, 4, 2, _viewDropdown.Height),
                 Parent = _groupSearch.Parent.Parent,
-                Bounds = new Rectangle(_viewDropdown.Right + 2, 2, _actorGroups.Width - 4, TextBoxBase.DefaultHeight),
             };
             _searchBox.TextChanged += OnSearchBoxTextChanged;
 
@@ -167,19 +271,11 @@ namespace FlaxEditor.Windows
             _actorGroups.SelectedTabIndex = 1;
         }
 
-        private void OnViewButtonClicked()
-        {
-            var menu = new ContextMenu();
-            AddSearchFilterButton(menu, SearchFilter.UI, "UI");
-            AddSearchFilterButton(menu, SearchFilter.Actors, "Actors");
-            AddSearchFilterButton(menu, SearchFilter.Primitives, "Primitives");
-            menu.Show(_viewDropdown.Parent, _viewDropdown.BottomLeft);
-        }
-
         private void AddSearchFilterButton(ContextMenu menu, SearchFilter value, string name)
         {
             var button = menu.AddButton(name);
             button.AutoCheck = true;
+            button.CloseMenuOnClick = false;
             button.Checked = (_searchFilterMask & (int)value) != 0;
             button.Clicked += () =>
             {
@@ -193,7 +289,10 @@ namespace FlaxEditor.Windows
         {
             base.PerformLayoutBeforeChildren();
 
-            _searchBox.Width = _groupSearch.Width - _viewDropdown.Right - 4;
+            if (_searchBox != null && _viewDropdown != null && _searchBox.Parent != null)
+            {
+                _searchBox.Offsets = new Margin(_viewDropdown.Right + 2, 4, 2, _viewDropdown.Height);
+            }
         }
 
         private void OnScriptsReload()
@@ -385,15 +484,16 @@ namespace FlaxEditor.Windows
                     }
 
                     var text = (attribute == null) ? actorType.Name : string.IsNullOrEmpty(attribute.Name) ? actorType.Name : attribute.Name;
+                    text = Utilities.Utils.GetPropertyNameUI(text);
 
                     // Display all actors on no search
                     if (string.IsNullOrEmpty(filterText))
-                        _groupSearch.AddChild(CreateActorItem(Utilities.Utils.GetPropertyNameUI(text), actorType));
+                        _groupSearch.AddChild(CreateActorItem(text, actorType));
 
                     if (!QueryFilterHelper.Match(filterText, text, out QueryFilterHelper.Range[] ranges))
                         continue;
 
-                    var item = CreateActorItem(Utilities.Utils.GetPropertyNameUI(text), actorType);
+                    var item = CreateActorItem(text, actorType);
                     SearchFilterHighlights(item, text, ranges);
                 }
             }
@@ -441,15 +541,16 @@ namespace FlaxEditor.Windows
                     }
 
                     var text = (attribute == null) ? controlType.Name : string.IsNullOrEmpty(attribute.Name) ? controlType.Name : attribute.Name;
+                    text = Utilities.Utils.GetPropertyNameUI(text);
 
                     // Display all controls on no search
                     if (string.IsNullOrEmpty(filterText))
-                        _groupSearch.AddChild(CreateControlItem(Utilities.Utils.GetPropertyNameUI(controlType.Name), controlType));
+                        _groupSearch.AddChild(CreateControlItem(text, controlType));
 
                     if (!QueryFilterHelper.Match(filterText, text, out QueryFilterHelper.Range[] ranges))
                         continue;
 
-                    var item = CreateControlItem(Utilities.Utils.GetPropertyNameUI(controlType.Name), controlType);
+                    var item = CreateControlItem(text, controlType);
                     SearchFilterHighlights(item, text, ranges);
                 }
             }
@@ -483,7 +584,7 @@ namespace FlaxEditor.Windows
         {
             _groupSearch.AddChild(item);
             var highlights = new List<Rectangle>(ranges.Length);
-            var font = Style.Current.FontSmall;
+            var font = item.TextFont.GetFont() ?? Style.Current.FontSmall;
             var textRect = item.TextRect;
             for (int i = 0; i < ranges.Length; i++)
             {
@@ -512,10 +613,39 @@ namespace FlaxEditor.Windows
             return new ScriptTypeItem(name, type, GUI.Drag.DragControlType.GetDragData(type));
         }
 
+        private class GroupPanel : Panel
+        {
+            public GroupPanel(ScrollBars scrollBars)
+            : base(scrollBars)
+            {
+            }
+
+            /// <inheritdoc />
+            public override void Draw()
+            {
+                var style = Style.Current;
+                Render2D.FillRectangle(new Rectangle(Float2.Zero, Size), style.Background);
+
+                base.Draw();
+            }
+
+            /// <inheritdoc />
+            protected override void PerformLayoutAfterChildren()
+            {
+                base.PerformLayoutAfterChildren();
+
+                if (VScrollBar != null)
+                {
+                    VScrollBar.Y -= 3.5f;
+                    VScrollBar.Height += 3.5f;
+                }
+            }
+        }
+
         private ContainerControl CreateGroupWithList(Tabs parentTabs, string title, float topOffset = 0)
         {
-            var tab = parentTabs.AddTab(new Tab(title));
-            var panel = new Panel(ScrollBars.Both)
+            var tab = parentTabs.AddTab(new CategoryTab(title));
+            var panel = new GroupPanel(ScrollBars.Both)
             {
                 AnchorPreset = AnchorPresets.StretchAll,
                 Offsets = new Margin(0, 0, topOffset, 0),
@@ -538,6 +668,95 @@ namespace FlaxEditor.Windows
     /// <seealso cref="FlaxEditor.Windows.EditorWindow" />
     public class ToolboxWindow : EditorWindow
     {
+        private class ModeTabHeader : Tabs.TabHeader
+        {
+            public ModeTabHeader(Tabs tabs, Tab tab)
+            : base(tabs, tab)
+            {
+            }
+
+            /// <inheritdoc />
+            public override void Draw()
+            {
+                var style = Style.Current;
+                var enabled = EnabledInHierarchy && Tab.EnabledInHierarchy;
+                var tabRect = new Rectangle(Float2.Zero, Size);
+
+                // 1. When selected: Background
+                if (Tabs.SelectedTab == Tab)
+                {
+                    var color = style.BackgroundSelected;
+                    if (!enabled)
+                        color *= 0.6f;
+
+                    Render2D.FillRectangle(tabRect, style.Background);
+
+                    // Accent line on TOP for mode icon tabs only
+                    const float topEdgeHeight = 2.0f;
+                    var topEdgeRect = new Rectangle(0, 0, tabRect.Width, topEdgeHeight);
+                    Render2D.FillRectangle(topEdgeRect, color);
+                }
+                // 2. When hovered over: no changes
+                else if (IsMouseOver && enabled)
+                {
+                    Render2D.FillRectangle(tabRect, style.BackgroundHighlighted);
+                }
+                // 3. When Inactive: ContentBackground
+                else
+                {
+                    Render2D.FillRectangle(tabRect, style.ContentBackground);
+                }
+
+                // Draw icon
+                if (Tab.Icon.IsValid)
+                {
+                    Render2D.DrawSprite(Tab.Icon, tabRect.MakeExpanded(-8), style.Foreground);
+                }
+
+                // Draw text
+                if (!string.IsNullOrEmpty(Tab.Text))
+                {
+                    Render2D.DrawText(style.FontMedium, Tab.Text, tabRect, style.Foreground, Tabs.TabsTextHorizontalAlignment, Tabs.TabsTextVerticalAlignment);
+                }
+            }
+        }
+
+        private class ModeTabs : Tabs
+        {
+            public ModeTabs()
+            {
+                TabStripColor = Style.Current.ContentBackground;
+                BackgroundColor = Style.Current.ContentBackground;
+            }
+
+            /// <inheritdoc />
+            public override void OnChildrenChanged()
+            {
+                bool wasLocked = TabsPanel.IsLayoutLocked;
+                TabsPanel.IsLayoutLocked = true;
+
+                TabsPanel.DisposeChildren();
+                for (int i = 0; i < Children.Count; i++)
+                {
+                    if (Children[i] is Tab tab)
+                        TabsPanel.AddChild(new ModeTabHeader(this, tab));
+                }
+
+                TabsPanel.IsLayoutLocked = wasLocked;
+            }
+
+            /// <inheritdoc />
+            public override void Draw()
+            {
+                // Draw the tab strip background behind and to the right of the icon buttons BEFORE drawing children
+                var style = Style.Current;
+                var stripRect = new Rectangle(0, 0, Width, _tabsSize.Y);
+                Render2D.FillRectangle(stripRect, style.ContentBackground);
+
+                base.Draw();
+            }
+        }
+
         /// <summary>
         /// Gets the tabs control used by this window. Can be used to add custom toolbox modes.
         /// </summary>
@@ -572,6 +791,7 @@ namespace FlaxEditor.Windows
         {
             Title = "Toolbox";
             Icon = editor.Icons.Toolbox96;
+            BackgroundColor = Style.Current.ContentBackground;
 
             FlaxEditor.Utilities.Utils.SetupCommonInputActions(this);
         }
@@ -580,7 +800,7 @@ namespace FlaxEditor.Windows
         public override void OnInit()
         {
             float tabSize = 48 * Editor.Options.Options.Interface.IconsScale;
-            TabsControl = new Tabs
+            TabsControl = new ModeTabs
             {
                 AnchorPreset = AnchorPresets.StretchAll,
                 Offsets = Margin.Zero,

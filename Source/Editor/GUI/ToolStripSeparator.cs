@@ -16,7 +16,7 @@ namespace FlaxEditor.GUI
         /// </summary>
         /// <param name="height">The height.</param>
         public ToolStripSeparator(float height)
-        : base(0, 0, 4, height)
+        : base(0, 0, 1.5f, height)
         {
             AutoFocus = false;
         }
@@ -27,7 +27,7 @@ namespace FlaxEditor.GUI
             base.Draw();
 
             // Draw the separator line
-            Render2D.FillRectangle(new Rectangle((Width - 4) / 2, 2, 1, Height - 4), Style.Current.LightBackground * 1.3f);
+            Render2D.FillRectangle(new Rectangle(0, 0, Width, Height), Style.Current.BackgroundHighlighted);
         }
     }
 }

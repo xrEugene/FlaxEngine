@@ -69,7 +69,7 @@ namespace FlaxEditor.GUI.Docking
         /// <summary>
         /// The default dock tabs header height.
         /// </summary>
-        public const float DefaultHeaderHeight = 20;
+        public const float DefaultHeaderHeight = 24;
 
         /// <summary>
         /// The default tabs header text left margin.

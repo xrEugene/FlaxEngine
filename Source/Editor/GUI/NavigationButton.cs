@@ -50,7 +50,8 @@ namespace FlaxEditor.GUI
             }
             else if (_isPressed)
             {
-                Render2D.FillRectangle(clientRect, style.BackgroundSelected);
+                Render2D.FillRectangle(clientRect, style.ContentBackground);
+                Render2D.FillRectangle(new Rectangle(clientRect.X, clientRect.Bottom - 2, clientRect.Width, 2), style.BackgroundSelected);
             }
             else if (IsMouseOver)
             {

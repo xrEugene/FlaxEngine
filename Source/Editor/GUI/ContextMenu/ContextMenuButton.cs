@@ -56,6 +56,12 @@ namespace FlaxEditor.GUI.ContextMenu
         public bool AutoCheck;
 
         /// <summary>
+        /// If true, this button visually reserves space for a check mark even when not currently checked.
+        /// Used to keep alignment consistent within a menu that supports checks.
+        /// </summary>
+        public bool SupportsCheck;
+
+        /// <summary>
         /// Closes the context menu after clicking the button, otherwise menu will stay open.
         /// </summary>
         public bool CloseMenuOnClick = true;
@@ -121,7 +127,44 @@ namespace FlaxEditor.GUI.ContextMenu
         {
             var style = Style.Current;
             var backgroundRect = new Rectangle(-X + 3, 0, Parent.Width - 6, Height);
-            var textRect = new Rectangle(0, 0, Width - 8, Height);
+
+            // If this menu supports checks (any sibling button uses check state), shift text/check to the right
+            float checkShift = 0.0f;
+            if (Parent != null)
+            {
+                bool anyChecked = false;
+                bool supports = false;
+                for (int i = 0; i < Parent.ChildrenCount; i++)
+                {
+                    if (Parent.Children[i] is ContextMenuButton b)
+                    {
+                        if (b.AutoCheck || b.SupportsCheck)
+                            supports = true;
+                        if (b.Checked)
+                        {
+                            supports = true;
+                            anyChecked = true;
+                        }
+                    }
+                }
+                // Sticky: once any sibling was checked, keep the check-oriented placement in this menu.
+                if (anyChecked)
+                {
+                    for (int i = 0; i < Parent.ChildrenCount; i++)
+                    {
+                        if (Parent.Children[i] is ContextMenuButton b)
+                            b.SupportsCheck = true;
+                    }
+                }
+                if (supports)
+                    checkShift = 6.0f;
+            }
+
+            // Extra horizontal padding between the check mark and the button text
+            const float checkTextPadding = 2.0f;
+            float textOffset = checkShift > 0.0f ? checkShift + checkTextPadding : 0.0f;
+
+            var textRect = new Rectangle(textOffset, 0, Width - 8 - textOffset, Height);
             var textColor = Enabled ? style.Foreground : style.ForegroundDisabled;
 
             // Draw background
@@ -129,6 +172,24 @@ namespace FlaxEditor.GUI.ContextMenu
                 Render2D.FillRectangle(backgroundRect, style.LightBackground);
             else if (IsFocused)
                 Render2D.FillRectangle(backgroundRect, style.LightBackground);
+            else
+            {
+                // Compute zebra index by counting only visible ContextMenuButton siblings (skip separators/other controls)
+                int zebraIndex = 0;
+                if (HasParent)
+                {
+                    for (int i = 0; i < Parent.ChildrenCount; i++)
+                    {
+                        var child = Parent.Children[i];
+                        if (child == this)
+                            break;
+                        if (child is ContextMenuButton && child.Visible)
+                            zebraIndex++;
+                    }
+                }
+                if ((zebraIndex & 1) != 0)
+                    Render2D.FillRectangle(backgroundRect, style.TreeAlternateRowBackground);
+            }
 
             base.Draw();
 
@@ -145,7 +206,7 @@ namespace FlaxEditor.GUI.ContextMenu
             const float iconSize = 14;
             var icon = Checked ? style.CheckBoxTick : Icon;
             if (icon.IsValid)
-                Render2D.DrawSprite(icon, new Rectangle(-iconSize - 1, (Height - iconSize) / 2, iconSize, iconSize), textColor);
+                Render2D.DrawSprite(icon, new Rectangle(-iconSize - 1 + checkShift, (Height - iconSize) / 2, iconSize, iconSize), textColor);
         }
 
         /// <inheritdoc />

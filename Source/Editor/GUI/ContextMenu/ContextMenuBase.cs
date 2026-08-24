@@ -15,6 +15,28 @@ using FlaxEngine.GUI;
 namespace FlaxEditor.GUI.ContextMenu
 {
     /// <summary>
+    /// Controls how <see cref="ContextMenuBase.Hide"/> restores focus once the popup closes.
+    /// </summary>
+    internal enum HideFocusMode
+    {
+        /// <summary>
+        /// Restore both the previously focused window and control (default behaviour, eg. Escape or item selection).
+        /// </summary>
+        Normal,
+
+        /// <summary>
+        /// Restore only the previously focused window (native OS focus) but not the specific control - used when the user
+        /// clicked elsewhere within that same window so the click itself should decide the newly focused control.
+        /// </summary>
+        RestoreWindowOnly,
+
+        /// <summary>
+        /// Don't restore any focus - used when the user clicked outside into a different window which should keep its own focus.
+        /// </summary>
+        SkipAll,
+    }
+
+    /// <summary>
     /// Context menu popup directions.
     /// </summary>
     [HideInEditor]
@@ -54,6 +76,14 @@ namespace FlaxEditor.GUI.ContextMenu
         private ContextMenuBase _childCM;
         private Window _window;
         private Control _previouslyFocused;
+        private Control _showParent;
+        private HideFocusMode _hideFocusMode;
+
+        /// <summary>
+        /// The control that opened the currently visible topmost context menu (the <c>parent</c> passed to <see cref="Show(Control,Float2,ContextMenuDirection?)"/>).
+        /// Used by dock chrome to keep the correct tab visually focused while a context menu popup steals OS window focus.
+        /// </summary>
+        public static Control ActiveContextMenuOwner { get; private set; }
 
         /// <summary>
         /// Gets a value indicating whether use automatic popup direction fix based on the screen dimensions.
@@ -262,8 +292,12 @@ namespace FlaxEditor.GUI.ContextMenu
                 desc.HasBorder = false;
                 desc.SupportsTransparency = false;
                 desc.ShowInTaskbar = false;
+                // Note: ActivateWhenFirstShown controls native window focus/activation (eg. keep keyboard focus on
+                // an external text box while this popup is shown), while AllowInput controls whether the popup can
+                // receive mouse input at all (eg. hover/scrollbar/wheel) - these must stay independent, otherwise
+                // disabling activation would make the whole popup click-through and unusable with the mouse.
                 desc.ActivateWhenFirstShown = UseInput;
-                desc.AllowInput = UseInput;
+                desc.AllowInput = true;
                 desc.AllowMinimize = false;
                 desc.AllowMaximize = false;
                 desc.AllowDragAndDrop = false;
@@ -288,6 +322,9 @@ namespace FlaxEditor.GUI.ContextMenu
 
                 // Attach to the window
                 _parentCM = parent as ContextMenuBase;
+                _showParent = parent;
+                if (_parentCM == null)
+                    ActiveContextMenuOwner = parent;
                 Parent = _window.GUI;
 
                 // Show
@@ -352,14 +389,31 @@ namespace FlaxEditor.GUI.ContextMenu
                 _parentCM._childCM = null;
                 _parentCM = null;
             }
+            if (ActiveContextMenuOwner == _showParent)
+                ActiveContextMenuOwner = null;
+            _showParent = null;
 
-            // Return focus
+            // Return focus (behavior depends on why the popup is closing - see HideFocusMode)
             if (_previouslyFocused != null)
             {
-                _previouslyFocused.RootWindow?.Focus();
-                _previouslyFocused?.Focus();
+                switch (_hideFocusMode)
+                {
+                case HideFocusMode.Normal:
+                    _previouslyFocused.RootWindow?.Focus();
+                    _previouslyFocused.Focus();
+                    break;
+                case HideFocusMode.RestoreWindowOnly:
+                    // The click that closed the popup landed in the same window - restore its native focus immediately
+                    // (avoids a visible delay before the window is shown as focused) but let the click pick the new control.
+                    _previouslyFocused.RootWindow?.Focus();
+                    break;
+                case HideFocusMode.SkipAll:
+                    // The click that closed the popup landed in a different window - don't steal its focus back.
+                    break;
+                }
                 _previouslyFocused = null;
             }
+            _hideFocusMode = HideFocusMode.Normal;
 
             // Hide
             Visible = false;
@@ -469,7 +523,9 @@ namespace FlaxEditor.GUI.ContextMenu
         
         private void OnWindowMouseDown(ref Float2 mousePosition, MouseButton button, ref bool handled)
         {
-            // The user clicked outside the popup window
+            // The user clicked outside the popup but still within the window it was opened from
+            var topmost = TopmostCM;
+            topmost._hideFocusMode = HideFocusMode.RestoreWindowOnly;
             Hide();
         }
 #else
@@ -482,7 +538,18 @@ namespace FlaxEditor.GUI.ContextMenu
                 FlaxEngine.Scripting.InvokeOnUpdate(() =>
                 {
                     if (child == _childCM)
+                    {
+                        // Keep child menu open if the click landed on the ContextMenuChildMenu row that owns it
+                        if (this is ContextMenu cm)
+                        {
+                            foreach (var item in cm.Items)
+                            {
+                                if (item is ContextMenuChildMenu ccm && ccm.ContextMenu == child && ccm.IsMouseOver)
+                                    return;
+                            }
+                        }
                         HideChild();
+                    }
                 });
             }
         }
@@ -547,11 +614,16 @@ namespace FlaxEditor.GUI.ContextMenu
                 else
                 {
                     // User clicked outside the context menus, hide the whole context menu tree
-                    TopmostCM.Hide();
+                    var topmost = TopmostCM;
+                    var ownerWindow = topmost._showParent?.RootWindow?.Window;
+                    topmost._hideFocusMode = ownerWindow != null && ownerWindow.IsFocused ? HideFocusMode.RestoreWindowOnly : HideFocusMode.SkipAll;
+                    topmost.Hide();
                 }
             }
             else if (!IsMouseOver)
             {
+                var ownerWindow = _showParent?.RootWindow?.Window;
+                _hideFocusMode = ownerWindow != null && ownerWindow.IsFocused ? HideFocusMode.RestoreWindowOnly : HideFocusMode.SkipAll;
                 Hide();
             }
         }
@@ -585,12 +657,16 @@ namespace FlaxEditor.GUI.ContextMenu
             // Let root context menu to check if none of the popup windows
             if (_parentCM == null && UseVisibilityControl && !IsForeground)
             {
-#if USE_SDL_WORKAROUNDS
+                // If the window that opened this menu already regained native focus, the user simply clicked
+                // elsewhere within it - restore that window's focus immediately (no visible unfocused flash) but
+                // let the click decide the newly focused control. Otherwise a different window took focus - don't fight it.
+                var ownerWindow = _showParent?.RootWindow?.Window;
+                var mode = ownerWindow != null && ownerWindow.IsFocused ? HideFocusMode.RestoreWindowOnly : HideFocusMode.SkipAll;
                 if (!IsMouseOver)
+                {
+                    _hideFocusMode = mode;
                     Hide();
-#else
-                Hide();
-#endif
+                }
             }
         }
 #endif
@@ -601,7 +677,7 @@ namespace FlaxEditor.GUI.ContextMenu
             // Draw background
             var style = Style.Current;
             var bounds = new Rectangle(Float2.Zero, Size);
-            Render2D.FillRectangle(bounds, style.Background);
+            Render2D.FillRectangle(bounds, style.ContentBackground);
             Render2D.DrawRectangle(bounds, Color.Lerp(style.BackgroundSelected, style.Background, 0.6f));
 
             base.Draw();

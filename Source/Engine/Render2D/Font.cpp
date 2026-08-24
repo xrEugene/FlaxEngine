@@ -3,11 +3,29 @@
 #include "Font.h"
 #include "FontAsset.h"
 #include "FontManager.h"
+#include "Engine/Content/Content.h"
 #include "Engine/Core/Log.h"
 #include "Engine/Threading/Threading.h"
 #include "IncludeFreeType.h"
 
 Array<AssetReference<FontAsset>, HeapAllocation> Font::FallbackFonts;
+
+float Font::GetGlobalScale()
+{
+    return FontManager::FontScale;
+}
+
+void Font::SetGlobalScale(float scale)
+{
+    if (scale <= 0.0f || Math::NearEqual(FontManager::FontScale, scale)) return;
+    FontManager::FontScale = scale;
+
+    // Invalidate all loaded font assets so cached glyphs are re-rasterized and Font metrics are recomputed at the new scale
+    auto assets = Content::GetAssets<FontAsset>();
+    for (auto* asset : assets) if (asset) asset->Invalidate();
+
+    FontManager::Flush();
+}
 
 Font::Font(FontAsset* parentAsset, float size)
     : ManagedScriptingObject(SpawnParams(Guid::New(), Font::TypeInitializer))
@@ -411,10 +429,12 @@ Float2 Font::GetCharPosition(const StringView& text, int32 index, const TextLayo
     if (text.IsEmpty())
     {
         Float2 location = layout.Bounds.Location;
+        const float scaleEmpty = layout.Scale / FontManager::FontScale;
+        const float lineHeight = static_cast<float>(_height) * layout.BaseLinesGapScale * scaleEmpty;
         if (layout.VerticalAlignment == TextAlignment::Center)
-            location.Y += layout.Bounds.Size.Y * 0.5f - static_cast<float>(_height) * 0.5f;
+            location.Y += (layout.Bounds.Size.Y - lineHeight) * 0.5f;
         else if (layout.VerticalAlignment == TextAlignment::Far)
-            location.Y += layout.Bounds.Size.Y - static_cast<float>(_height) * 0.5f;
+            location.Y += layout.Bounds.Size.Y - lineHeight;
 
         if (layout.HorizontalAlignment == TextAlignment::Center)
             location.X += layout.Bounds.Size.X * 0.5f;

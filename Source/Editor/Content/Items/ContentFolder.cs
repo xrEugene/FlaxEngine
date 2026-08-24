@@ -119,12 +119,14 @@ namespace FlaxEditor.Content
             {
                 var hasParentFolder = ParentFolder != null;
                 var isContentFolder = Node is MainContentFolderTreeNode;
-                return hasParentFolder && !isContentFolder;
+                var isUnderProjectRoot = Node?.ParentNode is ProjectFolderTreeNode;
+                var isProjectRoot = Node is ProjectFolderTreeNode || Node is RootContentFolderTreeNode;
+                return hasParentFolder && !isContentFolder && !isUnderProjectRoot && !isProjectRoot;
             }
         }
 
         /// <inheritdoc />
-        public override bool CanDrag => ParentFolder != null; // Deny rename action for root folders
+        public override bool CanDrag => ParentFolder != null && !(Node is MainContentFolderTreeNode) && !(Node?.ParentNode is ProjectFolderTreeNode) && !(Node is ProjectFolderTreeNode);
 
         /// <inheritdoc />
         public override bool Exists => Directory.Exists(Path);

@@ -155,6 +155,7 @@ namespace FlaxEditor.Tools.Foliage
             }
 
             _createNewFoliage.Clicked += OnCreateNewFoliageClicked;
+            OnSelectionChanged();
         }
 
         private void OnSceneLoaded(Scene arg1, Guid arg2)
@@ -210,6 +211,7 @@ namespace FlaxEditor.Tools.Foliage
             }
 
             _noFoliagePanel.Visible = foliage == null;
+            _modes.Visible = !_noFoliagePanel.Visible;
         }
 
         private void InitSculptMode()

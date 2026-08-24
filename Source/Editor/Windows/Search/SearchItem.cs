@@ -209,6 +209,7 @@ namespace FlaxEditor.Windows.Search
                     cm.AddButton("Copy asset ID", () => Clipboard.Text = FlaxEngine.Json.JsonSerializer.GetStringID(assetItem.ID));
                     cm.AddButton("Select actors using this asset", () => Editor.Instance.SceneEditing.SelectActorsUsingAsset(assetItem.ID));
                     cm.AddButton("Show asset references graph", () => Editor.Instance.Windows.Open(new AssetReferencesGraphWindow(Editor.Instance, assetItem)));
+                    cm.AddSeparator();
                     cm.AddButton("Copy name to Clipboard", () => Clipboard.Text = assetItem.NamePath);
                     cm.AddButton("Copy path to Clipboard", () => Clipboard.Text = assetItem.Path);
                     cm.AddSeparator();

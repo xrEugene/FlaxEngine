@@ -27,6 +27,9 @@ namespace FlaxEditor.GUI.Input
         public SearchBox(bool isMultiline, float x, float y, float width = 120)
         : base(isMultiline, x, y, width)
         {
+            // Increase search box height by 1.5x compared to the TextBox default
+            Height = TextBoxBase.DefaultHeight * 1.5f;
+
             WatermarkText = "Search...";
 
             ClearSearchButton = new Button
@@ -34,7 +37,7 @@ namespace FlaxEditor.GUI.Input
                 Parent = this,
                 Width = 14.0f,
                 Height = 14.0f,
-                AnchorPreset = AnchorPresets.TopRight,
+                AnchorPreset = AnchorPresets.MiddleRight,
                 Text = "",
                 TooltipText = "Cancel Search.",
                 BackgroundColor = TextColor,
@@ -46,7 +49,6 @@ namespace FlaxEditor.GUI.Input
                 BackgroundBrush = new SpriteBrush(Editor.Instance.Icons.Cross12),
                 Visible = false,
             };
-            ClearSearchButton.LocalY += 2;
             ClearSearchButton.LocalX -= 2;
             ClearSearchButton.Clicked += Clear;
             ClearSearchButton.HoverBegin += () =>

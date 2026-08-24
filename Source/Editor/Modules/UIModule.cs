@@ -62,6 +62,26 @@ namespace FlaxEditor.Modules
             }
         }
 
+        // Subclassed ProgressBar for the status bar to render a vertical top-to-bottom color gradient (top: BarColor, bottom: BarColor.RGBMultiplied(1.2f))
+        private class StatusBarProgressBar : ProgressBar
+        {
+            /// <inheritdoc />
+            public override void Draw()
+            {
+                var rect = new Rectangle(Float2.Zero, Size);
+                var progress = Mathf.Saturate((Value - Minimum) / (Maximum - Minimum));
+                var progressRect = new Rectangle(0, 0, Width * progress, Height);
+
+                // Background
+                Render2D.FillRectangle(rect, BackgroundColor);
+
+                // 4-corner gradient fill using BarColor and RGBMultiplied for brightness scaling
+                var topColor = BarColor.RGBMultiplied(0.3f);
+                var bottomColor = BarColor;
+                Render2D.FillRectangle(progressRect, topColor, topColor, bottomColor, bottomColor);
+            }
+        }
+
         private struct Status
         {
             public int ID;
@@ -379,11 +399,12 @@ namespace FlaxEditor.Modules
             }
             var contentStats = FlaxEngine.Content.Stats;
 
-            Color color;
+            // Pick the color for the thin line
+            Color scenarioColor;
             if (Editor.StateMachine.IsPlayMode)
-                color = Style.Current.Statusbar.PlayMode;
+                scenarioColor = Style.Current.Statusbar.PlayMode;
             else
-                color = Style.Current.BackgroundSelected;
+                scenarioColor = Style.Current.BackgroundSelected;
 
             string text;
             if (_statusMessages != null && _statusMessages.Count != 0)
@@ -396,12 +417,11 @@ namespace FlaxEditor.Modules
                 text = "Ready";
 
             if (ProgressVisible)
-            {
-                color = Style.Current.Statusbar.Loading;
-            }
+                scenarioColor = Style.Current.Statusbar.Loading;
 
             StatusBar.Text = text;
-            StatusBar.StatusColor = color;
+            StatusBar.StatusColor = scenarioColor;
+            StatusBar.TextColor = Style.Current.Foreground; // Ensure text is light/visible on the dark background
             _contentStats = contentStats;
         }
 
@@ -1001,7 +1021,7 @@ namespace FlaxEditor.Modules
                 Offsets = Margin.Zero,
                 Parent = StatusBar,
             };
-            _progressBar = new ProgressBar
+            _progressBar = new StatusBarProgressBar
             {
                 AnchorPreset = AnchorPresets.MiddleRight,
                 Parent = progressPanel,

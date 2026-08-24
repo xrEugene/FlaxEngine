@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using FlaxEditor.Content.GUI;
 using FlaxEditor.GUI.Drag;
+using FlaxEditor.Utilities;
 using FlaxEngine;
 using FlaxEngine.Assertions;
 using FlaxEngine.GUI;
@@ -694,10 +695,15 @@ namespace FlaxEditor.Content
                     var shadowRect = new Rectangle(2, 2, clientRect.Width + 1, clientRect.Height + 1);
                     var color = Color.Black.AlphaMultiplied(0.2f);
                     Render2D.FillRectangle(shadowRect, color);
-                    Render2D.FillRectangle(clientRect, style.Background.RGBMultiplied(1.25f));
+                    Render2D.FillRectangle(clientRect, Color.Lerp(style.ContentBackground, style.BackgroundHighlighted, 0.5f));
 
                     if (isSelected)
-                        Render2D.FillRectangle(clientRect, Parent.ContainsFocus ? style.BackgroundSelected : style.LightBackground);
+                    {
+                        // Keep the unselected background and show a blue accent line at the bottom (persist even when unfocused)
+                        var accentColor = style.BackgroundSelected;
+                        var accentRect = new Rectangle(0, clientRect.Height - 3.0f, clientRect.Width, 3.0f);
+                        Render2D.FillRectangle(accentRect, accentColor);
+                    }
                     else if (IsMouseOver)
                         Render2D.FillRectangle(clientRect, style.BackgroundHighlighted);
 
@@ -710,8 +716,9 @@ namespace FlaxEditor.Content
                     var color = Color.Black.AlphaMultiplied(0.2f);
                     Render2D.FillRectangle(shadowRect, color);
 
-                    Render2D.FillRectangle(clientRect, style.Background.RGBMultiplied(1.25f));
-                    Render2D.FillRectangle(TextRectangle, style.LightBackground);
+                    var baseColor = Color.Lerp(style.ContentBackground, style.BackgroundHighlighted, 0.5f);
+                    Render2D.FillRectangle(clientRect, IsMouseOver ? style.BackgroundHighlighted : baseColor);
+                    Render2D.FillRectangle(TextRectangle, IsMouseOver ? style.BackgroundHighlighted : baseColor);
 
                     var accentHeight = 2 * view.ViewScale;
                     var barRect = new Rectangle(0, thumbnailRect.Height - accentHeight, clientRect.Width, accentHeight);
@@ -720,13 +727,10 @@ namespace FlaxEditor.Content
                     DrawThumbnail(ref thumbnailRect, false);
                     if (isSelected)
                     {
-                        Render2D.FillRectangle(textRect, Parent.ContainsFocus ? style.BackgroundSelected : style.LightBackground);
-                        Render2D.DrawRectangle(clientRect, Parent.ContainsFocus ? style.BackgroundSelected : style.LightBackground);
-                    }
-                    else if (IsMouseOver)
-                    {
-                        Render2D.FillRectangle(textRect, style.BackgroundHighlighted);
-                        Render2D.DrawRectangle(clientRect, style.BackgroundHighlighted);
+                        // Blue accent line at the bottom instead of coloring the whole tile (persist even when unfocused)
+                        var accentColor = style.BackgroundSelected;
+                        var accentRect = new Rectangle(0, clientRect.Height - 3.0f, clientRect.Width, 3.0f);
+                        Render2D.FillRectangle(accentRect, accentColor);
                     }
                 }
                 break;
@@ -738,7 +742,11 @@ namespace FlaxEditor.Content
                 nameAlignment = TextAlignment.Near;
 
                 if (isSelected)
-                    Render2D.FillRectangle(clientRect, Parent.ContainsFocus ? style.BackgroundSelected : style.LightBackground);
+                {
+                    var accentColor = style.BackgroundSelected;
+                    var accentRect = new Rectangle(0, clientRect.Height - 3.0f, clientRect.Width, 3.0f);
+                    Render2D.FillRectangle(accentRect, accentColor);
+                }
                 else if (IsMouseOver)
                     Render2D.FillRectangle(clientRect, style.BackgroundHighlighted);
 
@@ -749,9 +757,57 @@ namespace FlaxEditor.Content
             }
 
             // Draw short name
+            var displayName = ShowFileExtension || view.ShowFileExtensions ? FileName : ShortName;
             Render2D.PushClip(ref textRect);
+
             var scale = 0.95f * view.ViewScale;
-            Render2D.DrawText(style.FontMedium, ShowFileExtension || view.ShowFileExtensions ? FileName : ShortName, textRect, style.Foreground, nameAlignment, TextAlignment.Center, TextWrapping.WrapWords, 1f, scale);
+
+            // Highlight matched search substrings
+            if (view.IsSearching 
+                && !string.IsNullOrEmpty(view.SearchFilterText) &&
+                QueryFilterHelper.Match(view.SearchFilterText, displayName, out var highlightRanges))
+            {
+                var font = style.FontMedium;
+                var layout = new TextLayoutOptions
+                {
+                    Bounds = textRect,
+                    HorizontalAlignment = nameAlignment,
+                    VerticalAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.WrapWords,
+                    Scale = scale,
+                    BaseLinesGapScale = 1.0f,
+                };
+
+                var lineHeight = font.Height * scale;
+                var highlightColor = style.ProgressNormal * 0.6f;
+
+                for (int r = 0; r < highlightRanges.Length; r++)
+                {
+                    int i = highlightRanges[r].StartIndex;
+                    int end = highlightRanges[r].EndIndex;
+
+                    while (i < end)
+                    {
+                        var s = font.GetCharPosition(displayName, i, ref layout);
+                        int j = i + 1;
+
+                        var e = font.GetCharPosition(displayName, j, ref layout);
+                        while (j < end)
+                        {
+                            var next = font.GetCharPosition(displayName, j + 1, ref layout);
+                            if (!Mathf.NearEqual(next.Y, s.Y)) break;
+
+                            e = next;
+                            j++;
+                        }
+
+                        if (e.X > s.X) Render2D.FillRectangle(new Rectangle(s.X, s.Y, e.X - s.X, lineHeight), highlightColor);
+                        i = j;
+                    }
+                }
+            }
+
+            Render2D.DrawText(style.FontMedium, displayName, textRect, style.Foreground, nameAlignment, TextAlignment.Center, TextWrapping.WrapWords, 1f, scale);
             Render2D.PopClip();
 
             if (IsBeingCut)
@@ -794,6 +850,10 @@ namespace FlaxEditor.Content
         /// <inheritdoc />
         public override bool OnMouseDoubleClick(Float2 location, MouseButton button)
         {
+            // Only open on left double-click
+            if (button != MouseButton.Left)
+                return base.OnMouseDoubleClick(location, button);
+
             Focus();
 
             // Open

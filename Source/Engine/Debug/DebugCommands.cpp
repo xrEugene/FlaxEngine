@@ -254,6 +254,33 @@ namespace
         cmd.Name.Set(buffer.Get(), (int32)(bufferPtr - buffer.Get()));
     }
 
+    // Checks if the given method parameters can be parsed from console text (see Variant::Parse) so the command is actually usable from the command line.
+    bool AreParamsConsoleParsable(MMethod* method)
+    {
+        const int32 paramsCount = method->GetParametersCount();
+        for (int32 paramIdx = 0; paramIdx < paramsCount; paramIdx++)
+        {
+            const VariantType paramType = MUtils::UnboxVariantType(method->GetParameterType(paramIdx));
+            switch (paramType.Type)
+            {
+            case VariantType::Bool:
+            case VariantType::Int:
+            case VariantType::Uint:
+            case VariantType::Int64:
+            case VariantType::Uint64:
+            case VariantType::Float:
+            case VariantType::Double:
+            case VariantType::String:
+            case VariantType::Enum:
+                break;
+            default:
+                // Structures, objects, assets, etc. cannot be constructed from a single typed console token
+                return false;
+            }
+        }
+        return true;
+    }
+
     void FindDebugCommands(BinaryModule* module)
     {
         if (module == GetBinaryModuleCorlib())
@@ -295,6 +322,8 @@ namespace
                     if (!useClass && !method->HasAttribute(attribute))
                         continue;
                     if (useClass && method->GetVisibility() != MVisibility::Public)
+                        continue;
+                    if (!AreParamsConsoleParsable(method))
                         continue;
 
                     auto& commandData = Commands.AddOne();

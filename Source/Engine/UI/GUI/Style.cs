@@ -141,6 +141,18 @@ namespace FlaxEngine.GUI
         public Color BackgroundNormal;
 
         /// <summary>
+        /// The content browser view background color.
+        /// </summary>
+        [EditorOrder(165)]
+        public Color ContentBackground;
+
+        /// <summary>
+        /// The secondary background color (used e.g. for empty area next to dock tabs).
+        /// </summary>
+        [EditorOrder(166)]
+        public Color SecondaryBackground;
+
+        /// <summary>
         /// The border normal color.
         /// </summary>
         [EditorOrder(170)]

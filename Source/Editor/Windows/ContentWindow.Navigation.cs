@@ -49,6 +49,10 @@ namespace FlaxEditor.Windows
             var target = targetNode as ContentFolderTreeNode;
             Navigate(source, target);
 
+            // Clear right-side selection when navigating to a different folder
+            if (source != target)
+                _view?.ClearSelection();
+
             if (setLastViewFolder)
                 SaveLastViewedFolder(target);
             target?.Focus();
@@ -106,8 +110,6 @@ namespace FlaxEditor.Windows
                 _navigationRedo.Push(SelectedNode);
 
                 DoNavigate(node);
-                if (!_showAllContentInTree)
-                    _view.SelectFirstItem();
             }
         }
 
@@ -129,8 +131,6 @@ namespace FlaxEditor.Windows
                 _navigationUndo.Push(SelectedNode);
 
                 DoNavigate(node);
-                if (!_showAllContentInTree)
-                    _view.SelectFirstItem();
             }
         }
 
@@ -166,7 +166,6 @@ namespace FlaxEditor.Windows
             if (!_showAllContentInTree)
                 RefreshView(node);
             _tree.Select(node);
-            node.ExpandAllParents();
 
             // Set valid sizes for stacks
             //RedoList.SetSize(32);

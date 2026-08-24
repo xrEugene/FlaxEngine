@@ -23,6 +23,92 @@ namespace FlaxEditor.Windows
     /// <seealso cref="FlaxEditor.Windows.EditorWindow" />
     public sealed class OutputLogWindow : EditorWindow
     {
+        private class ViewDropdown : ComboBox
+        {
+            /// <inheritdoc />
+            public override void Draw()
+            {
+                var clientRect = new Rectangle(Float2.Zero, Size);
+                float margin = clientRect.Height * 0.2f;
+                float boxSize = clientRect.Height - margin * 2;
+                bool isOpened = IsPopupOpened;
+                bool enabled = EnabledInHierarchy;
+                Color backgroundColor = BackgroundColor;
+                Color borderColor = BorderColor;
+                Color arrowColor = ArrowColor;
+
+                if (!enabled)
+                {
+                    backgroundColor *= 0.5f;
+                    arrowColor *= 0.7f;
+                }
+                else if (isOpened || _mouseDown)
+                {
+                    backgroundColor = BackgroundColorSelected;
+                    borderColor = BorderColorSelected;
+                    arrowColor = ArrowColorSelected;
+                }
+                else if (IsMouseOver)
+                {
+                    backgroundColor = BackgroundColorHighlighted;
+                    borderColor = BorderColorHighlighted;
+                    arrowColor = ArrowColorHighlighted;
+                }
+
+                Render2D.FillRectangle(clientRect, backgroundColor);
+                if (enabled && (isOpened || _mouseDown))
+                {
+                    var accent = new Rectangle(0, clientRect.Height - 2.0f, clientRect.Width, 2.0f);
+                    Render2D.FillRectangle(accent, FlaxEngine.GUI.Style.Current.BackgroundSelected);
+                }
+                else
+                {
+                    Render2D.DrawRectangle(clientRect, borderColor);
+                }
+
+                var textRect = new Rectangle(margin, 0, clientRect.Width - boxSize - 2.0f * margin, clientRect.Height);
+                Render2D.PushClip(textRect);
+
+                var textColor = TextColor;
+                Render2D.DrawText(Font.GetFont(), "View", textRect, enabled ? textColor : textColor * 0.5f, TextAlignment.Near, TextAlignment.Center, TextWrapping.NoWrap, 1.0f, 1.0f);
+                Render2D.PopClip();
+
+                ArrowImage?.Draw(new Rectangle(clientRect.Width - margin - boxSize, margin, boxSize, boxSize), arrowColor);
+            }
+
+            /// <inheritdoc />
+            public override bool OnMouseUp(Float2 location, MouseButton button)
+            {
+                if (_mouseDown && !_blockPopup)
+                {
+                    _mouseDown = false;
+                    if (_popupMenu == null)
+                    {
+                        _popupMenu = OnCreatePopup();
+                        _popupMenu.MaximumItemsInViewCount = MaximumItemsInViewCount;
+                        _popupMenu.VisibleChanged += cm =>
+                        {
+                            var win = Root;
+                            _blockPopup = win != null && new Rectangle(Float2.Zero, Size).Contains(PointFromWindow(win.MousePosition));
+                            if (!_blockPopup)
+                                Focus();
+                        };
+                    }
+                    if (_popupMenu.Visible)
+                    {
+                        _popupMenu.Hide();
+                        return true;
+                    }
+                    _popupMenu.Show(this, new Float2(1, Height));
+                }
+                else
+                {
+                    _blockPopup = false;
+                }
+                return true;
+            }
+        }
+
         /// <summary>
         /// The single log message entry.
         /// </summary>
@@ -85,6 +171,20 @@ namespace FlaxEditor.Windows
             public OutputTextBox()
             {
                 _consumeAllKeyDownEvents = false;
+            }
+
+            /// <inheritdoc />
+            public override void OnMouseEnter(Float2 location)
+            {
+                base.OnMouseEnter(location);
+                Cursor = CursorType.IBeam;
+            }
+
+            /// <inheritdoc />
+            public override void OnMouseLeave()
+            {
+                Cursor = CursorType.Default;
+                base.OnMouseLeave();
             }
 
             /// <inheritdoc />
@@ -213,11 +313,45 @@ namespace FlaxEditor.Windows
             private ItemsListContextMenu _historyPopup;
             private bool _isSettingText;
 
+            private const string Prompt = ">";
+
             public CommandLineBox(float x, float y, float width, OutputLogWindow window)
             : base(false, x, y, width)
             {
-                WatermarkText = ">";
                 _window = window;
+            }
+
+            private float GetPromptWidth()
+            {
+                var font = Font?.GetFont();
+                return font ? font.MeasureText(Prompt).X + 2.0f : 0.0f;
+            }
+
+            /// <inheritdoc />
+            protected override Rectangle TextRectangle
+            {
+                get
+                {
+                    var rect = base.TextRectangle;
+                    var promptWidth = GetPromptWidth();
+                    return new Rectangle(rect.X + promptWidth, rect.Y, rect.Width - promptWidth, rect.Height);
+                }
+            }
+
+            /// <inheritdoc />
+            public override void DrawSelf()
+            {
+                base.DrawSelf();
+
+                // Draw the persistent command prompt glyph next to the editable text (not part of the actual command)
+                var font = Font.GetFont();
+                if (font)
+                {
+                    var rect = base.TextRectangle;
+                    rect.Width = GetPromptWidth();
+                    var color = EnabledInHierarchy ? TextColor * 0.8f : TextColor * 0.6f;
+                    Render2D.DrawText(font, Prompt, rect, color, TextAlignment.Near, TextAlignment.Center);
+                }
             }
 
             private void Set(string command)
@@ -263,6 +397,7 @@ namespace FlaxEditor.Windows
                     {
                         Name = command,
                         Owner = this,
+                        Height = 20,
                     });
                     var flags = DebugCommands.GetCommandFlags(command);
                     if (flags.HasFlag(DebugCommands.CommandFlags.Exec))
@@ -276,11 +411,6 @@ namespace FlaxEditor.Windows
                     };
                     maxWidth = Mathf.Max(maxWidth, itemFont.MeasureText(command).X);
                 }
-                cm.ItemClicked += item =>
-                {
-                    // Execute command
-                    OnKeyDown(KeyboardKeys.Return);
-                };
 
                 // Setup popup
                 var count = commands.Count();
@@ -302,22 +432,81 @@ namespace FlaxEditor.Windows
                 // Show popup
                 cm.Show(this, Float2.Zero, ContextMenuDirection.RightUp);
                 cm.ScrollViewTo(lastItem);
-                if (searchText != null)
-                {
-                    RootWindow.Window.LostFocus += OnRootWindowLostFocus;
-                }
-                else
+                if (searchText == null)
                 {
                     lastItem.Focus();
                 }
             }
 
-            private void OnRootWindowLostFocus()
+            /// <inheritdoc />
+            public override void Update(float deltaTime)
             {
-                // Prevent popup from staying active when editor window looses focus
-                HideSearch();
-                if (RootWindow?.Window != null)
-                    RootWindow.Window.LostFocus -= OnRootWindowLostFocus;
+                base.Update(deltaTime);
+
+                if (_searchPopup != null)
+                {
+                    var mainWin = RootWindow?.Window;
+                    var popupWin = _searchPopup.RootWindow?.Window;
+                    bool isAppFocused = (mainWin != null && mainWin.IsFocused) || (popupWin != null && popupWin.IsFocused);
+                    if (!isAppFocused || !VisibleInHierarchy)
+                    {
+                        HideSearch();
+                    }
+                    else if (Input.GetMouseButtonDown(MouseButton.Left) || Input.GetMouseButtonDown(MouseButton.Right) || Input.GetMouseButtonDown(MouseButton.Middle))
+                    {
+                        var mousePos = Platform.MousePosition;
+                        var hasMouseOverPopup = popupWin != null && new Rectangle(popupWin.Position, popupWin.Size).Contains(mousePos);
+                        var hasMouseOverBox = Rectangle.FromPoints(PointToScreen(Float2.Zero), PointToScreen(Size)).Contains(mousePos);
+                        if (!hasMouseOverPopup && !hasMouseOverBox)
+                        {
+                            HideSearch();
+                        }
+                    }
+                }
+
+                if (_historyPopup != null)
+                {
+                    var mainWin = RootWindow?.Window;
+                    var popupWin = _historyPopup.RootWindow?.Window;
+                    bool isAppFocused = (mainWin != null && mainWin.IsFocused) || (popupWin != null && popupWin.IsFocused);
+                    if (!isAppFocused || !VisibleInHierarchy)
+                    {
+                        HideHistory();
+                    }
+                    else if (Input.GetMouseButtonDown(MouseButton.Left) || Input.GetMouseButtonDown(MouseButton.Right) || Input.GetMouseButtonDown(MouseButton.Middle))
+                    {
+                        var mousePos = Platform.MousePosition;
+                        var hasMouseOverPopup = popupWin != null && new Rectangle(popupWin.Position, popupWin.Size).Contains(mousePos);
+                        var hasMouseOverBox = Rectangle.FromPoints(PointToScreen(Float2.Zero), PointToScreen(Size)).Contains(mousePos);
+                        if (!hasMouseOverPopup && !hasMouseOverBox)
+                        {
+                            HideHistory();
+                        }
+                    }
+                }
+            }
+
+            /// <inheritdoc />
+            public override void OnLostFocus()
+            {
+                base.OnLostFocus();
+
+                if (_searchPopup != null && !_searchPopup.ContainsFocus && !_searchPopup.IsMouseOver)
+                    HideSearch();
+                if (_historyPopup != null && !_historyPopup.ContainsFocus && !_historyPopup.IsMouseOver)
+                    HideHistory();
+            }
+
+            /// <inheritdoc />
+            protected override void OnVisibleChanged()
+            {
+                base.OnVisibleChanged();
+
+                if (!VisibleInHierarchy)
+                {
+                    HideSearch();
+                    HideHistory();
+                }
             }
 
             /// <inheritdoc />
@@ -352,12 +541,17 @@ namespace FlaxEditor.Windows
 
                         HideHistory();
                         ShowPopup(ref _searchPopup, isWhitespaceOnly ? commands : matches, text);
-                        
+
                         if (isWhitespaceOnly)
                         {
                             // Scroll to and select first item for consistent behaviour
                             var firstItem = _searchPopup.ItemsPanel.Children[0] as Item;
                             _searchPopup.ScrollToAndHighlightItemByName(firstItem.Name);
+                        }
+                        else if (text.Length == 1)
+                        {
+                            // Scroll to the first item starting with the typed letter without highlighting it
+                            _searchPopup.ScrollToFirstItemStartingWith(text);
                         }
 
                         return;
@@ -371,6 +565,16 @@ namespace FlaxEditor.Windows
             {
                 switch (key)
                 {
+                case KeyboardKeys.Escape:
+                {
+                    if (_searchPopup != null || _historyPopup != null)
+                    {
+                        HideSearch();
+                        HideHistory();
+                        return true;
+                    }
+                    break;
+                }
                 case KeyboardKeys.Return:
                 {
                     // Run command
@@ -479,8 +683,8 @@ namespace FlaxEditor.Windows
             /// <inheritdoc />
             public override void OnDestroy()
             {
-                _searchPopup?.Dispose();
-                _searchPopup = null;
+                HideSearch();
+                HideHistory();
 
                 base.OnDestroy();
             }
@@ -506,7 +710,7 @@ namespace FlaxEditor.Windows
         private const string CommandHistoryKey = "CommandHistory";
         private const int CommandHistoryLimit = 30;
 
-        private Button _viewDropdown;
+        private ViewDropdown _viewDropdown;
         private TextBox _searchBox;
         private HScrollBar _hScroll;
         private VScrollBar _vScroll;
@@ -524,47 +728,65 @@ namespace FlaxEditor.Windows
             Title = "Output Log";
             Icon = editor.Icons.Info64;
             ClipChildren = false;
+            BackgroundColor = Style.Current.ContentBackground;
             FlaxEditor.Utilities.Utils.SetupCommonInputActions(this);
 
             // Setup UI
-            _viewDropdown = new Button(2, 2, 40.0f, TextBoxBase.DefaultHeight)
+            const float viewWidth = 60.0f;
+            const float viewHeight = 25.0f;
+            float searchTop = 6.0f;
+            float searchHeight = TextBoxBase.DefaultHeight;
+            float viewTop = searchTop + Mathf.Floor((searchHeight - viewHeight) * 0.5f);
+            _searchBox = new SearchBox(false, 2, searchTop, Width - viewWidth - 6)
+            {
+                Parent = this,
+            };
+            _searchBox.Height -= 1.5f;
+            _viewDropdown = new ViewDropdown
             {
                 TooltipText = "Change output log view options",
-                Text = "View",
+                X = Width - viewWidth - 2,
+                Y = viewTop + 3.25f,
+                Width = viewWidth,
+                Height = viewHeight,
+                AnchorPreset = AnchorPresets.TopRight,
                 Parent = this,
             };
-            _viewDropdown.Clicked += OnViewButtonClicked;
-            _searchBox = new SearchBox(false, _viewDropdown.Right + 2, 2, Width - _viewDropdown.Right - 4)
-            {
-                Parent = this,
-            };
+            _viewDropdown.PopupCreate += OnViewDropdownPopupCreate;
             _searchBox.TextChanged += Refresh;
-            _hScroll = new HScrollBar(this, Height - _scrollSize - TextBox.DefaultHeight - 2, Width - _scrollSize, _scrollSize)
+
+            _hScroll = new HScrollBar(this, Height - _scrollSize - TextBox.DefaultHeight - 2, width: default, _scrollSize)
             {
-                ThumbThickness = 10,
-                Maximum = 0,
+                Maximum = 0
             };
+            _vScroll = new VScrollBar(this, Width - _scrollSize, height: default, _scrollSize)
+            {
+                Maximum = 0
+            };
+            _vScroll.Y += 33f;
+
             _hScroll.ValueChanged += OnHScrollValueChanged;
-            _vScroll = new VScrollBar(this, Width - _scrollSize, Height - _viewDropdown.Height - 4 - TextBox.DefaultHeight, _scrollSize)
-            {
-                ThumbThickness = 10,
-                Maximum = 0,
-            };
-            _vScroll.Y += _viewDropdown.Height + 2;
             _vScroll.ValueChanged += OnVScrollValueChanged;
+
+            var inactiveTabColor = Style.Current.Background;
             _output = new OutputTextBox
             {
                 Window = this,
                 IsReadOnly = true,
                 IsMultiline = true,
                 BackgroundSelectedFlashSpeed = 0.0f,
-                Location = new Float2(2, _viewDropdown.Bottom + 2),
-                Parent = this,
+                Location = new Float2(2, _viewDropdown.Bottom + 7.5f),
+                BackgroundColor = inactiveTabColor,
+                BackgroundSelectedColor = inactiveTabColor,
+                BorderColor = Color.Transparent,
+                BorderSelectedColor = Color.Transparent,
+                Parent = this
             };
             _output.TargetViewOffsetChanged += OnOutputTargetViewOffsetChanged;
             _output.TextChanged += OnOutputTextChanged;
-            _commandLineBox = new CommandLineBox(2, Height - 2 - TextBox.DefaultHeight, Width - 4, this)
+            _commandLineBox = new CommandLineBox(2, Height - 7 - TextBox.DefaultHeight, Width - 4, this)
             {
+                Height = TextBox.DefaultHeight + 5,
                 Parent = this,
             };
 
@@ -586,30 +808,32 @@ namespace FlaxEditor.Windows
             ScriptsBuilder.CompilationFailed += OnScriptsCompilationFailed;
         }
 
-        private void OnViewButtonClicked()
+        private ContextMenu OnViewDropdownPopupCreate(ComboBox comboBox)
         {
             var menu = new ContextMenu();
 
             var infoLogButton = menu.AddButton("Info");
+            infoLogButton.CloseMenuOnClick = false;
             infoLogButton.AutoCheck = true;
             infoLogButton.Checked = (_logTypeShowMask & (int)LogType.Info) != 0;
             infoLogButton.Clicked += () => ToggleLogTypeShow(LogType.Info);
 
             var warningLogButton = menu.AddButton("Warning");
+            warningLogButton.CloseMenuOnClick = false;
             warningLogButton.AutoCheck = true;
             warningLogButton.Checked = (_logTypeShowMask & (int)LogType.Warning) != 0;
             warningLogButton.Clicked += () => ToggleLogTypeShow(LogType.Warning);
 
             var errorLogButton = menu.AddButton("Error");
+            errorLogButton.CloseMenuOnClick = false;
             errorLogButton.AutoCheck = true;
             errorLogButton.Checked = (_logTypeShowMask & (int)LogType.Error) != 0;
             errorLogButton.Clicked += () => ToggleLogTypeShow(LogType.Error);
 
             menu.AddSeparator();
-
             menu.AddButton("Load log file...", LoadLogFile);
-
-            menu.Show(_viewDropdown.Parent, _viewDropdown.BottomLeft);
+          
+            return menu;
         }
 
         private void ToggleLogTypeShow(LogType type)
@@ -801,10 +1025,15 @@ namespace FlaxEditor.Windows
 
             if (_output != null)
             {
-                _searchBox.Width = Width - _viewDropdown.Right - 4;
-                _output.Size = new Float2(_vScroll.X - 2, _hScroll.Y - 4 - _viewDropdown.Bottom);
+                _searchBox.Width = Width - _viewDropdown.Width - 6;
+
                 _commandLineBox.Width = Width - 4;
                 _commandLineBox.Y = Height - 2 - _commandLineBox.Height;
+
+                _hScroll.Bounds = new Rectangle(0, _commandLineBox.Y - _hScroll.Height, Width - _scrollSize + 5, _hScroll.Height);
+                _vScroll.Bounds = new Rectangle(Width - _scrollSize, _vScroll.Y, _vScroll.Width, _hScroll.Y - _vScroll.Y + 5);
+
+                _output.Size = new Float2(_vScroll.X - 1, _hScroll.Y - 4 - _viewDropdown.Bottom - 2);
             }
         }
 

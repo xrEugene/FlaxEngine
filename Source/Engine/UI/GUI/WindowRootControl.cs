@@ -287,6 +287,8 @@ namespace FlaxEngine.GUI
         /// <inheritdoc />
         public override bool OnMouseDown(Float2 location, MouseButton button)
         {
+            Style.Current?.SharedTooltip?.Hide();
+
             if (_trackingControl != null)
             {
                 return _trackingControl.OnMouseDown(_trackingControl.PointFromWindow(location), button);

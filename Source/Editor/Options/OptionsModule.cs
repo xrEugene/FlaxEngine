@@ -129,10 +129,13 @@ namespace FlaxEditor.Options
 
                     float prevInterfaceScale = Options.Interface.InterfaceScale;
                     Options = options;
-                    OnOptionsChanged();
 
-                    // Scale interface relative to the current value (eg. when using system-provided Dpi Scale)
+                    // Scale interface relative to the current value (eg. when using system-provided Dpi Scale).
+                    // Apply this before OnOptionsChanged so newly created fonts get rasterized at the target DPI scale (avoids blurry text).
                     Platform.CustomDpiScale *= Options.Interface.InterfaceScale / prevInterfaceScale;
+                    Font.SetGlobalScale(Platform.DpiScale);
+
+                    OnOptionsChanged();
                 }
                 else
                 {
@@ -289,15 +292,17 @@ namespace FlaxEditor.Options
                 ForegroundGrey = Color.FromBgra(0xFFA9A9B3),
                 ForegroundDisabled = Color.FromBgra(0xFF787883),
                 ForegroundViewport = Color.FromBgra(0xFFFFFFFF),
-                BackgroundHighlighted = Color.FromBgra(0xFF54545C),
+                BackgroundHighlighted = Color.FromBgra(0xFF3A3A3F),
                 BorderHighlighted = Color.FromBgra(0xFF6A6A75),
                 BackgroundSelected = Color.FromBgra(0xFF007ACC),
                 BorderSelected = Color.FromBgra(0xFF1C97EA),
                 BackgroundNormal = Color.FromBgra(0xFF3F3F46),
+                ContentBackground = Color.FromBgra(0xFF28282B),
+                SecondaryBackground = Color.FromBgra(0xFF1C1C1C),
                 BorderNormal = Color.FromBgra(0xFF54545C),
-                TextBoxBackground = Color.FromBgra(0xFF333337),
+                TextBoxBackground = Color.FromBgra(0xFF1C1C1C),
                 TextBoxBackgroundSelected = Color.FromBgra(0xFF3F3F46),
-                TreeAlternateRowBackground = Color.FromBgra(0x06FFFFFF),
+                TreeAlternateRowBackground = Color.FromBgra(0xFF252528),
                 CollectionBackgroundColor = Color.FromBgra(0x14CCCCCC),
                 ProgressNormal = Color.FromBgra(0xFF0ad328),
                 Selection = Color.Orange * 0.4f,
@@ -358,8 +363,10 @@ namespace FlaxEditor.Options
                 BackgroundSelected = new Color(0.00f, 0.46f, 0.78f, 0.78f),
                 BorderSelected = new Color(0.11f, 0.57f, 0.88f, 0.65f),
                 BackgroundNormal = new Color(0.67f, 0.67f, 0.75f, 1f),
+                ContentBackground = new Color(0.90f, 0.90f, 0.92f, 1f),
+                SecondaryBackground = new Color(0.84f, 0.84f, 0.88f, 1f),
                 BorderNormal = new Color(0.59f, 0.59f, 0.64f, 1f),
-                TextBoxBackground = new Color(0.75f, 0.75f, 0.81f, 1f),
+                TextBoxBackground = new Color(0.84f, 0.84f, 0.88f, 1f),
                 TextBoxBackgroundSelected = new Color(0.73f, 0.73f, 0.80f, 1f),
                 CollectionBackgroundColor = new Color(0.85f, 0.85f, 0.88f, 1f),
                 ProgressNormal = new Color(0.03f, 0.65f, 0.12f, 1f),

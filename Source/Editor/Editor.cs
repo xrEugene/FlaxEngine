@@ -561,21 +561,15 @@ namespace FlaxEditor
                         _saveNowButton = new Button
                         {
                             Parent = UI.StatusBar,
-                            Height = 14,
-                            Width = 60,
+                            Height = 16,
+                            Width = 65,
                             AnchorPreset = AnchorPresets.MiddleLeft,
-                            BackgroundColor = Color.Transparent,
-                            BorderColor = Color.Transparent,
-                            BackgroundColorHighlighted = Color.Transparent,
-                            BackgroundColorSelected = Color.Transparent,
-                            BorderColorHighlighted = Color.Transparent,
                             Text = "Save Now",
                             TooltipText = "Saves now and restarts the auto save timer."
                         };
                         _saveNowButton.LocalX += 120;
+                        _saveNowButton.LocalY += 1;
                         _saveNowButton.Clicked += () => _autoSaveNow = true;
-                        _saveNowButton.HoverBegin += () => _saveNowButton.TextColor = Style.Current.BackgroundHighlighted;
-                        _saveNowButton.HoverEnd += () => _saveNowButton.TextColor = UI.StatusBar.TextColor;
                     }
 
                     if (_cancelSaveButton == null)
@@ -583,18 +577,14 @@ namespace FlaxEditor
                         _cancelSaveButton = new Button
                         {
                             Parent = UI.StatusBar,
-                            Height = 14,
-                            Width = 70,
+                            Height = 16,
+                            Width = 65,
                             AnchorPreset = AnchorPresets.MiddleLeft,
-                            BackgroundColor = Color.Transparent,
-                            BorderColor = Color.Transparent,
-                            BackgroundColorHighlighted = Color.Transparent,
-                            BackgroundColorSelected = Color.Transparent,
-                            BorderColorHighlighted = Color.Transparent,
                             Text = "Cancel",
                             TooltipText = "Cancels this auto save."
                         };
-                        _cancelSaveButton.LocalX += 180;
+                        _cancelSaveButton.LocalX += 190;
+                        _cancelSaveButton.LocalY += 1;
                         _cancelSaveButton.Clicked += () =>
                         {
                             Log("Auto save canceled");
@@ -602,8 +592,6 @@ namespace FlaxEditor
                             _cancelSaveButton.Visible = false;
                             _lastAutoSaveTimer = Time.UnscaledGameTime; // Reset timer
                         };
-                        _cancelSaveButton.HoverBegin += () => _cancelSaveButton.TextColor = Style.Current.BackgroundHighlighted;
-                        _cancelSaveButton.HoverEnd += () => _cancelSaveButton.TextColor = UI.StatusBar.TextColor;
                     }
 
                     // Show save now and cancel save buttons
