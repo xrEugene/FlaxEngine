@@ -2528,9 +2528,9 @@ namespace FlaxEditor.GUI
             if (selectionCount != 0)
             {
                 cm.AddSeparator();
-                cm.AddButton("Reset tangents", ResetTangents);
-                cm.AddButton("Linear tangents", SetTangentsLinear);
-                cm.AddButton("Smooth tangents", SetTangentsSmooth);
+                cm.AddButton("Reset Tangents", ResetTangents);
+                cm.AddButton("Linear Tangents", SetTangentsLinear);
+                cm.AddButton("Smooth Tangents", SetTangentsSmooth);
             }
         }
 

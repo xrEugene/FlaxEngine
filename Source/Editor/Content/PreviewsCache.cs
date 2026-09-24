@@ -10,12 +10,12 @@ namespace FlaxEditor
         /// <summary>
         /// The default asset previews icon size (both width and height since it's a square).
         /// </summary>
-        public const int AssetIconSize = 64;
+        public const int AssetIconSize = 256;
 
         /// <summary>
-        /// The default assets previews atlas size
+        /// The default assets previews atlas size (scaled up alongside <see cref="AssetIconSize"/> to keep the same icons-per-atlas capacity).
         /// </summary>
-        public const int AssetIconsAtlasSize = 1024;
+        public const int AssetIconsAtlasSize = 4096;
 
         /// <summary>
         /// The default assets previews atlas margin (between icons)

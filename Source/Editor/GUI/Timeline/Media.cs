@@ -234,7 +234,7 @@ namespace FlaxEditor.GUI.Timeline
         public virtual void OnTimelineContextMenu(ContextMenu.ContextMenu menu, float time, Control controlUnderMouse)
         {
             if (CanDelete && Track.Media.Count > Track.MinMediaCount)
-                menu.AddButton("Delete media", Delete);
+                menu.AddButton("Delete Media", Delete);
         }
 
         /// <summary>

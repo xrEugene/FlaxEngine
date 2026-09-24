@@ -67,6 +67,9 @@ namespace FlaxEditor.Content.GUI
         private bool _validDragOver;
         private DragActors _dragActors;
 
+        private Texture _emptyIcon;
+        private bool _emptyIconLoadFailed;
+
         #region External Events
 
         /// <summary>
@@ -667,7 +670,48 @@ namespace FlaxEditor.Content.GUI
             // Check if it's an empty thing
             if (_items.Count == 0)
             {
-                Render2D.DrawText(style.FontSmall, IsSearching ? "No results" : "Empty", new Rectangle(Float2.Zero, Size), style.ForegroundDisabled, TextAlignment.Center, TextAlignment.Center);
+                // FontTitle (18pt, the largest style font) instead of FontSmall (9pt) so reaching this size needs
+                // only a small residual scale multiplier - Render2D.DrawText's scale stretches the font's own
+                // already-rasterized glyphs rather than re-rasterizing them larger, so a big multiplier on a small
+                // base font (eg. 5x on FontSmall) visibly blurs.
+                var font = style.FontTitle;
+                var text = IsSearching ? "No results" : "Empty";
+                const float textScale = 0.9375f;
+                var textMeasureLayout = TextLayoutOptions.Default;
+                textMeasureLayout.Scale = textScale;
+                textMeasureLayout.TextWrapping = TextWrapping.NoWrap;
+                textMeasureLayout.Bounds = new Rectangle(Float2.Zero, new Float2(float.MaxValue, float.MaxValue));
+                var textSize = font.MeasureText(text, ref textMeasureLayout);
+
+                if (_emptyIcon == null && !_emptyIconLoadFailed)
+                {
+                    _emptyIcon = FlaxEngine.Content.LoadAsyncInternal<Texture>("Editor/Icons/Thumb/Misc/Empty");
+                    if (_emptyIcon == null)
+                        _emptyIconLoadFailed = true;
+                }
+                var hasIcon = _emptyIcon != null && !_emptyIcon.WaitForLoaded();
+
+                if (hasIcon)
+                {
+                    // Icon height matched to the text's own line height, so the pair reads as one balanced group -
+                    // gap half that height on either side of the icon, the whole [icon][gap][text] row then centered
+                    // as a unit within the view, rather than the icon and text being centered independently.
+                    var iconSize = textSize.Y * 0.88f;
+                    var gap = iconSize * 0.5f * 0.8f * 0.8f;
+                    var groupWidth = iconSize + gap + textSize.X;
+                    var startX = (Size.X - groupWidth) * 0.5f;
+                    var centerY = Size.Y * 0.5f;
+
+                    var iconRect = new Rectangle(startX, centerY - iconSize * 0.5f, iconSize, iconSize);
+                    Render2D.DrawTexture(_emptyIcon, iconRect, Color.White);
+
+                    var textRect = new Rectangle(startX + iconSize + gap, 0, textSize.X, Size.Y);
+                    Render2D.DrawText(font, text, textRect, style.ForegroundDisabled, TextAlignment.Near, TextAlignment.Center, TextWrapping.NoWrap, 1.0f, textScale);
+                }
+                else
+                {
+                    Render2D.DrawText(font, text, new Rectangle(Float2.Zero, Size), style.ForegroundDisabled, TextAlignment.Center, TextAlignment.Center, TextWrapping.NoWrap, 1.0f, textScale);
+                }
             }
 
             // Selection

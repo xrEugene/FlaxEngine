@@ -19,8 +19,8 @@ namespace FlaxEditor.CustomEditors.Elements
         public readonly DropPanel Panel = new DropPanel
         {
             Pivot = Float2.Zero,
-            ArrowImageClosed = new SpriteBrush(Style.Current.ArrowRight),
-            ArrowImageOpened = new SpriteBrush(Style.Current.ArrowDown),
+            ArrowImageClosed = Editor.Instance.Icons.ArrowRight12Brush,
+            ArrowImageOpened = Editor.Instance.Icons.ArrowDown12Brush,
             EnableDropDownIcon = true,
             ItemsMargin = new Margin(Utilities.Constants.UIMargin),
             ItemsSpacing = Utilities.Constants.UIMargin,
@@ -51,6 +51,15 @@ namespace FlaxEditor.CustomEditors.Elements
         /// <returns>The created control.</returns>
         public Image AddHeaderButton(string tooltipText, float xOffset, SpriteHandle sprite)
         {
+            return AddHeaderButton(tooltipText, xOffset, new SpriteBrush(sprite));
+        }
+
+        /// <summary>
+        /// Adds a button to the group header.
+        /// </summary>
+        /// <returns>The created control.</returns>
+        public Image AddHeaderButton(string tooltipText, float xOffset, IBrush brush)
+        {
             var style = Style.Current;
             const float padding = 2.0f;
             var settingsButtonSize = Panel.HeaderHeight;
@@ -65,7 +74,7 @@ namespace FlaxEditor.CustomEditors.Elements
                 IsScrollable = false,
                 Color = style.ForegroundGrey,
                 Margin = new Margin(1),
-                Brush = new SpriteBrush(sprite),
+                Brush = brush,
             };
         }
     }

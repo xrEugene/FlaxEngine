@@ -132,7 +132,7 @@ namespace FlaxEditor.GUI.Timeline.Tracks
                     IsScrollable = false,
                     Color = Style.Current.ForegroundGrey,
                     Margin = new Margin(1),
-                    Brush = new SpriteBrush(icons.Right32),
+                    Brush = icons.Right32Brush,
                     Offsets = new Margin(-keySize - 2 + uiLeft, keySize, keySize * -0.5f, keySize),
                     Parent = this,
                 };
@@ -156,7 +156,7 @@ namespace FlaxEditor.GUI.Timeline.Tracks
                     IsScrollable = false,
                     Color = Style.Current.ForegroundGrey,
                     Margin = new Margin(1),
-                    Brush = new SpriteBrush(icons.Left32),
+                    Brush = icons.Left32Brush,
                     Offsets = new Margin(-keySize - 2 + _addKey.Offsets.Left, keySize, keySize * -0.5f, keySize),
                     Parent = this,
                 };

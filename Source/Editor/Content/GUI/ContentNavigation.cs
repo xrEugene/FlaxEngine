@@ -165,7 +165,7 @@ namespace FlaxEditor.Content.GUI
             Render2D.FillRectangle(rect, color);
             if (_mouseDown)
                 Render2D.FillRectangle(new Rectangle(rect.X, rect.Bottom - 2, rect.Width, 2), style.BackgroundSelected);
-            Render2D.DrawSprite(Editor.Instance.Icons.ArrowRight12, new Rectangle(rect.Location.X, rect.Y + rect.Size.Y * 0.25f, rect.Size.X, rect.Size.X), EnabledInHierarchy ? style.Foreground : style.ForegroundDisabled);
+            Editor.Instance.Icons.ArrowRight12Brush.Draw(new Rectangle(rect.Location.X, rect.Y + rect.Size.Y * 0.25f, rect.Size.X, rect.Size.X), EnabledInHierarchy ? style.Foreground : style.ForegroundDisabled);
         }
 
         protected override void OnLayoutMenuButton(ContextMenuButton button, int index, bool construct = false)

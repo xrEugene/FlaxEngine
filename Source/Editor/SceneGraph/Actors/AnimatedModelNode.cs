@@ -30,7 +30,7 @@ namespace FlaxEditor.SceneGraph.Actors
             var actor = (AnimatedModel)Actor;
             if (actor && actor.SkinnedModel)
             {
-                var b = contextMenu.AddButton("Create ragdoll", OnCreateRagdoll);
+                var b = contextMenu.AddButton("Create Ragdoll", OnCreateRagdoll);
                 b.TooltipText = "Adds ragdoll actor and setups the ragdoll physical structure based on skeleton bones hierarchy.";
             }
         }

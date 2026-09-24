@@ -85,12 +85,14 @@ namespace FlaxEditor.CustomEditors
 
             var revertToPrefab = menu.AddButton("Revert to Prefab", linkedEditor.RevertToReferenceValue);
             revertToPrefab.Enabled = linkedEditor.CanRevertReferenceValue;
-            var resetToDefault = menu.AddButton("Reset to default", linkedEditor.RevertToDefaultValue);
+            var resetToDefault = menu.AddButton("Reset to Default", linkedEditor.RevertToDefaultValue);
             resetToDefault.Enabled = linkedEditor.CanRevertDefaultValue;
             menu.AddSeparator();
-            menu.AddButton("Copy", linkedEditor.Copy);
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
+            menu.AddButton("Copy", linkedEditor.Copy).IconBrush = icons?.CopyBrush;
             var paste = menu.AddButton("Paste", linkedEditor.Paste);
             paste.Enabled = linkedEditor.CanPaste;
+            paste.IconBrush = icons?.PasteBrush;
             element.SetupContextMenu?.Invoke(menu, groupPanel);
 
             menu.Show(groupPanel, location);

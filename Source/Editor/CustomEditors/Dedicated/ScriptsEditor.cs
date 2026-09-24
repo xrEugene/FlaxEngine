@@ -87,7 +87,7 @@ namespace FlaxEditor.CustomEditors.Dedicated
             {
                 // No scripts
                 var cm1 = new ContextMenu();
-                cm1.AddButton("No scripts in project");
+                cm1.AddButton("No Scripts in Project");
                 cm1.Show(this, button.BottomLeft);
                 return;
             }
@@ -994,17 +994,17 @@ namespace FlaxEditor.CustomEditors.Dedicated
             {
                 Tag = script
             };
-            cm.AddButton("Remove", OnClickRemove).Icon = Editor.Instance.Icons.Cross12;
-            cm.AddButton("Move up", OnClickMoveUp).Enabled = script.OrderInParent > 0;
-            cm.AddButton("Move down", OnClickMoveDown).Enabled = script.OrderInParent < script.Actor.Scripts.Length - 1;
+            cm.AddButton("Remove", OnClickRemove).IconBrush = Editor.Instance.Icons.Cross12Brush;
+            cm.AddButton("Move Up", OnClickMoveUp).Enabled = script.OrderInParent > 0;
+            cm.AddButton("Move Down", OnClickMoveDown).Enabled = script.OrderInParent < script.Actor.Scripts.Length - 1;
             // TODO: copy script
             // TODO: paste script values
             // TODO: paste script as new
             // TODO: copy script reference
             cm.AddSeparator();
-            cm.AddButton("Copy type name", OnClickCopyTypeName);
-            cm.AddButton("Edit script", OnClickEditScript).Enabled = item != null;
-            var showButton = cm.AddButton("Show in content window", OnClickShowScript);
+            cm.AddButton("Copy Type Name", OnClickCopyTypeName);
+            cm.AddButton("Edit Script", OnClickEditScript).Enabled = item != null;
+            var showButton = cm.AddButton("Show in Content Window", OnClickShowScript);
             showButton.Enabled = item != null;
             showButton.Icon = Editor.Instance.Icons.Search12;
             cm.Show(image, image.Size);

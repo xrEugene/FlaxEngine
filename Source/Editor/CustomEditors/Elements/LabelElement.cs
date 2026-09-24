@@ -47,7 +47,7 @@ namespace FlaxEditor.CustomEditors.Elements
         private void OnRightClick()
         {
             var menu = new ContextMenu();
-            menu.AddButton("Copy text").Clicked += OnCopyText;
+            menu.AddButton("Copy Text").Clicked += OnCopyText;
             _customContextualOptions?.Invoke(menu);
             menu.Show(Label, Label.PointFromScreen(Input.MouseScreenPosition));
         }

@@ -292,13 +292,14 @@ namespace FlaxEditor.Windows.Profiler
                 var cm = new ContextMenu();
                 ContextMenuButton b;
                 b = cm.AddButton("Open", () => Editor.Instance.ContentEditing.Open(assetItem));
-                cm.AddButton("Show in content window", () => Editor.Instance.Windows.ContentWin.Select(assetItem));
-                cm.AddButton(Utilities.Constants.ShowInExplorer, () => FileSystem.ShowFileExplorer(System.IO.Path.GetDirectoryName(assetItem.Path)));
-                cm.AddButton("Select actors using this asset", () => Editor.Instance.SceneEditing.SelectActorsUsingAsset(assetItem.ID));
-                cm.AddButton("Show asset references graph", () => Editor.Instance.Windows.Open(new AssetReferencesGraphWindow(Editor.Instance, assetItem)));
-                cm.AddButton("Copy name", () => Clipboard.Text = assetItem.NamePath);
-                cm.AddButton("Copy path", () => Clipboard.Text = assetItem.Path);
-                cm.AddButton("Copy asset ID", () => Clipboard.Text = JsonSerializer.GetStringID(assetItem.ID));
+                cm.AddButton("Show in Content Window", () => Editor.Instance.Windows.ContentWin.Select(assetItem));
+                cm.AddButton(Utilities.Constants.ShowInExplorer, () => FileSystem.ShowFileExplorer(System.IO.Path.GetDirectoryName(assetItem.Path))).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.ShowInExplorerBrush;
+                cm.AddButton("Select Actors Using This Asset", () => Editor.Instance.SceneEditing.SelectActorsUsingAsset(assetItem.ID));
+                cm.AddButton("Show Asset References Graph", () => Editor.Instance.Windows.Open(new AssetReferencesGraphWindow(Editor.Instance, assetItem)));
+                var icons = Editor.Instance.Icons as CustomEditorIcons;
+                cm.AddButton("Copy Name", () => Clipboard.Text = assetItem.NamePath).IconBrush = icons?.CopyNameBrush;
+                cm.AddButton("Copy Path", () => Clipboard.Text = assetItem.Path).IconBrush = icons?.CopyPathBrush;
+                cm.AddButton("Copy Asset ID", () => Clipboard.Text = JsonSerializer.GetStringID(assetItem.ID));
                 cm.Show(row, row.PointFromScreen(Input.MouseScreenPosition));
             }
         }

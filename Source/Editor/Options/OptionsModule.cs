@@ -323,7 +323,9 @@ namespace FlaxEditor.Options
 
                 // Icons
                 ArrowDown = Editor.Icons.ArrowDown12,
+                ArrowDownBrush = Editor.Icons.ArrowDown12Brush,
                 ArrowRight = Editor.Icons.ArrowRight12,
+                ArrowRightBrush = Editor.Icons.ArrowRight12Brush,
                 Search = Editor.Icons.Search12,
                 Settings = Editor.Icons.Settings12,
                 Cross = Editor.Icons.Cross12,
@@ -381,7 +383,9 @@ namespace FlaxEditor.Options
 
                 // Icons
                 ArrowDown = Editor.Icons.ArrowDown12,
+                ArrowDownBrush = Editor.Icons.ArrowDown12Brush,
                 ArrowRight = Editor.Icons.ArrowRight12,
+                ArrowRightBrush = Editor.Icons.ArrowRight12Brush,
                 Search = Editor.Icons.Search12,
                 Settings = Editor.Icons.Settings12,
                 Cross = Editor.Icons.Cross12,

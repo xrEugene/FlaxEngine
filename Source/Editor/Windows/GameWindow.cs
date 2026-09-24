@@ -682,13 +682,13 @@ namespace FlaxEditor.Windows
 
             // Focus on play
             {
-                var pfMenu = menu.AddChildMenu("Focus On Play Override").ContextMenu;
+                var pfMenu = menu.AddChildMenu("Focus on Play Override").ContextMenu;
 
                 GenerateFocusOptionsContextMenu(pfMenu);
 
                 pfMenu.AddSeparator();
 
-                var button = pfMenu.AddButton("Remove override");
+                var button = pfMenu.AddButton("Remove Override");
                 button.TooltipText = "Reset the override to the value set in the editor options.";
                 button.Clicked += () => FocusOnPlayOption = Editor.Instance.Options.Options.Interface.FocusOnPlayMode;
             }

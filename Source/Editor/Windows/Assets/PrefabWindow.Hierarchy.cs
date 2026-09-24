@@ -294,24 +294,30 @@ namespace FlaxEditor.Windows.Assets
 
             // Basic editing options
 
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
             var b = contextMenu.AddButton("Rename", RenameSelection);
             b.Enabled = isSingleActorSelected;
+            b.IconBrush = icons?.RenameBrush;
 
             b = contextMenu.AddButton("Duplicate", Duplicate);
             b.Enabled = hasSthSelected && !isRootSelected;
+            b.IconBrush = icons?.DuplicateBrush;
 
             b = contextMenu.AddButton("Delete", Delete);
             b.Enabled = hasSthSelected && !isRootSelected;
+            b.IconBrush = icons?.DeleteBrush;
 
             contextMenu.AddSeparator();
             b = contextMenu.AddButton("Copy", Copy);
             b.Enabled = hasSthSelected;
+            b.IconBrush = icons?.CopyBrush;
 
             b.Enabled = hasSthSelected;
-            contextMenu.AddButton("Paste", Paste);
+            contextMenu.AddButton("Paste", Paste).IconBrush = icons?.PasteBrush;
 
             b = contextMenu.AddButton("Cut", Cut);
             b.Enabled = hasSthSelected && !isRootSelected;
+            b.IconBrush = icons?.CutBrush;
 
             b = contextMenu.AddButton("Set Root", SetRoot);
             b.Enabled = isSingleActorSelected && !isRootSelected && hasPrefabLink && Editor.Internal_CanSetToRoot(FlaxEngine.Object.GetUnmanagedPtr(Asset), FlaxEngine.Object.GetUnmanagedPtr(((ActorNode)Selection[0]).Actor));

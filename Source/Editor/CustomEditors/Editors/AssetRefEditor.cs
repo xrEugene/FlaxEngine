@@ -179,7 +179,7 @@ namespace FlaxEditor.CustomEditors.Editors
 
                 var style = FlaxEngine.GUI.Style.Current;
                 var dropdownRect = DropdownRect;
-                Render2D.DrawSprite(style.ArrowDown, dropdownRect, Enabled ? (DropdownRect.Contains(PointFromWindow(RootWindow.MousePosition)) ? style.BorderSelected : style.Foreground) : style.ForegroundDisabled);
+                Editor.Instance.Icons.ArrowDown12Brush.Draw(dropdownRect, Enabled ? (DropdownRect.Contains(PointFromWindow(RootWindow.MousePosition)) ? style.BorderSelected : style.Foreground) : style.ForegroundDisabled);
                 
                 // Check if drag is over
                 if (IsDragOver && _hasValidDragOver)

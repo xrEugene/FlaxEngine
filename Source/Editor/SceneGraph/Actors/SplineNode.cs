@@ -511,9 +511,9 @@ namespace FlaxEditor.SceneGraph.Actors
         {
             base.OnContextMenu(contextMenu, window);
 
-            contextMenu.AddButton("Add spline model", OnAddSplineModel);
-            contextMenu.AddButton("Add spline collider", OnAddSplineCollider);
-            contextMenu.AddButton("Add spline rope body", OnAddSplineRopeBody);
+            contextMenu.AddButton("Add Spline Model", OnAddSplineModel);
+            contextMenu.AddButton("Add Spline Collider", OnAddSplineCollider);
+            contextMenu.AddButton("Add Spline Rope Body", OnAddSplineRopeBody);
         }
 
         private void OnAddSplineModel()

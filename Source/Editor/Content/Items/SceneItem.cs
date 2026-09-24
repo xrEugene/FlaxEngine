@@ -31,7 +31,9 @@ namespace FlaxEditor.Content
         public override string TypeDescription => "Scene";
 
         /// <inheritdoc />
-        public override SpriteHandle DefaultThumbnail => Editor.Instance.Icons.Scene128;
+        // Invalid (not Scene128) so the item has no DefaultThumbnail and falls through to
+        // SceneProxy.GetGenericThumbnailIcon instead of ThumbnailsModule.RequestPreview short-circuiting on it.
+        public override SpriteHandle DefaultThumbnail => SpriteHandle.Invalid;
 
         /// <inheritdoc />
         public override bool IsOfType(Type type)

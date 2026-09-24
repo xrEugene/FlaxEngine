@@ -62,5 +62,11 @@ namespace FlaxEditor.Content
                 Wrapping = TextWrapping.WrapWords
             });
         }
+
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.BehaviorTreeThumbIcon;
+        }
     }
 }

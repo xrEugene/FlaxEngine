@@ -125,7 +125,7 @@ namespace FlaxEditor.Windows.Assets
                         {
                             var blendShape = blendShapes[i];
                             var label = new PropertyNameLabel(blendShape);
-                            label.SetupContextMenu += (nameLabel, menu, linkedEditor) => { menu.AddButton("Copy name", () => Clipboard.Text = blendShape); };
+                            label.SetupContextMenu += (nameLabel, menu, linkedEditor) => { menu.AddButton("Copy Name", () => Clipboard.Text = blendShape).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.CopyNameBrush; };
                             var property = group.AddPropertyItem(label);
                             var editor = property.FloatValue();
                             editor.ValueBox.Value = 0.0f;
@@ -141,9 +141,10 @@ namespace FlaxEditor.Windows.Assets
                 {
                     var menu = new ContextMenu();
 
-                    var b = menu.AddButton("Copy name");
+                    var b = menu.AddButton("Copy Name");
                     b.Tag = node.Text;
                     b.ButtonClicked += OnTreeNodeCopyName;
+                    b.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.CopyNameBrush;
 
                     menu.Show(node, location);
                 }
@@ -397,11 +398,12 @@ namespace FlaxEditor.Windows.Assets
                     var menu = new ContextMenu { Tag = sourceAsset };
                     if (sourceAsset != null)
                     {
+                        var icons = Editor.Instance.Icons as CustomEditorIcons;
                         menu.AddButton("Clear", OnClearSetup);
-                        menu.AddButton("Remove", OnRemoveSetup).Icon = Editor.Instance.Icons.Cross12;
-                        menu.AddButton("Copy", OnCopySetup);
+                        menu.AddButton("Remove", OnRemoveSetup).IconBrush = Editor.Instance.Icons.Cross12Brush;
+                        menu.AddButton("Copy", OnCopySetup).IconBrush = icons?.CopyBrush;
                     }
-                    menu.AddButton("Paste", OnPasteSetup);
+                    menu.AddButton("Paste", OnPasteSetup).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.PasteBrush;
                     menu.Show(targetControl, targetLocation);
                 }
 

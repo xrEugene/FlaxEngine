@@ -531,12 +531,12 @@ namespace FlaxEditor.Surface.Archetypes
             {
                 // Show context menu
                 var menu = new FlaxEditor.GUI.ContextMenu.ContextMenu();
-                var b = menu.AddButton("Add point", OnAddPoint);
+                var b = menu.AddButton("Add Point", OnAddPoint);
                 b.Tag = location;
                 b.Enabled = PointsCount < Animation.MultiBlend.MaxAnimationsCount;
                 if (GetChildAt(location) is BlendPoint blendPoint)
                 {
-                    b = menu.AddButton("Remove point", OnRemovePoint);
+                    b = menu.AddButton("Remove Point", OnRemovePoint);
                     b.Tag = blendPoint.Index;
                     b.TooltipText = blendPoint.TooltipText;
                 }

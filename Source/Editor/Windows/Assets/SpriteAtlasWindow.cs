@@ -165,15 +165,15 @@ namespace FlaxEditor.Windows.Assets
                 {
                     var menu = new ContextMenu();
 
-                    var copySprite = menu.AddButton("Copy sprite");
+                    var copySprite = menu.AddButton("Copy Sprite");
                     copySprite.Tag = groupPanel.Tag;
                     copySprite.ButtonClicked += OnCopySpriteClicked;
 
-                    var pasteSprite = menu.AddButton("Paste sprite");
+                    var pasteSprite = menu.AddButton("Paste Sprite");
                     pasteSprite.Tag = groupPanel.Tag;
                     pasteSprite.ButtonClicked += OnPasteSpriteClicked;
 
-                    var deleteSprite = menu.AddButton("Delete sprite");
+                    var deleteSprite = menu.AddButton("Delete Sprite");
                     deleteSprite.Tag = groupPanel.Tag;
                     deleteSprite.ButtonClicked += OnDeleteSpriteClicked;
 

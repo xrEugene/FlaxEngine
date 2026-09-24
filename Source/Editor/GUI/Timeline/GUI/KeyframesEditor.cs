@@ -416,24 +416,24 @@ namespace FlaxEditor.GUI
                         _cmShowPos = PointToKeyframes(location, ref viewRect);
 
                         var cm = new ContextMenu.ContextMenu();
-                        cm.AddButton("Add keyframe", () => _editor.AddKeyframe(_cmShowPos)).Enabled = _editor.Keyframes.Count < _editor.MaxKeyframes && _editor.DefaultValue != null;
+                        cm.AddButton("Add Keyframe", () => _editor.AddKeyframe(_cmShowPos)).Enabled = _editor.Keyframes.Count < _editor.MaxKeyframes && _editor.DefaultValue != null;
                         if (selectionCount > 0 && _editor.EnableKeyframesValueEdit)
                         {
-                            cm.AddButton(selectionCount == 1 ? "Edit keyframe" : "Edit keyframes", () => _editor.EditKeyframes(this, location));
+                            cm.AddButton(selectionCount == 1 ? "Edit Keyframe" : "Edit Keyframes", () => _editor.EditKeyframes(this, location));
                         }
                         var totalSelectionCount = _editor.KeyframesEditorContext?.OnKeyframesSelectionCount() ?? selectionCount;
                         if (totalSelectionCount > 0)
                         {
-                            cm.AddButton(totalSelectionCount == 1 ? "Remove keyframe" : "Remove keyframes", _editor.RemoveKeyframes);
-                            cm.AddButton(totalSelectionCount == 1 ? "Copy keyframe" : "Copy keyframes", () => _editor.CopyKeyframes(point));
+                            cm.AddButton(totalSelectionCount == 1 ? "Remove Keyframe" : "Remove Keyframes", _editor.RemoveKeyframes);
+                            cm.AddButton(totalSelectionCount == 1 ? "Copy Keyframe" : "Copy Keyframes", () => _editor.CopyKeyframes(point));
                         }
-                        cm.AddButton("Paste keyframes", () => KeyframesEditorUtils.Paste(_editor, point?.Time ?? _cmShowPos.X)).Enabled = KeyframesEditorUtils.CanPaste();
+                        cm.AddButton("Paste Keyframes", () => KeyframesEditorUtils.Paste(_editor, point?.Time ?? _cmShowPos.X)).Enabled = KeyframesEditorUtils.CanPaste();
                         cm.AddSeparator();
                         if (_editor.EnableKeyframesValueEdit)
-                            cm.AddButton("Edit all keyframes", () => _editor.EditAllKeyframes(this, location));
-                        cm.AddButton("Select all keyframes", _editor.SelectAll).Enabled = _editor._points.Count > 0;
-                        cm.AddButton("Deselect all keyframes", _editor.DeselectAll).Enabled = _editor._points.Count > 0;
-                        cm.AddButton("Copy all keyframes", () =>
+                            cm.AddButton("Edit All Keyframes", () => _editor.EditAllKeyframes(this, location));
+                        cm.AddButton("Select All Keyframes", _editor.SelectAll).Enabled = _editor._points.Count > 0;
+                        cm.AddButton("Deselect All Keyframes", _editor.DeselectAll).Enabled = _editor._points.Count > 0;
+                        cm.AddButton("Copy All Keyframes", () =>
                         {
                             _editor.SelectAll();
                             _editor.CopyKeyframes(point);
@@ -441,8 +441,8 @@ namespace FlaxEditor.GUI
                         if (_editor.EnableZoom && _editor.EnablePanning)
                         {
                             cm.AddSeparator();
-                            cm.AddButton("Show whole keyframes", _editor.ShowWholeKeyframes);
-                            cm.AddButton("Reset view", _editor.ResetView);
+                            cm.AddButton("Show Whole Keyframes", _editor.ShowWholeKeyframes);
+                            cm.AddButton("Reset View", _editor.ResetView);
                         }
                         cm.Show(this, location);
                     }

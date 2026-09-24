@@ -741,7 +741,7 @@ namespace FlaxEditor.GUI.Timeline
                     _playbackNavigation[2] = new Image(playbackButtonsPanel.Width, 0, playbackButtonsSize, playbackButtonsSize)
                     {
                         TooltipText = "Move one frame back (Left Arrow)",
-                        Brush = new SpriteBrush(icons.Left32),
+                        Brush = icons.Left32Brush,
                         MouseOverColor = playbackButtonsMouseOverColor,
                         Enabled = false,
                         Visible = false,
@@ -783,7 +783,7 @@ namespace FlaxEditor.GUI.Timeline
                     _playbackNavigation[3] = new Image(playbackButtonsPanel.Width, 0, playbackButtonsSize, playbackButtonsSize)
                     {
                         TooltipText = "Move one frame forward (Right Arrow)",
-                        Brush = new SpriteBrush(icons.Right32),
+                        Brush = icons.Right32Brush,
                         MouseOverColor = playbackButtonsMouseOverColor,
                         Enabled = false,
                         Visible = false,
@@ -978,12 +978,12 @@ namespace FlaxEditor.GUI.Timeline
         {
             var menu = new ContextMenu.ContextMenu();
 
-            var showTimeAs = menu.AddChildMenu("Show time as");
+            var showTimeAs = menu.AddChildMenu("Show Time As");
             showTimeAs.ContextMenu.AddButton("Frames", () => TimeShowMode = TimeShowModes.Frames).Checked = TimeShowMode == TimeShowModes.Frames;
             showTimeAs.ContextMenu.AddButton("Seconds", () => TimeShowMode = TimeShowModes.Seconds).Checked = TimeShowMode == TimeShowModes.Seconds;
             showTimeAs.ContextMenu.AddButton("Time", () => TimeShowMode = TimeShowModes.Time).Checked = TimeShowMode == TimeShowModes.Time;
 
-            menu.AddButton("Show preview values", () => ShowPreviewValues = !ShowPreviewValues).Checked = ShowPreviewValues;
+            menu.AddButton("Show Preview Values", () => ShowPreviewValues = !ShowPreviewValues).Checked = ShowPreviewValues;
 
             {
                 var zoom = menu.AddButton("Zoom");
@@ -1955,7 +1955,7 @@ namespace FlaxEditor.GUI.Timeline
                 media.OnTimelineContextMenu(menu, time, controlUnderMouse);
                 if (media.PropertiesEditObject != null)
                 {
-                    menu.AddButton("Edit media", () => ShowEditPopup(media.PropertiesEditObject, location, media.Track));
+                    menu.AddButton("Edit Media", () => ShowEditPopup(media.PropertiesEditObject, location, media.Track));
                 }
             }
             else
@@ -1972,15 +1972,15 @@ namespace FlaxEditor.GUI.Timeline
             }
             if (PropertiesEditObject != null)
             {
-                menu.AddButton("Edit timeline", () => ShowEditPopup(PropertiesEditObject, location, this));
+                menu.AddButton("Edit Timeline", () => ShowEditPopup(PropertiesEditObject, location, this));
             }
             if (_tracks.Count > 1)
             {
-                menu.AddButton("Sort tracks", SortTracks).TooltipText = "Sorts tracks alphabetically";
+                menu.AddButton("Sort Tracks", SortTracks).TooltipText = "Sorts tracks alphabetically";
             }
             menu.AddSeparator();
-            menu.AddButton("Reset zoom", () => Zoom = 1.0f);
-            menu.AddButton("Show whole timeline", ShowWholeTimeline);
+            menu.AddButton("Reset Zoom", () => Zoom = 1.0f);
+            menu.AddButton("Show Whole Timeline", ShowWholeTimeline);
             OnShowContextMenu(menu);
             menu.Show(this, location);
         }

@@ -278,7 +278,7 @@ namespace FlaxEditor.Windows
                     Focus();
 
                     var menu = new ContextMenu();
-                    menu.AddButton("Copy", Copy);
+                    menu.AddButton("Copy", Copy).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.CopyBrush;
                     menu.AddButton("Open", Open).Enabled = !string.IsNullOrEmpty(Desc.LocationFile) && File.Exists(Desc.LocationFile);
                     menu.Show(this, location);
                 }
@@ -328,8 +328,9 @@ namespace FlaxEditor.Windows
         public DebugLogWindow(Editor editor)
         : base(editor, true, ScrollBars.None)
         {
-            Title = "Debug Log";
+            Title = "Debug Info";
             Icon = _iconInfo;
+            IconBrush = (editor.Icons as CustomEditorIcons)?.DebugInfoBrush;
             BackgroundColor = Style.Current.SecondaryBackground;
             FlaxEditor.Utilities.Utils.SetupCommonInputActions(this);
 
@@ -557,7 +558,7 @@ namespace FlaxEditor.Windows
             // Pause on Error (we should do it as fast as possible)
             if (newEntry.Group == LogGroup.Error && _pauseOnErrorButton.Checked && Editor.StateMachine.CurrentState == Editor.StateMachine.PlayingState)
             {
-                Editor.Log("Pause Play mode on error (toggle this behaviour in the Debug Log panel)");
+                Editor.Log("Pause Play mode on error (toggle this behaviour in the Debug Info panel)");
                 Editor.Simulation.RequestPausePlay();
             }
         }

@@ -43,5 +43,11 @@ namespace FlaxEditor.Content
                 throw new Exception("Failed to create new asset.");
             FlaxEngine.Object.Destroy(asset);
         }
+
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.GameplayGlobalsThumbIcon;
+        }
     }
 }

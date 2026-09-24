@@ -60,6 +60,7 @@ namespace FlaxEditor.Content
             {
                 var button = menu.AddButton("Create Particle System", CreateParticleSystemClicked);
                 button.Tag = binaryAssetItem;
+                button.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.CreateParticleSystemBrush;
             }
         }
 

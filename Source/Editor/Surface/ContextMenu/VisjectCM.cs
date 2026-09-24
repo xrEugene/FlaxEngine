@@ -717,8 +717,8 @@ namespace FlaxEditor.Surface.ContextMenu
                 };
 
                 var group = CreateGroup(groupArchetype, false);
-                group.ArrowImageOpened = new SpriteBrush(Style.Current.ArrowDown);
-                group.ArrowImageClosed = new SpriteBrush(Style.Current.ArrowRight);
+                group.ArrowImageOpened = Editor.Instance.Icons.ArrowDown12Brush;
+                group.ArrowImageClosed = Editor.Instance.Icons.ArrowRight12Brush;
                 group.Close(false);
 
                 // ReSharper disable once PossibleNullReferenceException

@@ -58,6 +58,12 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.VisualScriptThumbIcon;
+        }
+
+        /// <inheritdoc />
         public override void Dispose()
         {
             TypeUtils.CustomTypes.Remove(this);

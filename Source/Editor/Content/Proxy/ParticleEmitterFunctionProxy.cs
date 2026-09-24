@@ -24,7 +24,7 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
-        public override Color AccentColor => Color.FromRGB(0x1795a3);
+        public override Color AccentColor => Color.FromRGB(0x6da016);
 
         /// <inheritdoc />
         public override Type AssetType => typeof(ParticleEmitterFunction);
@@ -40,6 +40,12 @@ namespace FlaxEditor.Content
         {
             if (Editor.CreateAsset("ParticleEmitterFunction", outputPath))
                 throw new Exception("Failed to create new asset.");
+        }
+
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.FunctionThumbIcon;
         }
     }
 }

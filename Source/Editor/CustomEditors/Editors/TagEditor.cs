@@ -328,8 +328,8 @@ namespace FlaxEditor.CustomEditors.Editors
             {
                 HeaderText = "Add Tag",
                 EnableDropDownIcon = true,
-                ArrowImageOpened = new SpriteBrush(FlaxEngine.GUI.Style.Current.ArrowDown),
-                ArrowImageClosed = new SpriteBrush(FlaxEngine.GUI.Style.Current.ArrowRight),
+                ArrowImageOpened = Editor.Instance.Icons.ArrowDown12Brush,
+                ArrowImageClosed = Editor.Instance.Icons.ArrowRight12Brush,
                 Parent = menu,
                 HeaderTextMargin = new Margin(2.0f),
                 HeaderHeight = 18.0f,

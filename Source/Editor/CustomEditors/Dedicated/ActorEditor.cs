@@ -150,8 +150,8 @@ namespace FlaxEditor.CustomEditors.Dedicated
                 };
             }
             cm.AddButton("Copy ID", OnClickCopyId);
-            cm.AddButton("Edit actor type", OnClickEditActorType).Enabled = item != null;
-            var showButton = cm.AddButton("Show in content window", OnClickShowActorType);
+            cm.AddButton("Edit Actor Type", OnClickEditActorType).Enabled = item != null;
+            var showButton = cm.AddButton("Show in Content Window", OnClickShowActorType);
             showButton.Enabled = item != null;
             showButton.Icon = Editor.Instance.Icons.Search12;
             cm.Show(image, image.Size);
@@ -463,7 +463,7 @@ namespace FlaxEditor.CustomEditors.Dedicated
             if (rootNode == null)
             {
                 var cm1 = new ContextMenu();
-                cm1.AddButton("No changes detected");
+                cm1.AddButton("No Changes Detected");
                 cm1.Show(target, targetLocation);
                 return;
             }

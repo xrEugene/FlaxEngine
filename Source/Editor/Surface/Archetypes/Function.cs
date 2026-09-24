@@ -322,7 +322,9 @@ namespace FlaxEditor.Surface.Archetypes
             {
                 base.OnShowSecondaryContextMenu(menu, location);
 
-                menu.AddButton("Rename", StartRenaming).Enabled = Surface.CanEdit;
+                var renameButton = menu.AddButton("Rename", StartRenaming);
+                renameButton.Enabled = Surface.CanEdit;
+                renameButton.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.RenameBrush;
             }
 
             /// <summary>
@@ -331,7 +333,7 @@ namespace FlaxEditor.Surface.Archetypes
             private void StartRenaming()
             {
                 Surface.Select(this);
-                var dialog = RenamePopup.Show(this, _nameField.Bounds, SignatureName, false);
+                var dialog = RenamePopup.Show(this, _nameField.Bounds, SignatureName, false, fitToContent: true);
                 dialog.Validate += OnRenameValidate;
                 dialog.Renamed += OnRenamed;
             }
@@ -687,8 +689,8 @@ namespace FlaxEditor.Surface.Archetypes
                 var method = GetMethod();
                 _parameters = null;
                 menu.AddSeparator();
-                menu.AddButton("Add return node", OnAddReturnNode).Enabled = method && Surface.CanEdit;
-                menu.AddButton("Add base method call", OnAddBaseMethodCallNode).Enabled = method && !method.IsAbstract && Surface.CanEdit;
+                menu.AddButton("Add Return Node", OnAddReturnNode).Enabled = method && Surface.CanEdit;
+                menu.AddButton("Add Base Method Call", OnAddBaseMethodCallNode).Enabled = method && !method.IsAbstract && Surface.CanEdit;
                 // TODO: add Go to Base option to navigate to the base impl of the overriden method
             }
 
@@ -1103,8 +1105,8 @@ namespace FlaxEditor.Surface.Archetypes
                 {
                     menu.AddSeparator();
                     if (!method.ValueType.IsVoid)
-                        menu.AddButton((bool)Values[3] ? "Convert to method call" : "Convert to pure node", () => SetValue(3, !(bool)Values[3])).Enabled = Surface.CanEdit;
-                    menu.AddButton("Find references...", OnFindReferences);
+                        menu.AddButton((bool)Values[3] ? "Convert to Method Call" : "Convert to Pure Node", () => SetValue(3, !(bool)Values[3])).Enabled = Surface.CanEdit;
+                    menu.AddButton("Find References...", OnFindReferences);
                 }
             }
 
@@ -1628,10 +1630,10 @@ namespace FlaxEditor.Surface.Archetypes
                 base.OnShowSecondaryContextMenu(menu, location);
 
                 menu.AddSeparator();
-                menu.AddButton("Add return node", OnAddReturnNode).Enabled = _signature.ReturnType != ScriptType.Null && Surface.CanEdit;
-                menu.AddButton("Edit signature...", OnEditSignature).Enabled = Surface.CanEdit;
-                menu.AddButton("Edit attributes...", OnEditAttributes).Enabled = Surface.CanEdit;
-                menu.AddButton("Find references...", OnFindReferences);
+                menu.AddButton("Add Return Node", OnAddReturnNode).Enabled = _signature.ReturnType != ScriptType.Null && Surface.CanEdit;
+                menu.AddButton("Edit Signature...", OnEditSignature).Enabled = Surface.CanEdit;
+                menu.AddButton("Edit Attributes...", OnEditAttributes).Enabled = Surface.CanEdit;
+                menu.AddButton("Find References...", OnFindReferences);
             }
 
             private void OnAddReturnNode()
@@ -1899,7 +1901,7 @@ namespace FlaxEditor.Surface.Archetypes
                 if (GetField(out _) == ScriptMemberInfo.Null)
                     return;
                 menu.AddSeparator();
-                menu.AddButton("Find references...", OnFindReferences);
+                menu.AddButton("Find References...", OnFindReferences);
             }
 
             private void OnFindReferences()

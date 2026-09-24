@@ -46,7 +46,7 @@ namespace FlaxEditor.GUI.Input
                 BorderColorHighlighted = Color.Transparent,
                 BackgroundColorSelected = Style.Current.ForegroundGrey,
                 BorderColorSelected = Color.Transparent,
-                BackgroundBrush = new SpriteBrush(Editor.Instance.Icons.Cross12),
+                BackgroundBrush = Editor.Instance.Icons.Cross12Brush,
                 Visible = false,
             };
             ClearSearchButton.LocalX -= 2;

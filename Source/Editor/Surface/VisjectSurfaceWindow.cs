@@ -732,14 +732,15 @@ namespace FlaxEditor.Surface
         private void OnPropertyLabelSetupContextMenu(PropertyNameLabel label, FlaxEditor.GUI.ContextMenu.ContextMenu menu, CustomEditor linkedEditor)
         {
             var index = (int)label.Tag;
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
             menu.AddSeparator();
-            menu.AddButton("Copy name", () => Clipboard.Text = ((IVisjectSurfaceWindow)Values[0]).VisjectSurface.Parameters[index].Name);
+            menu.AddButton("Copy Name", () => Clipboard.Text = ((IVisjectSurfaceWindow)Values[0]).VisjectSurface.Parameters[index].Name).IconBrush = icons?.CopyNameBrush;
             // TODO: move 'Copy all names' to context menu of the Properties category (as it's not item-specific)
-            menu.AddButton("Copy all names", CopyAllParameterNamesAsConstantCSharpCode);
+            menu.AddButton("Copy All Names", CopyAllParameterNamesAsConstantCSharpCode);
             menu.AddSeparator();
-            menu.AddButton("Rename", () => StartParameterRenaming(index, label));
-            menu.AddButton("Edit attributes...", () => EditAttributesParameter(index, label));
-            menu.AddButton("Delete", () => DeleteParameter(index));
+            menu.AddButton("Rename", () => StartParameterRenaming(index, label)).IconBrush = icons?.RenameBrush;
+            menu.AddButton("Edit Attributes...", () => EditAttributesParameter(index, label));
+            menu.AddButton("Delete", () => DeleteParameter(index)).IconBrush = icons?.DeleteBrush;
             OnParamContextMenu(index, menu);
         }
 
@@ -761,7 +762,7 @@ namespace FlaxEditor.Surface
         {
             var window = (IVisjectSurfaceWindow)Values[0];
             var parameter = window.VisjectSurface.Parameters[(int)label.Tag];
-            var dialog = RenamePopup.Show(label, new Rectangle(0, 0, label.Width - 2, label.Height), parameter.Name, false);
+            var dialog = RenamePopup.Show(label, new Rectangle(0, 0, label.Width - 2, label.Height), parameter.Name, false, fitToContent: true);
             dialog.Tag = index;
             dialog.Validate += OnParameterRenameValidate;
             dialog.Renamed += OnParameterRenamed;
@@ -838,7 +839,7 @@ namespace FlaxEditor.Surface
         protected virtual void OnParamContextMenu(int index, FlaxEditor.GUI.ContextMenu.ContextMenu menu)
         {
             menu.AddSeparator();
-            menu.AddButton("Find references...", () => OnFindReferences(index));
+            menu.AddButton("Find References...", () => OnFindReferences(index));
         }
 
         private void OnFindReferences(int index)

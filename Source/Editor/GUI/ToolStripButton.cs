@@ -24,6 +24,7 @@ namespace FlaxEditor.GUI
         public float ExtraWidth;
 
         private SpriteHandle _icon;
+        private IBrush _iconBrush;
         private string _text;
         private bool _primaryMouseDown;
         private bool _secondaryMouseDown;
@@ -75,6 +76,19 @@ namespace FlaxEditor.GUI
         }
 
         /// <summary>
+        /// The icon brush, drawn instead of <see cref="Icon"/> when set.
+        /// </summary>
+        public IBrush IconBrush
+        {
+            get => _iconBrush;
+            set
+            {
+                _iconBrush = value;
+                PerformLayout();
+            }
+        }
+
+        /// <summary>
         /// A reference to a context menu to raise when the secondary mouse button is pressed.
         /// </summary>
         public ContextMenu.ContextMenu ContextMenu;
@@ -88,6 +102,17 @@ namespace FlaxEditor.GUI
         : base(0, 0, height, height)
         {
             _icon = icon;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ToolStripButton"/> class.
+        /// </summary>
+        /// <param name="height">The height.</param>
+        /// <param name="iconBrush">The icon brush.</param>
+        public ToolStripButton(float height, IBrush iconBrush)
+        : base(0, 0, height, height)
+        {
+            _iconBrush = iconBrush;
         }
 
         /// <summary>
@@ -149,10 +174,11 @@ namespace FlaxEditor.GUI
             var iconRect = new Rectangle(iconDrawOffset, iconDrawOffset, iconDrawSize, iconDrawSize);
             var textRect = new Rectangle(DefaultMargin, 0, 0, Height);
             bool enabled = EnabledInHierarchy;
-            bool mouseButtonDown = _primaryMouseDown || _secondaryMouseDown;
+            bool mouseButtonDown = _primaryMouseDown || (ContextMenu != null && ContextMenu.IsOpened);
+            bool hasIcon = _iconBrush != null || _icon.IsValid;
 
             // Draw background
-            if (enabled && (IsMouseOver || IsNavFocused || Checked))
+            if (enabled && (IsMouseOver || IsNavFocused || Checked || mouseButtonDown))
             {
                 if (mouseButtonDown || Checked)
                 {
@@ -168,7 +194,12 @@ namespace FlaxEditor.GUI
             }
 
             // Draw icon
-            if (_icon.IsValid)
+            if (_iconBrush != null)
+            {
+                _iconBrush.Draw(iconRect, enabled ? style.Foreground : style.ForegroundDisabled);
+                textRect.Location.X += iconSize + DefaultMargin;
+            }
+            else if (_icon.IsValid)
             {
                 Render2D.DrawSprite(_icon, iconRect, enabled ? style.Foreground : style.ForegroundDisabled);
                 textRect.Location.X += iconSize + DefaultMargin;
@@ -178,7 +209,7 @@ namespace FlaxEditor.GUI
             if (!string.IsNullOrEmpty(_text))
             {
                 textRect.Size.X = Width - DefaultMargin - textRect.Left;
-                var textAlign = ExtraWidth > 0 && !_icon.IsValid ? TextAlignment.Center : TextAlignment.Near;
+                var textAlign = ExtraWidth > 0 && !hasIcon ? TextAlignment.Center : TextAlignment.Near;
                 var drawRect = textAlign == TextAlignment.Center ? new Rectangle(0, 0, Width, Height) : textRect;
                 Render2D.DrawText(style.FontMedium, _text, drawRect, enabled ? style.Foreground : style.ForegroundDisabled, textAlign, TextAlignment.Center);
             }
@@ -189,7 +220,7 @@ namespace FlaxEditor.GUI
         {
             var style = Style.Current;
             float iconSize = Height - DefaultMargin;
-            bool hasSprite = _icon.IsValid;
+            bool hasSprite = _iconBrush != null || _icon.IsValid;
             float width = DefaultMargin * 2;
 
             if (hasSprite)

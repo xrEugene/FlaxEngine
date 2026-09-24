@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using FlaxEditor.Content.GUI;
+using FlaxEditor.GUI;
 using FlaxEditor.GUI.Drag;
 using FlaxEditor.Utilities;
 using FlaxEngine;
@@ -169,9 +170,15 @@ namespace FlaxEditor.Content
         public const int DefaultTextHeight = 42;
 
         /// <summary>
-        /// The default thumbnail size.
+        /// The default thumbnail size - the tile grid's own on-screen sizing reference, at 100% zoom/interface scale.
+        /// Deliberately a fixed value, independent of <see cref="PreviewsCache.AssetIconSize"/> (the resolution
+        /// thumbnails are actually rendered/stored at): that resolution was bumped well above this size specifically
+        /// so a thumbnail still has real detail left to show once drawn larger than this reference (a bigger zoom
+        /// level, or a bigger interface scale) - tying this on-screen sizing constant to that same value would have
+        /// made every tile balloon to the new, much larger baked resolution instead, which is a display-size change
+        /// nobody asked for, not a quality one.
         /// </summary>
-        public const int DefaultThumbnailSize = PreviewsCache.AssetIconSize;
+        public const int DefaultThumbnailSize = 64;
 
         /// <summary>
         /// The default width.
@@ -188,6 +195,17 @@ namespace FlaxEditor.Content
         /// </summary>
         public bool IsBeingCut;
 
+        /// <summary>
+        /// Whether a <see cref="FlaxEditor.GUI.RenamePopup"/> is currently open over this item. While true, the
+        /// item's own bottom selection accent bar is skipped (see <see cref="Draw"/>): the rename popup is an
+        /// opaque overlay covering roughly the same area, and if its own rect doesn't land pixel-for-pixel flush
+        /// with this one - eg. because one goes through a window-space round-trip (<c>Control.PointToWindow</c>) and
+        /// the other doesn't - a thin sliver of this item's own background could otherwise show between the popup's
+        /// own bottom border and this accent bar. Not drawing the accent bar at all while renaming sidesteps needing
+        /// that alignment to be pixel-perfect in the first place.
+        /// </summary>
+        public bool IsBeingRenamed;
+
         private ContentFolder _parentFolder;
 
         private bool _isMouseDown;
@@ -196,6 +214,154 @@ namespace FlaxEditor.Content
 
         private SpriteHandle _thumbnail;
         private SpriteHandle _shadowIcon;
+        private bool _assetProxyResolved;
+        private ContentProxy _cachedAssetProxy;
+
+        /// <summary>
+        /// Set by <see cref="FlaxEditor.Content.Thumbnails.ThumbnailsModule"/> whenever this item's thumbnail is
+        /// resolved (whether freshly rendered or found already cached), to its proxy's
+        /// <see cref="AssetProxy.GetGenericThumbnailText"/> result. Non-null here means <see cref="Draw"/> draws
+        /// this text live instead of the small, fixed-resolution baked sprite every other thumbnail uses - see
+        /// <see cref="DrawGenericTextThumbnail"/>. Checked only when <see cref="GenericThumbnailIcon"/> is null - an
+        /// icon takes priority over text.
+        /// </summary>
+        public string GenericThumbnailText;
+
+        /// <summary>
+        /// For an <see cref="AssetItem"/>, set by <see cref="FlaxEditor.Content.Thumbnails.ThumbnailsModule"/>
+        /// whenever this item's thumbnail is resolved (whether freshly rendered or found already cached), to its
+        /// proxy's <see cref="AssetProxy.GetGenericThumbnailIcon"/> result (a content path). A non-asset item with no
+        /// thumbnail request cycle of its own (eg. <see cref="FileItem"/>) can instead just set this directly, since
+        /// there's nothing to wait on. Non-null here means <see cref="Draw"/> draws that icon texture live, stretched
+        /// to fill the tile, instead of the small, fixed-resolution baked sprite every other thumbnail uses - see
+        /// <see cref="DrawGenericIconThumbnail"/>.
+        /// </summary>
+        public string GenericThumbnailIcon;
+
+        /// <summary>
+        /// This item's <see cref="ContentProxy"/> (for <see cref="ContentProxy.AccentColor"/>), resolved lazily and
+        /// cached per item instance the first time it's drawn, rather than every frame: <see cref="Editor.ContentDatabase"/>'s
+        /// own proxy lookup walks every registered proxy checking each one's <c>IsProxyFor</c>, too much to redo on
+        /// every single <see cref="Draw"/> call for every visible tile. Typed as the base <see cref="ContentProxy"/>
+        /// (not just <see cref="AssetProxy"/>) so a non-asset item with its own proxy and accent color (eg.
+        /// <see cref="FileItem"/>/<see cref="FileProxy"/>) still gets its accent bar drawn - every actual usage here
+        /// only reads <see cref="ContentProxy.AccentColor"/>, which doesn't need the narrower type. Null for anything
+        /// without any proxy at all (eg. folders).
+        /// </summary>
+        private ContentProxy CachedAssetProxy
+        {
+            get
+            {
+                if (!_assetProxyResolved)
+                {
+                    _cachedAssetProxy = Editor.Instance.ContentDatabase.GetProxy(this);
+                    _assetProxyResolved = true;
+                }
+                return _cachedAssetProxy;
+            }
+        }
+
+        /// <summary>
+        /// The fraction of the tile's own size a file-icon item's <see cref="DefaultThumbnail"/> is drawn at (see
+        /// <see cref="Draw"/>'s file-icon branch) - centered, rather than stretched to fill the tile.
+        /// </summary>
+        private const float FileIconScale = 0.75f;
+
+        /// <summary>
+        /// A copy of <paramref name="rectangle"/> shrunk to <paramref name="scale"/> of its own size and re-centered
+        /// within it - used to draw a file icon (or a generic thumbnail icon) smaller than the tile it's in, rather
+        /// than stretched to fill it.
+        /// </summary>
+        private static Rectangle GetCenteredRect(Rectangle rectangle, float scale)
+        {
+            var size = rectangle.Size * scale;
+            return new Rectangle(rectangle.Center - size * 0.5f, size);
+        }
+
+        /// <summary>
+        /// The size the generic text thumbnail's font scale and the accent bar's thickness (see
+        /// <see cref="DrawGenericTextThumbnail"/>/<see cref="DrawAccentBar"/>) are proportioned against. Deliberately
+        /// independent of <see cref="PreviewsCache.AssetIconSize"/> (the actual baked-preview resolution, which can
+        /// change on its own) - these two need their own fixed design reference so their on-screen proportions never
+        /// shift just because that unrelated constant does.
+        /// </summary>
+        private const float GenericThumbnailReferenceSize = 64.0f;
+
+        /// <summary>
+        /// Shared cache of loaded generic-thumbnail icon textures, keyed by content path - many items of the same
+        /// asset type share the exact same icon, so it's loaded once rather than per item.
+        /// </summary>
+        private static readonly Dictionary<string, Texture> _genericThumbnailIconCache = new Dictionary<string, Texture>();
+
+        /// <summary>
+        /// The fraction of the tile's own size <see cref="DrawGenericIconThumbnail"/> draws its icon at.
+        /// </summary>
+        private const float GenericThumbnailIconScale = 0.7f;
+
+        /// <summary>
+        /// Draws this item's thumbnail as a live icon texture at the tile's actual resolution instead of the small,
+        /// fixed-resolution baked sprite every other thumbnail uses - see <see cref="GenericThumbnailIcon"/>.
+        /// Centered at <see cref="GenericThumbnailIconScale"/> of the tile's own size, over the same black
+        /// background and live accent bar the text thumbnail uses (see <see cref="DrawGenericTextThumbnail"/>) -
+        /// the icon itself doesn't cover either, being smaller than the tile.
+        /// </summary>
+        private void DrawGenericIconThumbnail(ref Rectangle rectangle)
+        {
+            // SecondaryBackground - same near-black used by an unselected dock tab's header row.
+            Render2D.FillRectangle(rectangle, Style.Current.SecondaryBackground);
+
+            if (!_genericThumbnailIconCache.TryGetValue(GenericThumbnailIcon, out var texture))
+            {
+                texture = FlaxEngine.Content.LoadAsyncInternal<Texture>(GenericThumbnailIcon);
+                _genericThumbnailIconCache[GenericThumbnailIcon] = texture;
+            }
+
+            if (texture != null && !texture.WaitForLoaded())
+            {
+                var iconSize = rectangle.Size * GenericThumbnailIconScale;
+                var iconRect = new Rectangle(rectangle.Center - iconSize * 0.5f, iconSize);
+                Render2D.DrawTexture(texture, iconRect, Color.White);
+            }
+
+            var proxy = CachedAssetProxy;
+            if (proxy != null)
+                DrawAccentBar(ref rectangle, proxy.AccentColor);
+        }
+
+        /// <summary>
+        /// Draws this item's thumbnail as live text at the tile's actual resolution instead of the small, fixed-
+        /// resolution baked sprite every other thumbnail uses - see <see cref="GenericThumbnailText"/> for why.
+        /// Mirrors the styling of the <see cref="FlaxEngine.GUI.Label"/> that used to get baked into that sprite for
+        /// these items: a black background, <see cref="Style.FontMedium"/>, <see cref="Style.Foreground"/>, centered,
+        /// word-wrapped. The text scales with the thumbnail's own size (relative to
+        /// <see cref="GenericThumbnailReferenceSize"/>) so it reads at roughly the same size the baked version was
+        /// designed to, rather than shrinking to a corner or overflowing at a different tile size.
+        /// </summary>
+        private void DrawGenericTextThumbnail(ref Rectangle rectangle)
+        {
+            var style = Style.Current;
+            Render2D.FillRectangle(rectangle, Color.Black);
+            var scale = rectangle.Width / GenericThumbnailReferenceSize;
+            Render2D.DrawText(style.FontMedium, GenericThumbnailText, rectangle, style.Foreground, TextAlignment.Center, TextAlignment.Center, TextWrapping.WrapWords, 1.0f, scale);
+            var proxy = CachedAssetProxy;
+            if (proxy != null)
+                DrawAccentBar(ref rectangle, proxy.AccentColor);
+        }
+
+        /// <summary>
+        /// Draws the per-asset-type <see cref="ContentProxy.AccentColor"/> strip along a thumbnail's bottom edge,
+        /// live at the thumbnail's actual current size - for every thumbnail, not just the generic text one, since
+        /// that strip used to be baked into the (fixed, low-resolution) preview sprite itself for every asset type
+        /// alike (<c>ThumbnailsModule.PreviewRoot</c> used to draw it there), which blurred it under the same
+        /// upscaling as everything else in that sprite once stretched to a larger tile.
+        /// </summary>
+        private void DrawAccentBar(ref Rectangle rectangle, Color accentColor)
+        {
+            const float accentHeightAtReferenceSize = 2.0f;
+            var accentHeight = accentHeightAtReferenceSize * (rectangle.Width / GenericThumbnailReferenceSize);
+            var accentRect = new Rectangle(rectangle.X, rectangle.Bottom - accentHeight, rectangle.Width, accentHeight);
+            Render2D.FillRectangle(accentRect, accentColor);
+        }
 
         /// <summary>
         /// Gets the type of the item.
@@ -469,6 +635,27 @@ namespace FlaxEditor.Content
         }
 
         /// <summary>
+        /// Gets the rectangle text should actually be wrapped/measured against: <see cref="TextRectangle"/>, inset
+        /// by a small margin that scales with the item's size, so names that sit right at the wrap boundary (eg. a
+        /// name just barely narrow enough to fit on one line) get some breathing room instead of nearly touching the
+        /// edge. Also used by <see cref="FlaxEditor.Windows.ContentWindow"/> when sizing the rename edit box, so a
+        /// name wraps at exactly the same width while being renamed as it does once finished - a fixed-size margin
+        /// there instead of this same proportional one was enough of a width mismatch to flip a borderline name's
+        /// wrap point between the two.
+        /// </summary>
+        public Rectangle GetWrapTextRectangle(Rectangle textRect, Float2 size)
+        {
+            var wrapWidthMargin = 10.0f * size.X / DefaultWidth;
+            return new Rectangle(textRect.X + wrapWidthMargin * 0.5f, textRect.Y, textRect.Width - wrapWidthMargin, textRect.Height);
+        }
+
+        /// <inheritdoc cref="GetWrapTextRectangle(Rectangle, Float2)"/>
+        public Rectangle GetWrapTextRectangle()
+        {
+            return GetWrapTextRectangle(TextRectangle, Size);
+        }
+
+        /// <summary>
         /// Draws the item thumbnail.
         /// </summary>
         /// <param name="rectangle">The thumbnail rectangle.</param>
@@ -697,7 +884,7 @@ namespace FlaxEditor.Content
                     Render2D.FillRectangle(shadowRect, color);
                     Render2D.FillRectangle(clientRect, Color.Lerp(style.ContentBackground, style.BackgroundHighlighted, 0.5f));
 
-                    if (isSelected)
+                    if (isSelected && !IsBeingRenamed)
                     {
                         // Keep the unselected background and show a blue accent line at the bottom (persist even when unfocused)
                         var accentColor = style.BackgroundSelected;
@@ -716,16 +903,42 @@ namespace FlaxEditor.Content
                     var color = Color.Black.AlphaMultiplied(0.2f);
                     Render2D.FillRectangle(shadowRect, color);
 
+                    // Don't apply the hover highlight over an already-selected item - its own selected-state
+                    // background/accent bar already communicates state, and re-highlighting it on hover reads as a
+                    // spurious flicker rather than useful feedback.
                     var baseColor = Color.Lerp(style.ContentBackground, style.BackgroundHighlighted, 0.5f);
-                    Render2D.FillRectangle(clientRect, IsMouseOver ? style.BackgroundHighlighted : baseColor);
-                    Render2D.FillRectangle(TextRectangle, IsMouseOver ? style.BackgroundHighlighted : baseColor);
+                    var isHighlighted = IsMouseOver && !isSelected;
+                    Render2D.FillRectangle(clientRect, isHighlighted ? style.BackgroundHighlighted : baseColor);
+                    Render2D.FillRectangle(TextRectangle, isHighlighted ? style.BackgroundHighlighted : baseColor);
 
                     var accentHeight = 2 * view.ViewScale;
                     var barRect = new Rectangle(0, thumbnailRect.Height - accentHeight, clientRect.Width, accentHeight);
                     Render2D.FillRectangle(barRect, Color.DimGray);
 
-                    DrawThumbnail(ref thumbnailRect, false);
-                    if (isSelected)
+                    if (GenericThumbnailIcon != null)
+                        DrawGenericIconThumbnail(ref thumbnailRect);
+                    else if (GenericThumbnailText != null)
+                        DrawGenericTextThumbnail(ref thumbnailRect);
+                    else
+                    {
+                        // Same background as the generic icon/text thumbnails, but only for a file-icon item (its
+                        // thumbnail short-circuits to a static DefaultThumbnail sprite, eg. JsonAsset/VisualScript) -
+                        // a real rendered preview (a material/model/etc) already fills the whole rect itself.
+                        if (DefaultThumbnail.IsValid)
+                        {
+                            Render2D.FillRectangle(thumbnailRect, style.SecondaryBackground);
+                            var iconRect = GetCenteredRect(thumbnailRect, FileIconScale);
+                            DrawThumbnail(ref iconRect, false);
+                        }
+                        else
+                        {
+                            DrawThumbnail(ref thumbnailRect, false);
+                        }
+                        var proxy = CachedAssetProxy;
+                        if (proxy != null)
+                            DrawAccentBar(ref thumbnailRect, proxy.AccentColor);
+                    }
+                    if (isSelected && !IsBeingRenamed)
                     {
                         // Blue accent line at the bottom instead of coloring the whole tile (persist even when unfocused)
                         var accentColor = style.BackgroundSelected;
@@ -741,7 +954,7 @@ namespace FlaxEditor.Content
                 thumbnailRect = new Rectangle(DefaultMarginSize, DefaultMarginSize, thumbnailSize, thumbnailSize);
                 nameAlignment = TextAlignment.Near;
 
-                if (isSelected)
+                if (isSelected && !IsBeingRenamed)
                 {
                     var accentColor = style.BackgroundSelected;
                     var accentRect = new Rectangle(0, clientRect.Height - 3.0f, clientRect.Width, 3.0f);
@@ -750,7 +963,29 @@ namespace FlaxEditor.Content
                 else if (IsMouseOver)
                     Render2D.FillRectangle(clientRect, style.BackgroundHighlighted);
 
-                DrawThumbnail(ref thumbnailRect);
+                if (GenericThumbnailIcon != null)
+                    DrawGenericIconThumbnail(ref thumbnailRect);
+                else if (GenericThumbnailText != null)
+                    DrawGenericTextThumbnail(ref thumbnailRect);
+                else
+                {
+                    // Same background as the generic icon/text thumbnails, but only for a file-icon item (its
+                    // thumbnail short-circuits to a static DefaultThumbnail sprite, eg. JsonAsset/VisualScript) -
+                    // not for a folder (also DefaultThumbnail-based here) or a real rendered preview.
+                    if (!IsFolder && DefaultThumbnail.IsValid)
+                    {
+                        Render2D.FillRectangle(thumbnailRect, style.SecondaryBackground);
+                        var iconRect = GetCenteredRect(thumbnailRect, FileIconScale);
+                        DrawThumbnail(ref iconRect);
+                    }
+                    else
+                    {
+                        DrawThumbnail(ref thumbnailRect);
+                    }
+                    var proxy = CachedAssetProxy;
+                    if (proxy != null)
+                        DrawAccentBar(ref thumbnailRect, proxy.AccentColor);
+                }
                 break;
             }
             default: throw new ArgumentOutOfRangeException();
@@ -758,22 +993,43 @@ namespace FlaxEditor.Content
 
             // Draw short name
             var displayName = ShowFileExtension || view.ShowFileExtensions ? FileName : ShortName;
-            Render2D.PushClip(ref textRect);
-
             var scale = 0.95f * view.ViewScale;
+            var wrapRect = GetWrapTextRectangle(textRect, size);
+            // Clip to wrapRect, not the full textRect: wrapRect is already inset from textRect by the same margin
+            // on both sides, so clipping there keeps that margin on the right when text overflows and gets cropped,
+            // matching the margin the left/start side always has instead of cropping flush against the tile border.
+            Render2D.PushClip(ref wrapRect);
+
+            var font = style.FontMedium;
+            // Only wrap a name that actually contains whitespace - a whitespace-free name (eg. "harshbricks-albedo"
+            // or "FlaxTechDemo2022_720p") is left completely unwrapped here, with no attempt to break at '-'/'_'
+            // either, since that special handling has caused more problems (an unreliable native wrap decision, and
+            // a caret that can land somewhere unrelated to the actual text once wrapped) than it's worth for a
+            // static, non-interactive label.
+            var drawName = displayName;
+            // NoWrap, not WrapWords: native WrapWords wraps at whitespace but *also* at every '_' and every
+            // uppercase letter after the first character (see Font::ProcessText's isWrapChar in the native engine)
+            // - so leaving WrapWords here would still wrap "MetalPlates_Normal_13" via the engine's own built-in
+            // break points, completely bypassing this gate.
+            var nameWrapping = TextWrapping.NoWrap;
+            var nameToWrapped = (Func<int, int>)(i => i);
+            if (SingleWordWrap.HasWhitespace(displayName))
+                drawName = SingleWordWrap.WrapToFit(displayName, font, scale, wrapRect.Width, wrapRect.Height, out nameToWrapped, out _, out nameWrapping);
+            else
+                drawName = SingleWordWrap.TruncateSingleLine(displayName, font, scale, wrapRect.Width, out nameToWrapped);
+            var drawNameAlignment = nameAlignment;
 
             // Highlight matched search substrings
-            if (view.IsSearching 
+            if (view.IsSearching
                 && !string.IsNullOrEmpty(view.SearchFilterText) &&
                 QueryFilterHelper.Match(view.SearchFilterText, displayName, out var highlightRanges))
             {
-                var font = style.FontMedium;
                 var layout = new TextLayoutOptions
                 {
-                    Bounds = textRect,
-                    HorizontalAlignment = nameAlignment,
+                    Bounds = wrapRect,
+                    HorizontalAlignment = drawNameAlignment,
                     VerticalAlignment = TextAlignment.Center,
-                    TextWrapping = TextWrapping.WrapWords,
+                    TextWrapping = nameWrapping,
                     Scale = scale,
                     BaseLinesGapScale = 1.0f,
                 };
@@ -788,13 +1044,13 @@ namespace FlaxEditor.Content
 
                     while (i < end)
                     {
-                        var s = font.GetCharPosition(displayName, i, ref layout);
+                        var s = font.GetCharPosition(drawName, nameToWrapped(i), ref layout);
                         int j = i + 1;
 
-                        var e = font.GetCharPosition(displayName, j, ref layout);
+                        var e = font.GetCharPosition(drawName, nameToWrapped(j), ref layout);
                         while (j < end)
                         {
-                            var next = font.GetCharPosition(displayName, j + 1, ref layout);
+                            var next = font.GetCharPosition(drawName, nameToWrapped(j + 1), ref layout);
                             if (!Mathf.NearEqual(next.Y, s.Y)) break;
 
                             e = next;
@@ -807,7 +1063,7 @@ namespace FlaxEditor.Content
                 }
             }
 
-            Render2D.DrawText(style.FontMedium, displayName, textRect, style.Foreground, nameAlignment, TextAlignment.Center, TextWrapping.WrapWords, 1f, scale);
+            Render2D.DrawText(font, drawName, wrapRect, style.Foreground, drawNameAlignment, TextAlignment.Center, nameWrapping, 1f, scale);
             Render2D.PopClip();
 
             if (IsBeingCut)

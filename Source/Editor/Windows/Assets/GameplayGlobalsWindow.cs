@@ -356,8 +356,8 @@ namespace FlaxEditor.Windows.Assets
             {
                 var name = (string)label.Tag;
                 menu.AddSeparator();
-                menu.AddButton("Rename", () => StartParameterRenaming(name, label));
-                menu.AddButton("Delete", () => DeleteParameter(name));
+                menu.AddButton("Rename", () => StartParameterRenaming(name, label)).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.RenameBrush;
+                menu.AddButton("Delete", () => DeleteParameter(name)).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.DeleteBrush;
             }
 
             private void AddParameter(Type type)
@@ -379,7 +379,7 @@ namespace FlaxEditor.Windows.Assets
 
             private void StartParameterRenaming(string name, Control label)
             {
-                var dialog = RenamePopup.Show(label, new Rectangle(0, 0, label.Width - 2, label.Height), name, false);
+                var dialog = RenamePopup.Show(label, new Rectangle(0, 0, label.Width - 2, label.Height), name, false, fitToContent: true);
                 dialog.Tag = name;
                 dialog.Validate += OnParameterRenameValidate;
                 dialog.Renamed += OnParameterRenamed;

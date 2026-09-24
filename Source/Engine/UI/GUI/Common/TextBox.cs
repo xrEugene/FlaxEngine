@@ -234,7 +234,19 @@ namespace FlaxEngine.GUI
             // Background (constant regardless of hover/focus state)
             Render2D.FillRectangle(rect, BackgroundColor);
             if (HasBorder)
-                Render2D.DrawRectangle(rect, IsFocused ? BorderSelectedColor : BorderColor, BorderThickness);
+            {
+                if (IsFocused)
+                {
+                    // Focused state: accent line along the bottom edge only, at double thickness
+                    var lineThickness = BorderThickness * 1.5f;
+                    var bottomLine = new Rectangle(rect.Left, rect.Bottom - lineThickness, rect.Width, lineThickness);
+                    Render2D.FillRectangle(bottomLine, BorderSelectedColor);
+                }
+                else
+                {
+                    Render2D.DrawRectangle(rect, BorderColor, BorderThickness);
+                }
+            }
 
             // Apply view offset and clip mask
             if (ClipText)

@@ -132,7 +132,7 @@ namespace FlaxEditor.GUI.Timeline.Tracks
             var script = Script;
             if (script == null)
             {
-                menu.AddButton("Missing script");
+                menu.AddButton("Missing Script");
                 return;
             }
 

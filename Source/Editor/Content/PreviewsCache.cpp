@@ -13,10 +13,10 @@
 #include "Engine/Graphics/GPUDevice.h"
 
 // Default asset preview icon size (both width and height since it's a square)
-#define ASSET_ICON_SIZE 64
+#define ASSET_ICON_SIZE 256
 
-// Default assets previews atlas size
-#define ASSETS_ICONS_ATLAS_SIZE 1024
+// Default assets previews atlas size (scaled up alongside ASSET_ICON_SIZE to keep the same icons-per-atlas capacity)
+#define ASSETS_ICONS_ATLAS_SIZE 4096
 
 // Default assets previews atlas margin between icons
 #define ASSETS_ICONS_ATLAS_MARGIN 4

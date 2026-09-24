@@ -18,7 +18,7 @@ namespace FlaxEditor.Utilities
 #if PLATFORM_MAC
         public const string ShowInExplorer = "Show in Finder";
 #else
-        public const string ShowInExplorer = "Show in explorer";
+        public const string ShowInExplorer = "Show in Explorer";
 #endif
 
         public const float UIMargin = 3.0f;

@@ -1504,8 +1504,8 @@ namespace FlaxEditor.Surface.Elements
             if (button == MouseButton.Right && HasValue)
             {
                 var menu = new FlaxEditor.GUI.ContextMenu.ContextMenu();
-                menu.AddButton("Copy value", OnCopyValue);
-                var paste = menu.AddButton("Paste value", OnPasteValue);
+                menu.AddButton("Copy Value", OnCopyValue);
+                var paste = menu.AddButton("Paste Value", OnPasteValue);
                 try
                 {
                     GetClipboardValue(out _, false);

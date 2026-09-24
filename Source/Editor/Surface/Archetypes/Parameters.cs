@@ -414,7 +414,7 @@ namespace FlaxEditor.Surface.Archetypes
                 if (GetSelected() == null)
                     return;
                 menu.AddSeparator();
-                menu.AddButton("Find references...", OnFindReferences);
+                menu.AddButton("Find References...", OnFindReferences);
             }
 
             private void OnFindReferences()
@@ -898,7 +898,7 @@ namespace FlaxEditor.Surface.Archetypes
                 if (GetSelected() == null)
                     return;
                 menu.AddSeparator();
-                menu.AddButton("Find references...", OnFindReferences);
+                menu.AddButton("Find References...", OnFindReferences);
             }
 
             private void OnFindReferences()

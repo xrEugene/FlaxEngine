@@ -34,6 +34,7 @@ namespace FlaxEditor.Content
             {
                 var button = menu.AddButton("Create Material Instance", CreateMaterialInstanceClicked);
                 button.Tag = binaryAssetItem;
+                button.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.CreateMaterialInstanceBrush;
             }
         }
 

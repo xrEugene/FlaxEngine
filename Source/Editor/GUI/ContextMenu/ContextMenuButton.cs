@@ -46,6 +46,11 @@ namespace FlaxEditor.GUI.ContextMenu
         public SpriteHandle Icon;
 
         /// <summary>
+        /// Item icon brush, drawn instead of <see cref="Icon"/> when set (and the button is not checked).
+        /// </summary>
+        public IBrush IconBrush;
+
+        /// <summary>
         /// The checked state.
         /// </summary>
         public bool Checked;
@@ -128,8 +133,10 @@ namespace FlaxEditor.GUI.ContextMenu
             var style = Style.Current;
             var backgroundRect = new Rectangle(-X + 3, 0, Parent.Width - 6, Height);
 
-            // If this menu supports checks (any sibling button uses check state), shift text/check to the right
+            // If this menu supports checks (any sibling button uses check state), shift text/check to the right.
+            // If this menu has any icon (and no checks), reserve a consistent icon gutter with a 1px margin on each side.
             float checkShift = 0.0f;
+            bool hasAnyIcon = false;
             if (Parent != null)
             {
                 bool anyChecked = false;
@@ -145,6 +152,8 @@ namespace FlaxEditor.GUI.ContextMenu
                             supports = true;
                             anyChecked = true;
                         }
+                        if (b.IconBrush != null || b.Icon.IsValid)
+                            hasAnyIcon = true;
                     }
                 }
                 // Sticky: once any sibling was checked, keep the check-oriented placement in this menu.
@@ -162,7 +171,11 @@ namespace FlaxEditor.GUI.ContextMenu
 
             // Extra horizontal padding between the check mark and the button text
             const float checkTextPadding = 2.0f;
-            float textOffset = checkShift > 0.0f ? checkShift + checkTextPadding : 0.0f;
+            const float iconSize = 14;
+            const float iconLeftMargin = 5.0f;
+            const float iconRightMargin = 5.0f;
+            float iconGutterEnd = backgroundRect.X + iconLeftMargin + iconSize + iconRightMargin;
+            float textOffset = checkShift > 0.0f ? checkShift + checkTextPadding : hasAnyIcon ? iconGutterEnd : 0.0f;
 
             var textRect = new Rectangle(textOffset, 0, Width - 8 - textOffset, Height);
             var textColor = Enabled ? style.Foreground : style.ForegroundDisabled;
@@ -203,10 +216,18 @@ namespace FlaxEditor.GUI.ContextMenu
             }
 
             // Draw icon
-            const float iconSize = 14;
-            var icon = Checked ? style.CheckBoxTick : Icon;
-            if (icon.IsValid)
-                Render2D.DrawSprite(icon, new Rectangle(-iconSize - 1 + checkShift, (Height - iconSize) / 2, iconSize, iconSize), textColor);
+            var iconRect = checkShift > 0.0f
+                           ? new Rectangle(-iconSize - iconRightMargin + checkShift, (Height - iconSize) / 2, iconSize, iconSize)
+                           : new Rectangle(backgroundRect.X + iconLeftMargin, (Height - iconSize) / 2, iconSize, iconSize);
+            if (Checked)
+            {
+                if (style.CheckBoxTick.IsValid)
+                    Render2D.DrawSprite(style.CheckBoxTick, iconRect, textColor);
+            }
+            else if (IconBrush != null)
+                IconBrush.Draw(iconRect, textColor);
+            else if (Icon.IsValid)
+                Render2D.DrawSprite(Icon, iconRect, textColor);
         }
 
         /// <inheritdoc />

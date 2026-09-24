@@ -138,9 +138,10 @@ namespace FlaxEditor.Content.Import
         private void OnTreeRightClick(TreeNode node, Float2 location)
         {
             var menu = new ContextMenu();
-            menu.AddButton("Rename", OnRenameClicked);
-            menu.AddButton("Don't import", OnDontImportClicked);
-            menu.AddButton(Utilities.Constants.ShowInExplorer, OnShowInExplorerClicked);
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
+            menu.AddButton("Rename", OnRenameClicked).IconBrush = icons?.RenameBrush;
+            menu.AddButton("Don't Import", OnDontImportClicked);
+            menu.AddButton(Utilities.Constants.ShowInExplorer, OnShowInExplorerClicked).IconBrush = icons?.ShowInExplorerBrush;
             menu.Tag = node;
             menu.Show(node, location);
         }
@@ -211,7 +212,7 @@ namespace FlaxEditor.Content.Import
                 // Start renaming the folder
                 var entry = (ImportFileEntry)Tag;
                 var shortName = Path.GetFileNameWithoutExtension(entry.ResultUrl);
-                var dialog = RenamePopup.Show(this, HeaderRect, shortName, false);
+                var dialog = RenamePopup.Show(this, HeaderRect, shortName, false, fitToContent: true);
                 dialog.Tag = Tag;
                 dialog.Renamed += OnRenamed;
             }

@@ -727,6 +727,7 @@ namespace FlaxEditor.Windows
         {
             Title = "Output Log";
             Icon = editor.Icons.Info64;
+            IconBrush = (editor.Icons as CustomEditorIcons)?.OutputLogBrush;
             ClipChildren = false;
             BackgroundColor = Style.Current.ContentBackground;
             FlaxEditor.Utilities.Utils.SetupCommonInputActions(this);
@@ -792,11 +793,11 @@ namespace FlaxEditor.Windows
 
             // Setup context menu
             _contextMenu = new ContextMenu();
-            _contextMenu.AddButton("Clear log", Clear);
-            _contextMenu.AddButton("Copy selection", _output.Copy);
+            _contextMenu.AddButton("Clear Log", Clear);
+            _contextMenu.AddButton("Copy Selection", _output.Copy);
             _contextMenu.AddButton("Select All", _output.SelectAll);
-            _contextMenu.AddButton(Utilities.Constants.ShowInExplorer, () => FileSystem.ShowFileExplorer(Path.Combine(Globals.ProjectFolder, "Logs")));
-            _contextMenu.AddButton("Scroll to bottom", () => { _vScroll.TargetValue = _vScroll.Maximum; }).Icon = Editor.Icons.ArrowDown12;
+            _contextMenu.AddButton(Utilities.Constants.ShowInExplorer, () => FileSystem.ShowFileExplorer(Path.Combine(Globals.ProjectFolder, "Logs"))).IconBrush = (Editor.Icons as CustomEditorIcons)?.ShowInExplorerBrush;
+            _contextMenu.AddButton("Scroll to Bottom", () => { _vScroll.TargetValue = _vScroll.Maximum; }).IconBrush = Editor.Icons.ArrowDown12Brush;
 
             // Setup editor options
             Editor.Options.OptionsChanged += OnEditorOptionsChanged;
@@ -831,7 +832,7 @@ namespace FlaxEditor.Windows
             errorLogButton.Clicked += () => ToggleLogTypeShow(LogType.Error);
 
             menu.AddSeparator();
-            menu.AddButton("Load log file...", LoadLogFile);
+            menu.AddButton("Load Log File...", LoadLogFile);
           
             return menu;
         }

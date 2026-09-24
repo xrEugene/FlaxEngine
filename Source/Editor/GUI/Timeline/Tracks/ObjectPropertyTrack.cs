@@ -121,7 +121,7 @@ namespace FlaxEditor.GUI.Timeline.Tracks
             var obj = Object;
             if (obj == null)
             {
-                menu.AddButton("Missing object");
+                menu.AddButton("Missing Object");
                 return;
             }
 

@@ -110,7 +110,7 @@ namespace FlaxEditor.Content
         /// <returns><c>true</c> if this proxy can reimport given item; otherwise, <c>false</c>.</returns>
         public virtual bool CanReimport(ContentItem item)
         {
-            return CanCreate(item.ParentFolder);
+            return false;
         }
 
         /// <summary>

@@ -136,7 +136,7 @@ namespace FlaxEditor.Surface.Archetypes
             public void StartRenaming()
             {
                 Surface.Select(this);
-                var dialog = RenamePopup.Show(this, _headerRect, Title, false);
+                var dialog = RenamePopup.Show(this, _headerRect, Title, false, fitToContent: true);
                 dialog.Validate += OnRenameValidate;
                 dialog.Renamed += OnRenamed;
             }
@@ -785,9 +785,11 @@ namespace FlaxEditor.Surface.Archetypes
                     var contextMenu = new FlaxEditor.GUI.ContextMenu.ContextMenu();
                     contextMenu.AddButton("Edit").Clicked += transition.Edit;
                     contextMenu.AddSeparator();
-                    contextMenu.AddButton("Delete").Clicked += transition.Delete;
-                    contextMenu.AddButton("Select source state").Clicked += transition.SelectSourceState;
-                    contextMenu.AddButton("Select destination state").Clicked += transition.SelectDestinationState;
+                    var deleteButton = contextMenu.AddButton("Delete");
+                    deleteButton.Clicked += transition.Delete;
+                    deleteButton.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.DeleteBrush;
+                    contextMenu.AddButton("Select Source State").Clicked += transition.SelectSourceState;
+                    contextMenu.AddButton("Select Destination State").Clicked += transition.SelectDestinationState;
                     contextMenu.Show(Surface, mouse);
                     break;
                 case MouseButton.Middle:
@@ -1110,7 +1112,7 @@ namespace FlaxEditor.Surface.Archetypes
                 Render2D.DrawText(style.FontLarge, Title, _textRect, style.Foreground, TextAlignment.Center, TextAlignment.Center);
 
                 // Close button
-                Render2D.DrawSprite(style.Cross, _closeButtonRect, _closeButtonRect.Contains(_mousePosition) ? style.Foreground : style.ForegroundGrey);
+                Editor.Instance.Icons.Cross12Brush.Draw(_closeButtonRect, _closeButtonRect.Contains(_mousePosition) ? style.Foreground : style.ForegroundGrey);
 
                 // Debug outline
                 if (_debugActive)
@@ -1363,7 +1365,7 @@ namespace FlaxEditor.Surface.Archetypes
             public void StartRenaming()
             {
                 Surface.Select(this);
-                var dialog = RenamePopup.Show(this, _textRect, Title, false);
+                var dialog = RenamePopup.Show(this, _textRect, Title, false, fitToContent: true);
                 dialog.Validate += OnRenameValidate;
                 dialog.Renamed += OnRenamed;
             }

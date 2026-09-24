@@ -39,5 +39,11 @@ namespace FlaxEditor.Content
 
         /// <inheritdoc />
         public override Type AssetType => typeof(Shader);
+
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.ShaderThumbIcon;
+        }
     }
 }

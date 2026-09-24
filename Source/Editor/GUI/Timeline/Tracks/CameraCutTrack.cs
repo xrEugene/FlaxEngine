@@ -329,7 +329,7 @@ namespace FlaxEditor.GUI.Timeline.Tracks
         public override void OnTimelineContextMenu(ContextMenu.ContextMenu menu, float time, Control controlUnderMouse)
         {
             if (((CameraCutTrack)Track).Camera)
-                menu.AddButton("Refresh thumbnails", () => UpdateThumbnails());
+                menu.AddButton("Refresh Thumbnails", () => UpdateThumbnails());
 
             base.OnTimelineContextMenu(menu, time, controlUnderMouse);
         }

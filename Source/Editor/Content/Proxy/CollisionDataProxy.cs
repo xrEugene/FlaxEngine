@@ -75,6 +75,12 @@ namespace FlaxEditor.Content
                 throw new Exception("Failed to create new asset.");
         }
 
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.CollisionDataThumbIcon;
+        }
+
         private bool TryUseCollisionData(Model model, BinaryAssetItem assetItem, Action<CollisionData> created, bool alwaysDeferCallback, CollisionDataType type)
         {
             var collisionData = FlaxEngine.Content.Load<CollisionData>(assetItem.ID);

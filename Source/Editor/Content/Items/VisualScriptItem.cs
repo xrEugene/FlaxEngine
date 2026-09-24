@@ -604,7 +604,9 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
-        public override SpriteHandle DefaultThumbnail => Editor.Instance.Icons.VisualScript128;
+        // Invalid (not VisualScript128) so the item has no DefaultThumbnail and falls through to
+        // VisualScriptProxy.GetGenericThumbnailIcon instead of ThumbnailsModule.RequestPreview short-circuiting on it.
+        public override SpriteHandle DefaultThumbnail => SpriteHandle.Invalid;
 
         /// <inheritdoc />
         protected override bool DrawShadow => false;

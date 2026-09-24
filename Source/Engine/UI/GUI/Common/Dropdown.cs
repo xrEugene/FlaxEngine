@@ -399,7 +399,7 @@ namespace FlaxEngine.GUI
             BorderColor = style.BorderNormal;
             BorderColorHighlighted = style.BorderSelected;
             BorderColorSelected = BorderColorHighlighted;
-            ArrowImage = new SpriteBrush(style.ArrowDown);
+            ArrowImage = style.ArrowDownBrush ?? new SpriteBrush(style.ArrowDown);
             ArrowColor = style.Foreground * 0.6f;
             ArrowColorSelected = style.BackgroundSelected;
             ArrowColorHighlighted = style.Foreground;

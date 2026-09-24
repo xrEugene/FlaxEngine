@@ -152,6 +152,12 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.AudioClipThumbIcon;
+        }
+
+        /// <inheritdoc />
         public override void Dispose()
         {
             if (_previews != null)

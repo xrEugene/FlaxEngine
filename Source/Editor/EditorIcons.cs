@@ -2,6 +2,7 @@
 
 using System.Reflection;
 using FlaxEngine;
+using FlaxEngine.GUI;
 
 #pragma warning disable 1591
 
@@ -14,7 +15,7 @@ namespace FlaxEditor
     /// Postfix number informs about the sprite resolution (in pixels).
     /// </remarks>
     [HideInEditor]
-    public sealed class EditorIcons
+    public class EditorIcons
     {
         // 12px
         public SpriteHandle DragBar12;
@@ -154,7 +155,62 @@ namespace FlaxEditor
         public SpriteHandle Web128;
         public SpriteHandle WebSettings128;
 
-        internal void LoadIcons()
+        /// <summary>
+        /// The brush for the <see cref="ArrowRight12"/> icon. Defaults to a sprite brush wrapping <see cref="ArrowRight12"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush ArrowRight12Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Right32"/> icon. Defaults to a sprite brush wrapping <see cref="Right32"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Right32Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Right64"/> icon. Defaults to a sprite brush wrapping <see cref="Right64"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Right64Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="ArrowDown12"/> icon. Defaults to a sprite brush wrapping <see cref="ArrowDown12"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush ArrowDown12Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Down32"/> icon. Defaults to a sprite brush wrapping <see cref="Down32"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Down32Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Down64"/> icon. Defaults to a sprite brush wrapping <see cref="Down64"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Down64Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Left32"/> icon. Defaults to a sprite brush wrapping <see cref="Left32"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Left32Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Left64"/> icon. Defaults to a sprite brush wrapping <see cref="Left64"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Left64Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Up32"/> icon. Defaults to a sprite brush wrapping <see cref="Up32"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Up32Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Up64"/> icon. Defaults to a sprite brush wrapping <see cref="Up64"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Up64Brush;
+
+        /// <summary>
+        /// The brush for the <see cref="Cross12"/> icon. Defaults to a sprite brush wrapping <see cref="Cross12"/>; a subclass can replace it with a custom texture-based icon.
+        /// </summary>
+        public IBrush Cross12Brush;
+
+        internal virtual void LoadIcons()
         {
             // Load & validate
             var iconsAtlas = FlaxEngine.Content.LoadAsyncInternal<SpriteAtlas>(EditorAssets.IconsAtlas);
@@ -169,6 +225,8 @@ namespace FlaxEditor
             for (int i = 0; i < fields.Length; i++)
             {
                 var field = fields[i];
+                if (field.FieldType != typeof(SpriteHandle))
+                    continue;
 
                 var sprite = iconsAtlas.FindSprite(field.Name);
                 if (!sprite.IsValid)
@@ -176,6 +234,18 @@ namespace FlaxEditor
 
                 field.SetValue(this, sprite);
             }
+
+            ArrowRight12Brush = new SpriteBrush(ArrowRight12);
+            Right32Brush = new SpriteBrush(Right32);
+            Right64Brush = new SpriteBrush(Right64);
+            ArrowDown12Brush = new SpriteBrush(ArrowDown12);
+            Down32Brush = new SpriteBrush(Down32);
+            Down64Brush = new SpriteBrush(Down64);
+            Left32Brush = new SpriteBrush(Left32);
+            Left64Brush = new SpriteBrush(Left64);
+            Up32Brush = new SpriteBrush(Up32);
+            Up64Brush = new SpriteBrush(Up64);
+            Cross12Brush = new SpriteBrush(Cross12);
         }
     }
 }

@@ -69,17 +69,20 @@ namespace FlaxEditor.CustomEditors.Editors
             {
                 menu.ItemsContainer.RemoveChildren();
 
-                menu.AddButton("Copy", linkedEditor.Copy);
+                var icons = FlaxEditor.Editor.Instance.Icons as CustomEditorIcons;
+                menu.AddButton("Copy", linkedEditor.Copy).IconBrush = icons?.CopyBrush;
                 var b = menu.AddButton("Duplicate", () => Editor.Duplicate(Index));
                 b.Enabled = !Editor._readOnly && Editor._canResize;
+                b.IconBrush = icons?.DuplicateBrush;
                 b = menu.AddButton("Paste", linkedEditor.Paste);
                 b.Enabled = linkedEditor.CanPaste && !Editor._readOnly;
+                b.IconBrush = icons?.PasteBrush;
 
                 menu.AddSeparator();
-                b = menu.AddButton("Move up", OnMoveUpClicked);
+                b = menu.AddButton("Move Up", OnMoveUpClicked);
                 b.Enabled = Index > 0 && !Editor._readOnly;
 
-                b = menu.AddButton("Move down", OnMoveDownClicked);
+                b = menu.AddButton("Move Down", OnMoveDownClicked);
                 b.Enabled = Index + 1 < Editor.Count && !Editor._readOnly;
 
                 b = menu.AddButton("Remove", OnRemoveClicked);
@@ -239,8 +242,8 @@ namespace FlaxEditor.CustomEditors.Editors
                 _canReorder = canReorder;
                 EnableDropDownIcon = true;
                 var icons = FlaxEditor.Editor.Instance.Icons;
-                ArrowImageClosed = new SpriteBrush(icons.ArrowRight12);
-                ArrowImageOpened = new SpriteBrush(icons.ArrowDown12);
+                ArrowImageClosed = icons.ArrowRight12Brush;
+                ArrowImageOpened = icons.ArrowDown12Brush;
                 HeaderText = $"Element {index}";
                 
                 string saveName = string.Empty;
@@ -405,20 +408,23 @@ namespace FlaxEditor.CustomEditors.Editors
                 var linkedEditor = LinkedEditor;
                 var menu = new ContextMenu();
 
-                menu.AddButton("Copy", linkedEditor.Copy);
+                var icons = FlaxEditor.Editor.Instance.Icons as CustomEditorIcons;
+                menu.AddButton("Copy", linkedEditor.Copy).IconBrush = icons?.CopyBrush;
                 var b = menu.AddButton("Duplicate", () => Editor.Duplicate(Index));
                 b.Enabled = !Editor._readOnly && Editor._canResize;
+                b.IconBrush = icons?.DuplicateBrush;
                 var paste = menu.AddButton("Paste", linkedEditor.Paste);
                 paste.Enabled = linkedEditor.CanPaste && !Editor._readOnly;
+                paste.IconBrush = icons?.PasteBrush;
 
                 if (_canReorder)
                 {
                     menu.AddSeparator();
 
-                    var moveUpButton = menu.AddButton("Move up", OnMoveUpClicked);
+                    var moveUpButton = menu.AddButton("Move Up", OnMoveUpClicked);
                     moveUpButton.Enabled = Index > 0;
 
-                    var moveDownButton = menu.AddButton("Move down", OnMoveDownClicked);
+                    var moveDownButton = menu.AddButton("Move Down", OnMoveDownClicked);
                     moveDownButton.Enabled = Index + 1 < Editor.Count;
                 }
 

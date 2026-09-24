@@ -71,12 +71,18 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.SceneThumbIcon;
+        }
+
+        /// <inheritdoc />
         public override void OnContentWindowContextMenu(ContextMenu menu, ContentItem item)
         {
             var id = ((SceneItem)item).ID;
             if (Level.FindScene(id) == null)
             {
-                menu.AddButton("Open (additive)", () => { Editor.Instance.Scene.OpenScene(id, true); });
+                menu.AddButton("Open as Additive", () => { Editor.Instance.Scene.OpenScene(id, true); }).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.OpenAdditiveBrush;
             }
         }
     }

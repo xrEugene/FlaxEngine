@@ -763,7 +763,7 @@ namespace FlaxEditor.Viewport
 
                 // Field of View
                 {
-                    var fov = cameraCM.AddButton("Field Of View");
+                    var fov = cameraCM.AddButton("Field of View");
                     fov.CloseMenuOnClick = false;
                     var fovValue = new FloatValueBox(_fieldOfView, xLocationForExtras, 2, 70.0f, 35.0f, 160.0f, 0.1f)
                     {
@@ -825,7 +825,7 @@ namespace FlaxEditor.Viewport
 
                 // Reset Button
                 {
-                    var reset = cameraCM.AddButton("Reset to default");
+                    var reset = cameraCM.AddButton("Reset to Default");
                     reset.ButtonClicked += button =>
                     {
                         SetupViewportOptions();
@@ -871,8 +871,8 @@ namespace FlaxEditor.Viewport
                 // View Layers
                 {
                     var viewLayers = ViewWidgetButtonMenu.AddChildMenu("View Layers").ContextMenu;
-                    viewLayers.AddButton("Copy layers", () => Clipboard.Text = JsonSerializer.Serialize(Task.View.RenderLayersMask));
-                    viewLayers.AddButton("Paste layers", () =>
+                    viewLayers.AddButton("Copy Layers", () => Clipboard.Text = JsonSerializer.Serialize(Task.View.RenderLayersMask));
+                    viewLayers.AddButton("Paste Layers", () =>
                     {
                         try
                         {
@@ -882,10 +882,10 @@ namespace FlaxEditor.Viewport
                         {
                         }
                     });
-                    viewLayers.AddButton("Reset layers", () => Task.ViewLayersMask = LayersMask.Default).Icon = Editor.Instance.Icons.Rotate32;
+                    viewLayers.AddButton("Reset Layers", () => Task.ViewLayersMask = LayersMask.Default).Icon = Editor.Instance.Icons.Rotate32;
                     viewLayers.AddSeparator();
-                    viewLayers.AddButton("Enable all", () => Task.ViewLayersMask = new LayersMask(-1)).Icon = Editor.Instance.Icons.CheckBoxTick12;
-                    viewLayers.AddButton("Disable all", () => Task.ViewLayersMask = new LayersMask(0)).Icon = Editor.Instance.Icons.Cross12;
+                    viewLayers.AddButton("Enable All", () => Task.ViewLayersMask = new LayersMask(-1)).Icon = Editor.Instance.Icons.CheckBoxTick12;
+                    viewLayers.AddButton("Disable All", () => Task.ViewLayersMask = new LayersMask(0)).IconBrush = Editor.Instance.Icons.Cross12Brush;
                     viewLayers.AddSeparator();
                     var layers = LayersAndTagsSettings.GetCurrentLayers();
                     if (layers != null && layers.Length > 0)
@@ -914,8 +914,8 @@ namespace FlaxEditor.Viewport
                 // View Flags
                 {
                     var viewFlags = ViewWidgetButtonMenu.AddChildMenu("View Flags").ContextMenu;
-                    viewFlags.AddButton("Copy flags", () => Clipboard.Text = JsonSerializer.Serialize(Task.ViewFlags));
-                    viewFlags.AddButton("Paste flags", () =>
+                    viewFlags.AddButton("Copy Flags", () => Clipboard.Text = JsonSerializer.Serialize(Task.ViewFlags));
+                    viewFlags.AddButton("Paste Flags", () =>
                     {
                         try
                         {
@@ -925,10 +925,10 @@ namespace FlaxEditor.Viewport
                         {
                         }
                     });
-                    viewFlags.AddButton("Reset flags", () => Task.ViewFlags = ViewFlags.DefaultEditor).Icon = Editor.Instance.Icons.Rotate32;
+                    viewFlags.AddButton("Reset Flags", () => Task.ViewFlags = ViewFlags.DefaultEditor).Icon = Editor.Instance.Icons.Rotate32;
                     viewFlags.AddSeparator();
-                    viewFlags.AddButton("Enable all", () => Task.ViewFlags = ViewFlags.All).Icon = Editor.Instance.Icons.CheckBoxTick12;
-                    viewFlags.AddButton("Disable all", () => Task.ViewFlags = ViewFlags.None).Icon = Editor.Instance.Icons.Cross12;
+                    viewFlags.AddButton("Enable All", () => Task.ViewFlags = ViewFlags.All).Icon = Editor.Instance.Icons.CheckBoxTick12;
+                    viewFlags.AddButton("Disable All", () => Task.ViewFlags = ViewFlags.None).IconBrush = Editor.Instance.Icons.Cross12Brush;
                     viewFlags.AddSeparator();
                     for (int i = 0; i < ViewFlagsValues.Length; i++)
                     {
@@ -952,8 +952,8 @@ namespace FlaxEditor.Viewport
                 // Debug View
                 {
                     var debugView = ViewWidgetButtonMenu.AddChildMenu("Debug View").ContextMenu;
-                    debugView.AddButton("Copy view", () => Clipboard.Text = JsonSerializer.Serialize(Task.ViewMode));
-                    debugView.AddButton("Paste view", () =>
+                    debugView.AddButton("Copy View", () => Clipboard.Text = JsonSerializer.Serialize(Task.ViewMode));
+                    debugView.AddButton("Paste View", () =>
                     {
                         try
                         {

@@ -17,6 +17,10 @@ namespace FlaxEditor.Content
         public VideoItem(string path)
         : base(path)
         {
+            // Overrides the generic icon the FileItem base constructor just set - Video is its own distinct
+            // content item type (own TypeDescription, own VideoProxy/AccentColor) and gets its own icon rather
+            // than inheriting File's just because it happens to derive from FileItem for its file-handling behavior.
+            GenericThumbnailIcon = EditorAssets.VideoThumbIcon;
         }
 
         /// <inheritdoc />

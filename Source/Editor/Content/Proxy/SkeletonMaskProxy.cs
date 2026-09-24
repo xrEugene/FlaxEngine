@@ -41,5 +41,11 @@ namespace FlaxEditor.Content
             if (Editor.CreateAsset("SkeletonMask", outputPath))
                 throw new Exception("Failed to create new asset.");
         }
+
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.SkeletonMaskThumbIcon;
+        }
     }
 }

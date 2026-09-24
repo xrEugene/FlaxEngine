@@ -101,9 +101,9 @@ namespace FlaxEditor.Windows.Profiler
             _clearButton = toolstrip.AddButton(editor.Icons.Rotate32, Clear);
             _clearButton.LinkTooltip("Clear data");
             toolstrip.AddSeparator();
-            _prevFrameButton = toolstrip.AddButton(editor.Icons.Left64, () => ViewFrameIndex--);
+            _prevFrameButton = toolstrip.AddButton(editor.Icons.Left64Brush, () => ViewFrameIndex--);
             _prevFrameButton.LinkTooltip("Previous frame");
-            _nextFrameButton = toolstrip.AddButton(editor.Icons.Right64, () => ViewFrameIndex++);
+            _nextFrameButton = toolstrip.AddButton(editor.Icons.Right64Brush, () => ViewFrameIndex++);
             _nextFrameButton.LinkTooltip("Next frame");
             _lastFrameButton = toolstrip.AddButton(editor.Icons.Skip64, () => ViewFrameIndex = -1);
             _lastFrameButton.LinkTooltip("Current frame");

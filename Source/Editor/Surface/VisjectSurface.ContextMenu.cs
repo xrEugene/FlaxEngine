@@ -334,20 +334,29 @@ namespace FlaxEditor.Surface
                 menu.AddButton("Save", _onSave).Enabled = CanEdit;
                 menu.AddSeparator();
             }
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
             _cmCopyButton = menu.AddButton("Copy", Copy);
-            menu.AddButton("Paste", Paste).Enabled = CanEdit && CanPaste();
+            _cmCopyButton.IconBrush = icons?.CopyBrush;
+            var pasteButton = menu.AddButton("Paste", Paste);
+            pasteButton.Enabled = CanEdit && CanPaste();
+            pasteButton.IconBrush = icons?.PasteBrush;
             _cmDuplicateButton = menu.AddButton("Duplicate", Duplicate);
             _cmDuplicateButton.Enabled = CanEdit && selection.Any(node => (node.Archetype.Flags & NodeFlags.NoSpawnViaPaste) == 0);
+            _cmDuplicateButton.IconBrush = icons?.DuplicateBrush;
             var canRemove = CanEdit && selection.All(node => (node.Archetype.Flags & NodeFlags.NoRemove) == 0);
-            menu.AddButton("Cut", Cut).Enabled = canRemove;
-            menu.AddButton("Delete", Delete).Enabled = canRemove;
+            var cutButton = menu.AddButton("Cut", Cut);
+            cutButton.Enabled = canRemove;
+            cutButton.IconBrush = icons?.CutBrush;
+            var deleteButton = menu.AddButton("Delete", Delete);
+            deleteButton.Enabled = canRemove;
+            deleteButton.IconBrush = icons?.DeleteBrush;
 
             if (_supportsDebugging)
             {
                 menu.AddSeparator();
                 if (selection.Count == 1)
                 {
-                    menu.AddButton(selection[0].Breakpoint.Set ? "Delete breakpoint" : "Add breakpoint", () =>
+                    menu.AddButton(selection[0].Breakpoint.Set ? "Delete Breakpoint" : "Add Breakpoint", () =>
                     {
                         foreach (var node in Nodes)
                         {
@@ -360,7 +369,7 @@ namespace FlaxEditor.Surface
                             }
                         }
                     });
-                    menu.AddButton("Toggle breakpoint", () =>
+                    menu.AddButton("Toggle Breakpoint", () =>
                     {
                         foreach (var node in Nodes)
                         {
@@ -374,7 +383,7 @@ namespace FlaxEditor.Surface
                     }).Enabled = selection[0].Breakpoint.Set;
                 }
                 menu.AddSeparator();
-                menu.AddButton("Delete all breakpoints", () =>
+                menu.AddButton("Delete All Breakpoints", () =>
                 {
                     foreach (var node in Nodes)
                     {
@@ -385,7 +394,7 @@ namespace FlaxEditor.Surface
                         }
                     }
                 }).Enabled = Nodes.Any(x => x.Breakpoint.Set);
-                menu.AddButton("Enable all breakpoints", () =>
+                menu.AddButton("Enable All Breakpoints", () =>
                 {
                     foreach (var node in Nodes)
                     {
@@ -396,7 +405,7 @@ namespace FlaxEditor.Surface
                         }
                     }
                 }).Enabled = Nodes.Any(x => x.Breakpoint.Set && !x.Breakpoint.Enabled);
-                menu.AddButton("Disable all breakpoints", () =>
+                menu.AddButton("Disable All Breakpoints", () =>
                 {
                     foreach (var node in Nodes)
                     {
@@ -413,27 +422,27 @@ namespace FlaxEditor.Surface
             bool allNodesNoMove = SelectedNodes.All(n => n.Archetype.Flags.HasFlag(NodeFlags.NoMove));
             bool clickedNodeNoMove = ((SelectedNodes.Count == 1 && controlUnderMouse is SurfaceNode n && n.Archetype.Flags.HasFlag(NodeFlags.NoMove)));
 
-            _cmFormatNodesMenu = menu.AddChildMenu("Format nodes");
+            _cmFormatNodesMenu = menu.AddChildMenu("Format Nodes");
             _cmFormatNodesMenu.Enabled = CanEdit && HasNodesSelection && !(allNodesNoMove || clickedNodeNoMove);
 
-            _cmFormatNodesConnectionButton = _cmFormatNodesMenu.ContextMenu.AddButton("Auto format", Editor.Instance.Options.Options.Input.NodesAutoFormat, () => { FormatGraph(SelectedNodes); });
-            _cmFormatNodesConnectionButton = _cmFormatNodesMenu.ContextMenu.AddButton("Straighten connections", Editor.Instance.Options.Options.Input.NodesStraightenConnections, () => { StraightenGraphConnections(SelectedNodes); });
+            _cmFormatNodesConnectionButton = _cmFormatNodesMenu.ContextMenu.AddButton("Auto Format", Editor.Instance.Options.Options.Input.NodesAutoFormat, () => { FormatGraph(SelectedNodes); });
+            _cmFormatNodesConnectionButton = _cmFormatNodesMenu.ContextMenu.AddButton("Straighten Connections", Editor.Instance.Options.Options.Input.NodesStraightenConnections, () => { StraightenGraphConnections(SelectedNodes); });
 
             _cmFormatNodesMenu.ContextMenu.AddSeparator();
-            _cmAlignNodesTopButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align top", Editor.Instance.Options.Options.Input.NodesAlignTop, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Top); });
-            _cmAlignNodesMiddleButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align middle", Editor.Instance.Options.Options.Input.NodesAlignMiddle, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Middle); });
-            _cmAlignNodesBottomButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align bottom", Editor.Instance.Options.Options.Input.NodesAlignBottom, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Bottom); });
+            _cmAlignNodesTopButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align Top", Editor.Instance.Options.Options.Input.NodesAlignTop, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Top); });
+            _cmAlignNodesMiddleButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align Middle", Editor.Instance.Options.Options.Input.NodesAlignMiddle, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Middle); });
+            _cmAlignNodesBottomButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align Bottom", Editor.Instance.Options.Options.Input.NodesAlignBottom, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Bottom); });
 
             _cmFormatNodesMenu.ContextMenu.AddSeparator();
-            _cmAlignNodesLeftButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align left", Editor.Instance.Options.Options.Input.NodesAlignLeft, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Left); });
-            _cmAlignNodesCenterButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align center", Editor.Instance.Options.Options.Input.NodesAlignCenter, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Center); });
-            _cmAlignNodesRightButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align right", Editor.Instance.Options.Options.Input.NodesAlignRight, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Right); });
+            _cmAlignNodesLeftButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align Left", Editor.Instance.Options.Options.Input.NodesAlignLeft, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Left); });
+            _cmAlignNodesCenterButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align Center", Editor.Instance.Options.Options.Input.NodesAlignCenter, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Center); });
+            _cmAlignNodesRightButton = _cmFormatNodesMenu.ContextMenu.AddButton("Align Right", Editor.Instance.Options.Options.Input.NodesAlignRight, () => { AlignNodes(SelectedNodes, NodeAlignmentType.Right); });
 
             _cmFormatNodesMenu.ContextMenu.AddSeparator();
-            _cmDistributeNodesHorizontallyButton = _cmFormatNodesMenu.ContextMenu.AddButton("Distribute horizontally", Editor.Instance.Options.Options.Input.NodesDistributeHorizontal, () => { DistributeNodes(SelectedNodes, false); });
-            _cmDistributeNodesVerticallyButton = _cmFormatNodesMenu.ContextMenu.AddButton("Distribute vertically", Editor.Instance.Options.Options.Input.NodesDistributeVertical, () => { DistributeNodes(SelectedNodes, true); });
+            _cmDistributeNodesHorizontallyButton = _cmFormatNodesMenu.ContextMenu.AddButton("Distribute Horizontally", Editor.Instance.Options.Options.Input.NodesDistributeHorizontal, () => { DistributeNodes(SelectedNodes, false); });
+            _cmDistributeNodesVerticallyButton = _cmFormatNodesMenu.ContextMenu.AddButton("Distribute Vertically", Editor.Instance.Options.Options.Input.NodesDistributeVertical, () => { DistributeNodes(SelectedNodes, true); });
 
-            _cmRemoveNodeConnectionsButton = menu.AddButton("Remove all connections", () =>
+            _cmRemoveNodeConnectionsButton = menu.AddButton("Remove All Connections", () =>
             {
                 var nodes = ((List<SurfaceNode>)menu.Tag);
 
@@ -462,7 +471,7 @@ namespace FlaxEditor.Surface
             bool anyConnection = SelectedNodes.Any(n => n.GetBoxes().Any(b => b.HasAnyConnection));
             _cmRemoveNodeConnectionsButton.Enabled = CanEdit && anyConnection;
 
-            _cmRemoveBoxConnectionsButton = menu.AddButton("Remove all socket connections", () =>
+            _cmRemoveBoxConnectionsButton = menu.AddButton("Remove All Socket Connections", () =>
             {
                 var boxUnderMouse = (Box)_cmRemoveBoxConnectionsButton.Tag;
                 if (Undo != null)

@@ -38,15 +38,28 @@ namespace FlaxEditor.Windows
 
             // Expand/collapse
 
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
+            bool allExpanded = hasSthSelected;
+            bool allCollapsed = hasSthSelected;
+            for (int i = 0; i < Editor.SceneEditing.SelectionCount; i++)
+            {
+                if (Editor.SceneEditing.Selection[i] is ActorNode node)
+                {
+                    allExpanded &= node.TreeNode.IsFullyExpanded;
+                    allCollapsed &= node.TreeNode.IsFullyCollapsed;
+                }
+            }
             var b = contextMenu.AddButton("Expand All", OnExpandAllClicked);
-            b.Enabled = hasSthSelected;
+            b.Enabled = hasSthSelected && !allExpanded;
+            b.IconBrush = icons?.ExpandAllBrush;
 
             b = contextMenu.AddButton("Collapse All", OnCollapseAllClicked);
-            b.Enabled = hasSthSelected;
+            b.Enabled = hasSthSelected && !allCollapsed;
+            b.IconBrush = icons?.CollapseAllBrush;
 
             if (hasSthSelected)
             {
-                contextMenu.AddButton(Editor.Windows.EditWin.IsPilotActorActive ? "Stop piloting actor" : "Pilot actor", inputOptions.PilotActor, Editor.UI.PilotActor);
+                contextMenu.AddButton(Editor.Windows.EditWin.IsPilotActorActive ? "Stop Piloting Actor" : "Pilot Actor", inputOptions.PilotActor, Editor.UI.PilotActor);
             }
 
             contextMenu.AddSeparator();
@@ -55,8 +68,10 @@ namespace FlaxEditor.Windows
             var firstSelection = hasSthSelected ? Editor.SceneEditing.Selection[0] as ActorNode : null;
             b = contextMenu.AddButton("Rename", inputOptions.Rename, RenameSelection);
             b.Enabled = hasSthSelected;
+            b.IconBrush = icons?.RenameBrush;
             b = contextMenu.AddButton("Duplicate", inputOptions.Duplicate, Editor.SceneEditing.Duplicate);
             b.Enabled = hasSthSelected && (firstSelection != null ? firstSelection.CanDuplicate : true);
+            b.IconBrush = icons?.DuplicateBrush;
 
             if (isSingleActorSelected && firstSelection?.Actor is not Scene)
             {
@@ -119,22 +134,25 @@ namespace FlaxEditor.Windows
             }
             b = contextMenu.AddButton("Delete", inputOptions.Delete, Editor.SceneEditing.Delete);
             b.Enabled = hasSthSelected && (firstSelection != null ? firstSelection.CanDelete : true);
+            b.IconBrush = icons?.DeleteBrush;
 
             contextMenu.AddSeparator();
 
             b = contextMenu.AddButton("Copy", inputOptions.Copy, Editor.SceneEditing.Copy);
             b.Enabled = hasSthSelected && (firstSelection != null ? firstSelection.CanCopyPaste : true);
+            b.IconBrush = icons?.CopyBrush;
 
-            contextMenu.AddButton("Paste", inputOptions.Paste, Editor.SceneEditing.Paste);
+            contextMenu.AddButton("Paste", inputOptions.Paste, Editor.SceneEditing.Paste).IconBrush = icons?.PasteBrush;
 
             b = contextMenu.AddButton("Cut", inputOptions.Cut, Editor.SceneEditing.Cut);
             b.Enabled = canEditScene && hasSthSelected && (firstSelection != null ? firstSelection.CanCopyPaste : true);
+            b.IconBrush = icons?.CutBrush;
 
             // Create option
 
             contextMenu.AddSeparator();
 
-            b = contextMenu.AddButton("Parent to new Actor", inputOptions.GroupSelectedActors, Editor.SceneEditing.CreateParentForSelectedActors);
+            b = contextMenu.AddButton("Parent to New Actor", inputOptions.GroupSelectedActors, Editor.SceneEditing.CreateParentForSelectedActors);
             b.Enabled = canEditScene && hasSthSelected && firstSelection?.Actor is not Scene;
 
             b = contextMenu.AddButton("Create Prefab", Editor.Prefabs.CreatePrefab);

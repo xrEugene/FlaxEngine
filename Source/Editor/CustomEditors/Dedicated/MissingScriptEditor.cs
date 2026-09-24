@@ -159,7 +159,7 @@ public class MissingScriptEditor : GenericEditor
         {
             // No scripts
             var cm1 = new ContextMenu();
-            cm1.AddButton("No scripts in project");
+            cm1.AddButton("No Scripts in Project");
             cm1.Show(_dropPanel, _replaceScriptButton.BottomLeft);
             return;
         }

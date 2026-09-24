@@ -209,6 +209,23 @@ namespace FlaxEditor.Content
         {
             Editor.Instance.ContentImporting.Create(new GenericJsonCreateEntry(outputPath));
         }
+
+        /// <inheritdoc />
+        public override AssetItem ConstructItem(string path, string typeName, ref Guid id)
+        {
+            // Invalid (not the base's Json128) so the item has no DefaultThumbnail and falls through to
+            // GetGenericThumbnailIcon below, instead of ThumbnailsModule.RequestPreview short-circuiting on it -
+            // scoped to just this concrete class (not the shared JsonAssetProxy base 3-arg constructor), so
+            // Settings/PhysicalMaterial/LocalizedStringTable items - which explicitly supply their own thumbnail -
+            // are unaffected.
+            return new JsonAssetItem(path, id, typeName, SpriteHandle.Invalid);
+        }
+
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return EditorAssets.JsonAssetThumbIcon;
+        }
     }
 
     /// <summary>
@@ -254,7 +271,16 @@ namespace FlaxEditor.Content
         /// <inheritdoc />
         public override AssetItem ConstructItem(string path, string typeName, ref Guid id)
         {
-            return _thumbnail.IsValid ? new JsonAssetItem(path, id, typeName, _thumbnail) : base.ConstructItem(path, typeName, ref id);
+            // Always constructs with _thumbnail directly (valid or Invalid) rather than falling back to the base
+            // JsonAssetProxy.ConstructItem's Json128 default when no thumbnail was supplied - so a type registered
+            // without its own icon (eg. PhysicalMaterial) falls through to GetGenericThumbnailIcon below instead.
+            return new JsonAssetItem(path, id, typeName, _thumbnail);
+        }
+
+        /// <inheritdoc />
+        public override string GetGenericThumbnailIcon(AssetItem item)
+        {
+            return _thumbnail.IsValid ? null : EditorAssets.JsonAssetThumbIcon;
         }
 
         /// <inheritdoc />

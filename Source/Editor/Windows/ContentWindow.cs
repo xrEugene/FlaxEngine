@@ -27,11 +27,19 @@ namespace FlaxEditor.Windows
     public sealed partial class ContentWindow : EditorWindow
     {
         private const string ProjectDataLastViewedFolder = "LastViewedFolder";
+        private const string ProjectDataLastViewedFolderScroll = "LastViewedFolderScroll";
         private const string ProjectDataExpandedFolders = "ExpandedFolders";
         private const float DefaultSplitterValue = 0.1725f;
         private bool _isWorkspaceDirty;
         private string _workspaceRebuildLocation;
         private string _lastViewedFolderBeforeReload;
+
+        // The tree panel isn't given its real, docked size yet during OnInit, so its VScrollBar.Maximum is still
+        // stale (usually 0) and would immediately clamp a restored value back down - this defers the restore to
+        // Update(), retrying each frame until the panel has a real size (or giving up after a couple seconds, eg.
+        // if there's nothing to scroll to).
+        private float? _pendingContentTreeScroll;
+        private int _pendingContentTreeScrollFrames;
         private SplitPanel _split;
         private TreeViewPanel _treeOnlyPanel;
         private ContainerControl _treePanelRoot;
@@ -254,6 +262,7 @@ namespace FlaxEditor.Windows
                 Height = 23.0f,
                 Parent = _viewDropdownPanel,
             };
+            _viewDropdown.ArrowColorSelected = _viewDropdown.ArrowColorHighlighted;
             _viewDropdown.LocalX += 12.0f;
             _viewDropdown.LocalY += Mathf.Floor(_toolStrip.ItemsHeight * 0.5f - _viewDropdown.Height * 0.5f);
             _viewDropdown.SelectedIndexChanged += e => UpdateItemsSearch();
@@ -376,7 +385,7 @@ namespace FlaxEditor.Windows
 
             var show = menu.AddChildMenu("Show");
             {
-                var b = show.ContextMenu.AddButton("File extensions", () =>
+                var b = show.ContextMenu.AddButton("File Extensions", () =>
                 {
                     View.ShowFileExtensions = !View.ShowFileExtensions;
                     if (_showAllContentInTree)
@@ -387,25 +396,25 @@ namespace FlaxEditor.Windows
                 b.CloseMenuOnClick = false;
                 b.AutoCheck = true;
 
-                b = show.ContextMenu.AddButton("Engine files", () => ShowEngineFiles = !ShowEngineFiles);
+                b = show.ContextMenu.AddButton("Engine Files", () => ShowEngineFiles = !ShowEngineFiles);
                 b.TooltipText = "Shows in-built engine content";
                 b.Checked = ShowEngineFiles;
                 b.CloseMenuOnClick = false;
                 b.AutoCheck = true;
 
-                b = show.ContextMenu.AddButton("Plugins files", () => ShowPluginsFiles = !ShowPluginsFiles);
+                b = show.ContextMenu.AddButton("Plugins Files", () => ShowPluginsFiles = !ShowPluginsFiles);
                 b.TooltipText = "Shows plugin projects content";
                 b.Checked = ShowPluginsFiles;
                 b.CloseMenuOnClick = false;
                 b.AutoCheck = true;
 
-                b = show.ContextMenu.AddButton("Generated files", () => ShowGeneratedFiles = !ShowGeneratedFiles);
+                b = show.ContextMenu.AddButton("Generated Files", () => ShowGeneratedFiles = !ShowGeneratedFiles);
                 b.TooltipText = "Shows generated files";
                 b.Checked = ShowGeneratedFiles;
                 b.CloseMenuOnClick = false;
                 b.AutoCheck = true;
 
-                b = show.ContextMenu.AddButton("All files", () => ShowAllFiles = !ShowAllFiles);
+                b = show.ContextMenu.AddButton("All Files", () => ShowAllFiles = !ShowAllFiles);
                 b.TooltipText = "Shows all files including other than assets and source code";
                 b.Checked = ShowAllFiles;
                 b.CloseMenuOnClick = false;
@@ -439,7 +448,7 @@ namespace FlaxEditor.Windows
                 }
             };
 
-            var sortBy = menu.AddChildMenu("Sort by");
+            var sortBy = menu.AddChildMenu("Sort By");
             sortBy.ContextMenu.AddButton("Alphabetic Order", OnSortByButtonClicked).Tag = SortType.AlphabeticOrder;
             sortBy.ContextMenu.AddButton("Alphabetic Reverse", OnSortByButtonClicked).Tag = SortType.AlphabeticReverse;
             sortBy.ContextMenu.VisibleChanged += control =>
@@ -570,6 +579,17 @@ namespace FlaxEditor.Windows
         /// <returns>The created renaming popup.</returns>
         public void Rename(ContentItem item)
         {
+            Rename(item, false);
+        }
+
+        /// <summary>
+        /// Shows popup dialog with UI to rename content item.
+        /// </summary>
+        /// <param name="item">The item to rename.</param>
+        /// <param name="forceRenameInTree">True to show the rename popup in the tree view even in the split view
+        /// mode (eg. the item was just created from a New Folder/Asset action triggered from the tree panel).</param>
+        private void Rename(ContentItem item, bool forceRenameInTree)
+        {
             if (!item.CanRename)
                 return;
 
@@ -577,7 +597,7 @@ namespace FlaxEditor.Windows
             Select(item, true);
 
             // Disable scrolling in proper view
-            _renameInTree = _showAllContentInTree;
+            _renameInTree = _showAllContentInTree || forceRenameInTree;
             if (_renameInTree)
                 ScrollingOnTreeView(false);
             else
@@ -585,6 +605,12 @@ namespace FlaxEditor.Windows
 
             // Show rename popup
             RenamePopup popup;
+            // Match the font scale and wrap width the finished (non-editing) tile label uses (see ContentItem.Draw
+            // and GetWrapTextRectangle), so word-wrapping while editing happens at exactly the same point it does
+            // once renaming finishes.
+            var gridTextScale = item.Parent is Content.GUI.ContentView contentView ? 0.95f * contentView.ViewScale : 1.0f;
+            var gridTextRect = item.TextRectangle;
+            var gridWrapWidthMargin = gridTextRect.Width - item.GetWrapTextRectangle(gridTextRect, item.Size).Width;
             if (_renameInTree)
             {
                 TreeNode node = null;
@@ -595,27 +621,25 @@ namespace FlaxEditor.Windows
                 if (node == null)
                 {
                     // Fallback to content view rename
-                    popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true);
+                    popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true, wrapWords: true, textScale: gridTextScale, wrapWidthMargin: gridWrapWidthMargin);
                 }
                 else
                 {
                     var area = node.TextRect;
-                    const float minRenameWidth = 220.0f;
-                    if (area.Width < minRenameWidth)
-                        area.Width = minRenameWidth;
                     area.Y -= 2;
                     area.Height += 4.0f;
-                    popup = RenamePopup.Show(node, area, item.ShortName, true);
+                    popup = RenamePopup.Show(node, area, item.ShortName, false, fitToContent: true);
                 }
             }
             else
             {
-                popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true);
+                popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true, wrapWords: true, textScale: gridTextScale, wrapWidthMargin: gridWrapWidthMargin);
             }
             popup.Tag = item;
             popup.Validate += OnRenameValidate;
             popup.Renamed += renamePopup => Rename((ContentItem)renamePopup.Tag, renamePopup.Text);
             popup.Closed += OnRenameClosed;
+            item.IsBeingRenamed = true;
 
             // For new asset we want to mock the initial value so user can press just Enter to use default name
             if (_newElement != null)
@@ -631,6 +655,24 @@ namespace FlaxEditor.Windows
 
         private void OnRenameClosed(RenamePopup popup)
         {
+            if (popup.Tag is ContentItem item)
+            {
+                item.IsBeingRenamed = false;
+
+                // Restore visibility in whichever panel was hidden while this was a pending new item (see NewFolder),
+                // regardless of whether the rename was confirmed or cancelled - either way the item now has a name.
+                if (!item.Visible)
+                {
+                    item.Visible = true;
+                    RefreshView();
+                }
+                if (item is ContentFolder folder && folder.Node != null && !folder.Node.Visible)
+                {
+                    folder.Node.Visible = true;
+                    _tree.PerformLayout();
+                }
+            }
+
             // Restore scrolling in proper view
             if (_renameInTree)
                 ScrollingOnTreeView(true);
@@ -930,8 +972,14 @@ namespace FlaxEditor.Windows
         /// <summary>
         /// Starts creating the folder.
         /// </summary>
-        public void NewFolder()
+        /// <param name="targetFolder">The folder to create the new folder in. Null to use the currently viewed folder.</param>
+        /// <param name="renameInTree">True to show the rename popup for the new folder in the tree view rather than
+        /// the content view (eg. the action was triggered from the tree panel's context menu).</param>
+        public void NewFolder(ContentFolder targetFolder = null, bool renameInTree = false)
         {
+            if (targetFolder != null && targetFolder != CurrentViewFolder)
+                Open(targetFolder);
+
             // Construct path
             var parentFolder = SelectedNode.Folder;
             string destinationPath;
@@ -953,7 +1001,21 @@ namespace FlaxEditor.Windows
             // Start renaming it
             if (targetItem != null)
             {
-                Rename(targetItem);
+                // Hide it from the other panel until the name is confirmed (or the rename is cancelled), so a
+                // "New Folder (0)" placeholder doesn't show up on both sides when only one is actually being
+                // edited - restored in OnRenameClosed once the popup goes away.
+                if (renameInTree)
+                {
+                    targetItem.Visible = false;
+                    RefreshView();
+                }
+                else if (targetItem is ContentFolder newFolderNode && newFolderNode.Node != null)
+                {
+                    newFolderNode.Node.Visible = false;
+                    _tree.PerformLayout();
+                }
+
+                Rename(targetItem, renameInTree);
             }
         }
 
@@ -965,11 +1027,15 @@ namespace FlaxEditor.Windows
         /// <param name="created">The event called when the item is crated by the user. The argument is the new item.</param>
         /// <param name="initialName">The initial item name.</param>
         /// <param name="withRenaming">True if start initial item renaming by user, or tru to skip it.</param>
-        public void NewItem(ContentProxy proxy, object argument = null, Action<ContentItem> created = null, string initialName = null, bool withRenaming = true)
+        /// <param name="targetFolder">The folder to create the new item in. Null to use the currently viewed folder.</param>
+        public void NewItem(ContentProxy proxy, object argument = null, Action<ContentItem> created = null, string initialName = null, bool withRenaming = true, ContentFolder targetFolder = null)
         {
             Assert.IsNull(_newElement);
             if (proxy == null)
                 throw new ArgumentNullException(nameof(proxy));
+
+            if (targetFolder != null && targetFolder != CurrentViewFolder)
+                Open(targetFolder);
 
             // Setup name
             string name = initialName ?? proxy.NewItemName;
@@ -1163,6 +1229,12 @@ namespace FlaxEditor.Windows
 
             // Navigate to the parent directory
             Navigate(parent.Node);
+
+            // Skip selecting it in the grid while it's intentionally hidden there (eg. a new folder just created
+            // from the tree panel, still pending its rename - see NewFolder) - it would otherwise show up already
+            // selected the moment it's revealed, even though the user never interacted with the grid at all.
+            if (!item.Visible)
+                return;
 
             // Select and scroll to cover in view
             _view.Select(item, additive);
@@ -1507,6 +1579,7 @@ namespace FlaxEditor.Windows
             // Update buttons
             var folder = CurrentViewFolder;
             _importButton.Enabled = folder != null && folder.CanHaveAssets;
+            _createNewButton.Enabled = folder != null && !IsRootFolder(folder);
             _navigateBackwardButton.Enabled = _navigationUndo.Count > 0;
             _navigateForwardButton.Enabled = _navigationRedo.Count > 0;
 
@@ -1610,11 +1683,25 @@ namespace FlaxEditor.Windows
             LoadExpandedFolders();
             Refresh();
 
-            // Load last viewed folder
+            // Load last viewed folder - restoring this selection shouldn't count as real navigation (there's
+            // nothing to go Back to before the window's first ever view), so suppress history recording around it
+            // the same way WorkspaceRebuilt already does below for its own restorative selection.
             if (Editor.ProjectCache.TryGetCustomData(ProjectDataLastViewedFolder, out string lastViewedFolder))
             {
                 if (Editor.ContentDatabase.Find(lastViewedFolder) is ContentFolder folder)
+                {
+                    _navigationUnlocked = false;
                     _tree.Select(folder.Node);
+                    _navigationUnlocked = true;
+
+                    // Restore the tree panel's scroll position - deferred to Update(), since the panel doesn't
+                    // have its real docked size yet at this point (see _pendingContentTreeScroll).
+                    if (Editor.ProjectCache.TryGetCustomData(ProjectDataLastViewedFolderScroll, out float lastViewedFolderScroll))
+                    {
+                        _pendingContentTreeScroll = lastViewedFolderScroll;
+                        _pendingContentTreeScrollFrames = 0;
+                    }
+                }
             }
 
             ScriptsBuilder.ScriptsReloadBegin += OnScriptsReloadBegin;
@@ -1634,10 +1721,16 @@ namespace FlaxEditor.Windows
         {
             Refresh();
 
+            // Restoring the pre-reload folder shouldn't count as real navigation either - same suppression as the
+            // initial last-viewed-folder restore in OnInit, so it doesn't leave a spurious Back entry behind.
             if (!string.IsNullOrEmpty(_lastViewedFolderBeforeReload))
             {
                 if (Editor.ContentDatabase.Find(_lastViewedFolderBeforeReload) is ContentFolder folder)
+                {
+                    _navigationUnlocked = false;
                     _tree.Select(folder.Node);
+                    _navigationUnlocked = true;
+                }
             }
 
             OnFoldersSearchBoxTextChanged();
@@ -1755,6 +1848,19 @@ namespace FlaxEditor.Windows
                     RefreshView();
             }
 
+            // Re-apply the pending tree panel scroll restore every frame for a short window after project load,
+            // rather than once: the moment the tree grows tall enough to actually need a scroll bar, Panel toggles
+            // VScrollBar.Enabled and calls VScrollBar.Reset() to clear it back to 0 (see Panel.UpdateScrollBars) -
+            // which happens to be the exact same moment a one-shot restore would apply, so it kept getting wiped
+            // right back out. Reapplying on the following frames re-wins that race once the size has settled.
+            if (_pendingContentTreeScroll.HasValue)
+            {
+                if (_contentTreePanel.VScrollBar != null)
+                    _contentTreePanel.VScrollBar.TargetValue = _pendingContentTreeScroll.Value;
+                if (++_pendingContentTreeScrollFrames > 180)
+                    _pendingContentTreeScroll = null;
+            }
+
             base.Update(deltaTime);
         }
 
@@ -1772,6 +1878,8 @@ namespace FlaxEditor.Windows
                     lastViewedFolder = selectedNode as ContentFolderTreeNode;
             }
             Editor.ProjectCache.SetCustomData(ProjectDataLastViewedFolder, lastViewedFolder?.Path ?? string.Empty);
+            if (_contentTreePanel.VScrollBar != null)
+                Editor.ProjectCache.SetCustomData(ProjectDataLastViewedFolderScroll, _contentTreePanel.VScrollBar.Value);
 
             // Clear view
             _view.ClearItems();
@@ -1795,7 +1903,20 @@ namespace FlaxEditor.Windows
             else if (button == MouseButton.Extended2)
                 NavigateForward();
 
+            // Give up on the pending scroll restore (see Update) the moment the user tries to interact themselves,
+            // so it doesn't keep fighting their input for the rest of its window
+            _pendingContentTreeScroll = null;
+
             return base.OnMouseDown(location, button);
+        }
+
+        /// <inheritdoc />
+        public override bool OnMouseWheel(Float2 location, float delta)
+        {
+            // See OnMouseDown
+            _pendingContentTreeScroll = null;
+
+            return base.OnMouseWheel(location, delta);
         }
 
         /// <inheritdoc />

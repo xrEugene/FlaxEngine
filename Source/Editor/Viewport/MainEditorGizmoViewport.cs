@@ -266,7 +266,7 @@ namespace FlaxEditor.Viewport
 
             // Create camera widget
             ViewWidgetButtonMenu.AddSeparator();
-            ViewWidgetButtonMenu.AddButton("Create camera here", CreateCameraAtView);
+            ViewWidgetButtonMenu.AddButton("Create Camera Here", CreateCameraAtView);
 
             // Init gizmo modes
             {

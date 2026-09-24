@@ -241,7 +241,7 @@ namespace FlaxEditor.Windows.Assets
                 }
 
                 menu.AddSeparator();
-                menu.AddButton("Find references...", () => OnFindReferences(index));
+                menu.AddButton("Find References...", () => OnFindReferences(index));
             }
 
             private void OnChangeType(Action<ItemsListContextMenu.Item> itemClicked)
@@ -369,8 +369,8 @@ namespace FlaxEditor.Windows.Assets
                     return;
 
                 var cm = new ContextMenu();
-                cm.AddButton("Copy typename", () => Clipboard.Text = ((VisualScriptWindow)Values[0]).Asset.ScriptTypeName);
-                cm.AddButton("Edit attributes...", OnEditAttributes);
+                cm.AddButton("Copy Typename", () => Clipboard.Text = ((VisualScriptWindow)Values[0]).Asset.ScriptTypeName);
+                cm.AddButton("Edit Attributes...", OnEditAttributes);
                 cm.Show(image, new Float2(0, image.Height));
             }
 
@@ -454,7 +454,7 @@ namespace FlaxEditor.Windows.Assets
             {
                 var cm = new ContextMenu();
                 cm.AddButton("Show", () => ((VisualScriptWindow)Values[0]).Surface.FocusNode(node)).Icon = Editor.Instance.Icons.Search12;
-                cm.AddButton("Delete", () => ((VisualScriptWindow)Values[0]).Surface.Delete(node)).Icon = Editor.Instance.Icons.Cross12;
+                cm.AddButton("Delete", () => ((VisualScriptWindow)Values[0]).Surface.Delete(node)).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.DeleteBrush;
                 node.OnShowSecondaryContextMenu(cm, Float2.Zero);
                 cm.Show(label, new Float2(0, label.Height));
             }
@@ -616,9 +616,9 @@ namespace FlaxEditor.Windows.Assets
                 _toolstrip.AddSeparator(),
                 _toolstrip.AddButton(editor.Icons.Play64, OnDebuggerContinue).LinkTooltip("Continue", ref inputOptions.DebuggerContinue),
                 _toolstrip.AddButton(editor.Icons.Search64, OnDebuggerNavigateToCurrentNode).LinkTooltip("Navigate to the current stack trace node"),
-                _toolstrip.AddButton(editor.Icons.Right64, OnDebuggerStepOver).LinkTooltip("Step Over", ref inputOptions.DebuggerStepOver),
-                _toolstrip.AddButton(editor.Icons.Down64, OnDebuggerStepInto).LinkTooltip("Step Into", ref inputOptions.DebuggerStepInto),
-                _toolstrip.AddButton(editor.Icons.Up64, OnDebuggerStepOut).LinkTooltip("Step Out", ref inputOptions.DebuggerStepOut),
+                _toolstrip.AddButton(editor.Icons.Right64Brush, OnDebuggerStepOver).LinkTooltip("Step Over", ref inputOptions.DebuggerStepOver),
+                _toolstrip.AddButton(editor.Icons.Down64Brush, OnDebuggerStepInto).LinkTooltip("Step Into", ref inputOptions.DebuggerStepInto),
+                _toolstrip.AddButton(editor.Icons.Up64Brush, OnDebuggerStepOut).LinkTooltip("Step Out", ref inputOptions.DebuggerStepOut),
                 _toolstrip.AddButton(editor.Icons.Stop64, OnDebuggerStop).LinkTooltip("Stop debugging"),
             };
             foreach (var control in _debugToolstripControls)

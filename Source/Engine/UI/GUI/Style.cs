@@ -213,10 +213,22 @@ namespace FlaxEngine.GUI
         public SpriteHandle ArrowRight;
 
         /// <summary>
+        /// The brush for the arrow right icon. Overrides <see cref="ArrowRight"/> when set (eg. to swap in a custom texture-based icon); left null to use the default sprite.
+        /// </summary>
+        [NoSerialize]
+        public IBrush ArrowRightBrush;
+
+        /// <summary>
         /// The arrow down icon.
         /// </summary>
         [EditorOrder(230)]
         public SpriteHandle ArrowDown;
+
+        /// <summary>
+        /// The brush for the arrow down icon. Overrides <see cref="ArrowDown"/> when set (eg. to swap in a custom texture-based icon); left null to use the default sprite.
+        /// </summary>
+        [NoSerialize]
+        public IBrush ArrowDownBrush;
 
         /// <summary>
         /// The search icon.

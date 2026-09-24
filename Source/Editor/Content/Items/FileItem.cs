@@ -17,6 +17,10 @@ namespace FlaxEditor.Content
         public FileItem(string path)
         : base(path)
         {
+            // Set directly rather than through ThumbnailsModule's proxy/render request cycle - a plain
+            // auxiliary file has no asset content to render a preview of and no per-instance variation, so there's
+            // nothing to wait on; the icon is known immediately.
+            GenericThumbnailIcon = EditorAssets.FileThumbIcon;
         }
 
         /// <inheritdoc />

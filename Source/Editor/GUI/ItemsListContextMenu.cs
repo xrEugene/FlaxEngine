@@ -156,7 +156,7 @@ namespace FlaxEditor.GUI
 
                 // Indent for drop panel items is handled by drop panel margin
                 if (Parent is not DropPanel)
-                    rect.Location += new Float2(Editor.Instance.Icons.ArrowRight12.Size.X + 2, 0);
+                    rect.Location += new Float2(Editor.Instance.Icons.ArrowRight12Brush.Size.X + 2, 0);
             }
 
             /// <inheritdoc />
@@ -484,8 +484,8 @@ namespace FlaxEditor.GUI
                     var categoryPanel = new DropPanel
                     {
                         HeaderText = item.Category,
-                        ArrowImageOpened = new SpriteBrush(Editor.Instance.Icons.ArrowDown12),
-                        ArrowImageClosed = new SpriteBrush(Editor.Instance.Icons.ArrowRight12),
+                        ArrowImageOpened = Editor.Instance.Icons.ArrowDown12Brush,
+                        ArrowImageClosed = Editor.Instance.Icons.ArrowRight12Brush,
                         EnableDropDownIcon = true,
                         ItemsMargin = new Margin(28, 0, 2, 2),
                         HeaderColor = Style.Current.Background,

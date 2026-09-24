@@ -191,8 +191,8 @@ namespace FlaxEditor.Windows.Search
                 var cm = new ContextMenu { Tag = contentItem };
                 b = cm.AddButton("Open", () => Editor.Instance.ContentFinding.Open(Item));
                 cm.AddSeparator();
-                cm.AddButton(Utilities.Constants.ShowInExplorer, () => FileSystem.ShowFileExplorer(System.IO.Path.GetDirectoryName(contentItem.Path)));
-                cm.AddButton("Show in Content window", () => Editor.Instance.Windows.ContentWin.Select(contentItem, true));
+                cm.AddButton(Utilities.Constants.ShowInExplorer, () => FileSystem.ShowFileExplorer(System.IO.Path.GetDirectoryName(contentItem.Path))).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.ShowInExplorerBrush;
+                cm.AddButton("Show in Content Window", () => Editor.Instance.Windows.ContentWin.Select(contentItem, true));
                 b.Enabled = proxy != null && proxy.CanReimport(contentItem);
                 if (contentItem is BinaryAssetItem binaryAsset)
                 {
@@ -200,18 +200,19 @@ namespace FlaxEditor.Windows.Search
                     {
                         string importLocation = System.IO.Path.GetDirectoryName(importPath);
                         if (!string.IsNullOrEmpty(importLocation) && System.IO.Directory.Exists(importLocation))
-                            cm.AddButton("Show import location", () => FileSystem.ShowFileExplorer(importLocation));
+                            cm.AddButton("Show Import Location", () => FileSystem.ShowFileExplorer(importLocation));
                     }
                 }
                 cm.AddSeparator();
                 if (contentItem is AssetItem assetItem)
                 {
-                    cm.AddButton("Copy asset ID", () => Clipboard.Text = FlaxEngine.Json.JsonSerializer.GetStringID(assetItem.ID));
-                    cm.AddButton("Select actors using this asset", () => Editor.Instance.SceneEditing.SelectActorsUsingAsset(assetItem.ID));
-                    cm.AddButton("Show asset references graph", () => Editor.Instance.Windows.Open(new AssetReferencesGraphWindow(Editor.Instance, assetItem)));
+                    cm.AddButton("Copy Asset ID", () => Clipboard.Text = FlaxEngine.Json.JsonSerializer.GetStringID(assetItem.ID));
+                    cm.AddButton("Select Actors Using This Asset", () => Editor.Instance.SceneEditing.SelectActorsUsingAsset(assetItem.ID));
+                    cm.AddButton("Show Asset References Graph", () => Editor.Instance.Windows.Open(new AssetReferencesGraphWindow(Editor.Instance, assetItem)));
                     cm.AddSeparator();
-                    cm.AddButton("Copy name to Clipboard", () => Clipboard.Text = assetItem.NamePath);
-                    cm.AddButton("Copy path to Clipboard", () => Clipboard.Text = assetItem.Path);
+                    var icons = Editor.Instance.Icons as CustomEditorIcons;
+                    cm.AddButton("Copy Name to Clipboard", () => Clipboard.Text = assetItem.NamePath).IconBrush = icons?.CopyNameBrush;
+                    cm.AddButton("Copy Path to Clipboard", () => Clipboard.Text = assetItem.Path).IconBrush = icons?.CopyPathBrush;
                     cm.AddSeparator();
                 }
                 proxy?.OnContentWindowContextMenu(cm, contentItem);

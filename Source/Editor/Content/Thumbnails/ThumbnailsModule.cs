@@ -80,7 +80,14 @@ namespace FlaxEditor.Content.Thumbnails
                         var sprite = _cache[i].FindSlot(assetItem.ID);
                         if (sprite.IsValid)
                         {
-                            // Found!
+                            // Found! Still need to (re)compute these even though the sprite itself is already
+                            // cached: GenericThumbnailIcon/Text are runtime-only fields on the item, never persisted
+                            // alongside the sprite, so a fresh session's ContentItem starts with them null - without
+                            // this, an item whose sprite is already cached would never take this path again (only
+                            // OnRender used to set them), permanently stuck showing the tiny/wrong baked-in
+                            // thumbnail instead.
+                            item.GenericThumbnailIcon = proxy.GetGenericThumbnailIcon(assetItem);
+                            item.GenericThumbnailText = proxy.GetGenericThumbnailText(assetItem);
                             item.Thumbnail = sprite;
                             return;
                         }
@@ -361,6 +368,12 @@ namespace FlaxEditor.Content.Thumbnails
                     request.Proxy.OnThumbnailDrawBegin(request, _guiRoot, context);
                     _guiRoot.UnlockChildrenRecursive();
 
+                    // See AssetProxy.GetGenericThumbnailIcon/GetGenericThumbnailText - either non-null here means
+                    // ContentItem draws that live instead of the (small, fixed-resolution) sprite this same call is
+                    // about to bake below (icon takes priority over text if a proxy somehow returns both).
+                    request.Item.GenericThumbnailIcon = request.Proxy.GetGenericThumbnailIcon(request.Item);
+                    request.Item.GenericThumbnailText = request.Proxy.GetGenericThumbnailText(request.Item);
+
                     // Draw preview
                     context.Clear(_output.View(), Color.Black);
                     Render2D.CallDrawing(_guiRoot, context, _output);
@@ -631,15 +644,9 @@ namespace FlaxEditor.Content.Thumbnails
                 IsLayoutLocked = false;
             }
 
-            /// <inheritdoc />
-            public override void Draw()
-            {
-                base.Draw();
-
-                // Draw accent
-                const float accentHeight = 2;
-                Render2D.FillRectangle(new Rectangle(0, Height - accentHeight, Width, accentHeight), AccentColor);
-            }
+            // The accent strip is no longer baked in here - ContentItem draws it live, at the tile's actual current
+            // size, the same way it now draws the generic text-only thumbnail's label; baking it into this fixed-
+            // resolution texture would upscale-blur it exactly like the old baked label text used to.
         }
     }
 }

@@ -48,6 +48,12 @@ namespace FlaxEditor.Windows
                     Tag = new NodeInfo(script, nodeId);
                 }
 
+                public Node(VisualScript script, uint nodeId, IBrush icon)
+                : base(false, icon)
+                {
+                    Tag = new NodeInfo(script, nodeId);
+                }
+
                 public static SurfaceNode GetNode(object tag)
                 {
                     if (tag is NodeInfo nodeInfo)
@@ -120,7 +126,7 @@ namespace FlaxEditor.Windows
                     Tag = treeNode.Tag
                 };
 
-                menu.AddButton("Show node", button =>
+                menu.AddButton("Show Node", button =>
                 {
                     var node = Node.GetNode(button.ParentContextMenu.Tag);
                     ((VisualScriptWindow)node?.Surface.Owner)?.ShowNode(node);
@@ -174,8 +180,8 @@ namespace FlaxEditor.Windows
                             text = $"{Path.GetFileNameWithoutExtension(stackFrame.Script.Path)} in node {node.Title}";
                         else
                             text = $"{Path.GetFileNameWithoutExtension(stackFrame.Script.Path)} in nodeId {stackFrame.NodeId}";
-                        var icon = Editor.Instance.Icons.ArrowRight12;
-                        new Node(stackFrame.Script, stackFrame.NodeId, icon, icon)
+                        var icon = Editor.Instance.Icons.ArrowRight12Brush;
+                        new Node(stackFrame.Script, stackFrame.NodeId, icon)
                         {
                             Text = text,
                             Parent = _rootNode,
@@ -211,7 +217,7 @@ namespace FlaxEditor.Windows
             protected override void OnTreeNodeRightClick(ContextMenu menu)
             {
                 menu.AddSeparator();
-                menu.AddButton("Copy value", button =>
+                menu.AddButton("Copy Value", button =>
                 {
                     var node = (SurfaceNode)button.ParentContextMenu.Tag;
                     var state = VisualScriptWindow.GetLocals();
@@ -278,21 +284,21 @@ namespace FlaxEditor.Windows
             protected override void OnTreeNodeRightClick(ContextMenu menu)
             {
                 menu.AddSeparator();
-                menu.AddButton("Remove breakpoint", button =>
+                menu.AddButton("Remove Breakpoint", button =>
                 {
                     var node = (SurfaceNode)button.ParentContextMenu.Tag;
                     node.Breakpoint.Set = !node.Breakpoint.Set;
                     node.Breakpoint.Enabled = true;
                     node.Surface.OnNodeBreakpointEdited(node);
-                }).Icon = Editor.Instance.Icons.Cross12;
-                menu.AddButton("Toggle breakpoint", button =>
+                }).IconBrush = Editor.Instance.Icons.Cross12Brush;
+                menu.AddButton("Toggle Breakpoint", button =>
                 {
                     var node = (SurfaceNode)button.ParentContextMenu.Tag;
                     node.Breakpoint.Enabled = !node.Breakpoint.Enabled;
                     node.Surface.OnNodeBreakpointEdited(node);
                 });
                 menu.AddSeparator();
-                menu.AddButton("Delete all breakpoints", () =>
+                menu.AddButton("Delete All Breakpoints", () =>
                 {
                     foreach (var child in _rootNode.Children.ToArray())
                     {
@@ -303,7 +309,7 @@ namespace FlaxEditor.Windows
                         }
                     }
                 });
-                menu.AddButton("Enable all breakpoints", () =>
+                menu.AddButton("Enable All Breakpoints", () =>
                 {
                     foreach (var child in _rootNode.Children)
                     {
@@ -314,7 +320,7 @@ namespace FlaxEditor.Windows
                         }
                     }
                 });
-                menu.AddButton("Disable all breakpoints", () =>
+                menu.AddButton("Disable All Breakpoints", () =>
                 {
                     foreach (var child in _rootNode.Children.ToArray())
                     {

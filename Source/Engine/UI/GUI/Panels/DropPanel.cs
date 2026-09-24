@@ -301,8 +301,8 @@ namespace FlaxEngine.GUI
             HeaderColorMouseOver = style.BackgroundHighlighted;
             HeaderTextFont = new FontReference(style.FontMedium);
             HeaderTextColor = style.Foreground;
-            ArrowImageOpened = new SpriteBrush(style.ArrowDown);
-            ArrowImageClosed = new SpriteBrush(style.ArrowRight);
+            ArrowImageOpened = style.ArrowDownBrush ?? new SpriteBrush(style.ArrowDown);
+            ArrowImageClosed = style.ArrowRightBrush ?? new SpriteBrush(style.ArrowRight);
         }
 
         /// <summary>

@@ -427,7 +427,7 @@ namespace FlaxEditor.SceneGraph.GUI
                 treePanel.ScrollViewTo(this, true);
                 rect.Size = new Float2(treePanel.Width - TextRect.Location.X, TextRect.Height);
             }
-            var dialog = RenamePopup.Show(this, rect, _actorNode.Name, false);
+            var dialog = RenamePopup.Show(this, rect, _actorNode.Name, false, fitToContent: true);
             dialog.Renamed += OnRenamed;
             dialog.Closed += popup =>
             {

@@ -503,13 +503,16 @@ namespace FlaxEditor.CustomEditors.Editors
             var menu = new ContextMenu();
             var revertToPrefab = menu.AddButton("Revert to Prefab", () => OnGroupPanelRevert(group, false));
             revertToPrefab.Enabled = canRevertReference;
-            var resetToDefault = menu.AddButton("Reset to default", () => OnGroupPanelRevert(group, true));
+            var resetToDefault = menu.AddButton("Reset to Default", () => OnGroupPanelRevert(group, true));
             resetToDefault.Enabled = canRevertDefault;
             menu.AddSeparator();
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
             var copy = menu.AddButton("Copy", () => OnGroupPanelCopy(group));
             copy.Enabled = OnGroupPanelCanCopy(group);
+            copy.IconBrush = icons?.CopyBrush;
             var paste = menu.AddButton("Paste", () => OnGroupPanelPaste(group));
             paste.Enabled = OnGroupPanelCanPaste(group);
+            paste.IconBrush = icons?.PasteBrush;
 
             menu.Show(groupPanel, location);
         }
@@ -762,7 +765,7 @@ namespace FlaxEditor.CustomEditors.Editors
                 if (!type.IsArray && !type.IsStructure && !type.IsScriptingObject && (type.IsAbstract || type.IsInterface) && value.GetType() != type.Type && layout is GroupElement group)
                 {
                     // Add button to unset the value to null (eg. to edit it to different type)
-                    var button = group.AddHeaderButton("Reset value to null", 0, FlaxEngine.GUI.Style.Current.Cross);
+                    var button = group.AddHeaderButton("Reset value to null", 0, Editor.Instance.Icons.Cross12Brush);
                     button.Clicked += (_, _) => SetValue(null);
                 }
 

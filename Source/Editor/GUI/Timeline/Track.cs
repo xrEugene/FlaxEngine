@@ -224,6 +224,42 @@ namespace FlaxEditor.GUI.Timeline
         public bool HasParentsExpanded => (ParentTrack == null || ParentTrack.IsExpandedAll);
 
         /// <summary>
+        /// Gets a value indicating whether this track and all of its sub-tracks (recursively) are expanded.
+        /// </summary>
+        public bool IsFullyExpanded
+        {
+            get
+            {
+                if (CanExpand && !IsExpanded)
+                    return false;
+                for (int i = 0; i < SubTracks.Count; i++)
+                {
+                    if (SubTracks[i].CanExpand && !SubTracks[i].IsFullyExpanded)
+                        return false;
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether this track and all of its sub-tracks (recursively) are collapsed.
+        /// </summary>
+        public bool IsFullyCollapsed
+        {
+            get
+            {
+                if (CanExpand && IsExpanded)
+                    return false;
+                for (int i = 0; i < SubTracks.Count; i++)
+                {
+                    if (SubTracks[i].CanExpand && !SubTracks[i].IsFullyCollapsed)
+                        return false;
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Gets a value indicating whether this track has any sub-tracks.
         /// </summary>
         public bool HasSubTracks => _subTracks.Count > 0;
@@ -821,7 +857,7 @@ namespace FlaxEditor.GUI.Timeline
             _timeline.Select(this, false);
 
             // Start renaming the track
-            var dialog = RenamePopup.Show(this, new Rectangle(0, 0, Width, HeaderHeight), Name, false);
+            var dialog = RenamePopup.Show(this, new Rectangle(0, 0, Width, HeaderHeight), Name, false, fitToContent: true);
             dialog.Validate += OnRenameValidate;
             dialog.Renamed += OnRenamed;
         }
@@ -970,7 +1006,11 @@ namespace FlaxEditor.GUI.Timeline
             // Draw arrow
             if (CanExpand)
             {
-                Render2D.DrawSprite(_opened ? style.ArrowDown : style.ArrowRight, ArrowRect, isMouseOver ? style.Foreground : style.ForegroundGrey);
+                var arrowColor = isMouseOver ? style.Foreground : style.ForegroundGrey;
+                if (_opened)
+                    Editor.Instance.Icons.ArrowDown12Brush.Draw(ArrowRect, arrowColor);
+                else
+                    Editor.Instance.Icons.ArrowRight12Brush.Draw(ArrowRect, arrowColor);
             }
 
             // Draw icon
@@ -1069,16 +1109,21 @@ namespace FlaxEditor.GUI.Timeline
             {
                 // Show context menu
                 var menu = new ContextMenu.ContextMenu();
+                var icons = Editor.Instance.Icons as CustomEditorIcons;
                 if (CanRename)
-                    menu.AddButton("Rename", "F2", StartRenaming);
+                    menu.AddButton("Rename", "F2", StartRenaming).IconBrush = icons?.RenameBrush;
                 if (CanCopyPaste)
-                    menu.AddButton("Duplicate", "Ctrl+D", () => Timeline.DuplicateSelectedTracks());
-                menu.AddButton("Delete", "Del", Delete);
+                    menu.AddButton("Duplicate", "Ctrl+D", () => Timeline.DuplicateSelectedTracks()).IconBrush = icons?.DuplicateBrush;
+                menu.AddButton("Delete", "Del", Delete).IconBrush = icons?.DeleteBrush;
                 if (CanExpand)
                 {
                     menu.AddSeparator();
-                    menu.AddButton("Expand All", ExpandAll);
-                    menu.AddButton("Collapse All", CollapseAll);
+                    var expandAllButton = menu.AddButton("Expand All", ExpandAll);
+                    expandAllButton.IconBrush = icons?.ExpandAllBrush;
+                    expandAllButton.Enabled = !IsFullyExpanded;
+                    var collapseAllButton = menu.AddButton("Collapse All", CollapseAll);
+                    collapseAllButton.IconBrush = icons?.CollapseAllBrush;
+                    collapseAllButton.Enabled = !IsFullyCollapsed;
                 }
                 if (SubTracks.Count > 1)
                 {

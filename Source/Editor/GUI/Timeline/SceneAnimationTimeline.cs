@@ -395,7 +395,7 @@ namespace FlaxEditor.GUI.Timeline
         {
             base.OnShowViewContextMenu(menu);
 
-            menu.AddButton("Show selected 3D tracks", () => ShowSelected3dTrack = !ShowSelected3dTrack).Checked = ShowSelected3dTrack;
+            menu.AddButton("Show Selected 3D Tracks", () => ShowSelected3dTrack = !ShowSelected3dTrack).Checked = ShowSelected3dTrack;
         }
 
         /// <summary>

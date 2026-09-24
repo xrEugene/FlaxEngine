@@ -58,7 +58,7 @@ namespace FlaxEditor.CustomEditors.Editors
                         LinkedLabel.SetupContextMenu += (label, menu, editor) =>
                         {
                             menu.AddSeparator();
-                            var mb = menu.AddButton("Show formatted", bt => { floatValue.SetCategory(bt.Checked ? valueCategory : Utils.ValueCategory.None); });
+                            var mb = menu.AddButton("Show Formatted", bt => { floatValue.SetCategory(bt.Checked ? valueCategory : Utils.ValueCategory.None); });
                             mb.AutoCheck = true;
                             mb.Checked = floatValue.ValueBox.Category != Utils.ValueCategory.None;
                         };

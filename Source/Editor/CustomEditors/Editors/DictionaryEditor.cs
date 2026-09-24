@@ -63,7 +63,7 @@ namespace FlaxEditor.CustomEditors.Editors
                 if (keyType == typeof(string) || keyType.IsPrimitive)
                 {
                     // Edit as text
-                    var popup = RenamePopup.Show(Parent, Rectangle.Margin(Bounds, Margin), Text, false);
+                    var popup = RenamePopup.Show(Parent, Rectangle.Margin(Bounds, Margin), Text, false, fitToContent: true);
                     popup.Validate += (renamePopup, value) =>
                     {
                         object newKey;

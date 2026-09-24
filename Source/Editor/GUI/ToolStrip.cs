@@ -113,6 +113,23 @@ namespace FlaxEditor.GUI
         /// <summary>
         /// Adds the button.
         /// </summary>
+        /// <param name="iconBrush">The icon brush.</param>
+        /// <param name="onClick">The custom action to call on button clicked.</param>
+        /// <returns>The button.</returns>
+        public ToolStripButton AddButton(IBrush iconBrush, Action onClick = null)
+        {
+            var button = new ToolStripButton(ItemsHeight, iconBrush)
+            {
+                Parent = this,
+            };
+            if (onClick != null)
+                button.Clicked += onClick;
+            return button;
+        }
+
+        /// <summary>
+        /// Adds the button.
+        /// </summary>
         /// <param name="sprite">The icon sprite.</param>
         /// <param name="text">The text.</param>
         /// <param name="onClick">The custom action to call on button clicked.</param>

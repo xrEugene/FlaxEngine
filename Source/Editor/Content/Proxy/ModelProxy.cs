@@ -45,7 +45,7 @@ namespace FlaxEditor.Content
         {
             base.OnContentWindowContextMenu(menu, item);
 
-            menu.AddButton("Create collision data", () =>
+            menu.AddButton("Create Collision Data", () =>
             {
                 var collisionDataProxy = (CollisionDataProxy)Editor.Instance.ContentDatabase.GetProxy<CollisionData>();
                 var selection = Editor.Instance.Windows.ContentWin.View.Selection;

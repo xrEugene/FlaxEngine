@@ -73,7 +73,7 @@ namespace FlaxEditor.Windows.Assets
             _seekLeft = new Image(playbackButtonsPanel.Width, 0, playbackButtonsSize, playbackButtonsSize)
             {
                 TooltipText = "Move one frame back (Left Arrow)",
-                Brush = new SpriteBrush(icons.Left32),
+                Brush = icons.Left32Brush,
                 MouseOverColor = playbackButtonsMouseOverColor,
                 Parent = playbackButtonsPanel
             };
@@ -100,7 +100,7 @@ namespace FlaxEditor.Windows.Assets
             _seekRight = new Image(playbackButtonsPanel.Width, 0, playbackButtonsSize, playbackButtonsSize)
             {
                 TooltipText = "Move one frame forward (Right Arrow)",
-                Brush = new SpriteBrush(icons.Right32),
+                Brush = icons.Right32Brush,
                 MouseOverColor = playbackButtonsMouseOverColor,
                 Parent = playbackButtonsPanel
             };

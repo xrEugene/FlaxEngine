@@ -70,7 +70,7 @@ namespace FlaxEditor.Tools.Terrain
             _modeComboBox.AddItem("Edit Chunk");
             _modeComboBox.AddItem("Add Patch");
             _modeComboBox.AddItem("Remove Patch");
-            _modeComboBox.AddItem("Export terrain");
+            _modeComboBox.AddItem("Export Terrain");
             _modeComboBox.SelectedIndex = 0;
             _modeComboBox.SelectedIndexChanged += (combobox) => Gizmo.EditMode = (EditTerrainGizmoMode.Modes)combobox.SelectedIndex;
             Gizmo.ModeChanged += OnGizmoModeChanged;

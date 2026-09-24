@@ -41,6 +41,7 @@ namespace FlaxEditor.GUI.Tree
         private float _headerHeight = 22.0f;
         private Rectangle _headerRect;
         private SpriteHandle _iconCollaped, _iconOpened;
+        private IBrush _iconBrush;
         private Margin _margin = new Margin(2.0f);
         private string _text;
         private bool _textChanged;
@@ -103,6 +104,42 @@ namespace FlaxEditor.GUI.Tree
         /// Gets a value indicating whether the node is collapsed in the hierarchy (is collapsed or any of its parents is collapsed).
         /// </summary>
         public bool IsCollapsedInHierarchy => IsCollapsed || (Parent is TreeNode parentNode && parentNode.IsCollapsedInHierarchy);
+
+        /// <summary>
+        /// Gets a value indicating whether this node and all of its children (recursively) are expanded.
+        /// </summary>
+        public bool IsFullyExpanded
+        {
+            get
+            {
+                if (HasAnyVisibleChild && !_opened)
+                    return false;
+                for (int i = 0; i < _children.Count; i++)
+                {
+                    if (_children[i] is TreeNode node && !node.IsFullyExpanded)
+                        return false;
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether this node and all of its children (recursively) are collapsed.
+        /// </summary>
+        public bool IsFullyCollapsed
+        {
+            get
+            {
+                if (HasAnyVisibleChild && _opened)
+                    return false;
+                for (int i = 0; i < _children.Count; i++)
+                {
+                    if (_children[i] is TreeNode node && !node.IsFullyCollapsed)
+                        return false;
+                }
+                return true;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the text margin.
@@ -337,6 +374,17 @@ namespace FlaxEditor.GUI.Tree
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="TreeNode"/> class.
+        /// </summary>
+        /// <param name="canChangeOrder">Enable/disable changing node order in parent tree node.</param>
+        /// <param name="icon">The icon brush used for both the collapsed and opened node states.</param>
+        public TreeNode(bool canChangeOrder, IBrush icon)
+        : this(canChangeOrder, SpriteHandle.Invalid, SpriteHandle.Invalid)
+        {
+            _iconBrush = icon;
+        }
+
+        /// <summary>
         /// Expand node.
         /// </summary>
         /// <param name="noAnimation">True if skip node expanding animation.</param>
@@ -365,7 +413,8 @@ namespace FlaxEditor.GUI.Tree
         /// Collapse node.
         /// </summary>
         /// <param name="noAnimation">True if skip node expanding animation.</param>
-        public void Collapse(bool noAnimation = false)
+        /// <param name="preserveSelection">True if move the selection up to this node when collapsing hides the current selection. Set false when collapsing as a side effect of filtering, where the selection should stay untouched even if temporarily hidden.</param>
+        public void Collapse(bool noAnimation = false, bool preserveSelection = true)
         {
             // Change state
             if (!_opened && _animationProgress >= 1.0f)
@@ -380,7 +429,7 @@ namespace FlaxEditor.GUI.Tree
             // If any selected tree node is now hidden (a descendant of this collapsed node),
             // move the selection up to this node so the user still has a valid visible selection.
             var tree = ParentTree;
-            if (tree != null && tree.Selection.Count > 0)
+            if (preserveSelection && tree != null && tree.Selection.Count > 0)
             {
                 bool selectionHidden = false;
                 for (int i = 0; i < tree.Selection.Count; i++)
@@ -448,7 +497,11 @@ namespace FlaxEditor.GUI.Tree
             {
                 if (_children[i] is TreeNode node)
                 {
-                    node.CollapseAll(noAnimation);
+                    // Descendants are hidden the instant this node collapses (Draw skips children while collapsed),
+                    // so their own collapse animation is never visible. Collapse them instantly instead of animated,
+                    // otherwise their animation progress gets stuck mid-transition (Update stops propagating to
+                    // children once this node is collapsed), which glitches the next time this node is re-expanded.
+                    node.CollapseAll(true);
                 }
             }
 
@@ -777,11 +830,21 @@ namespace FlaxEditor.GUI.Tree
             // Draw arrow
             if (HasAnyVisibleChild)
             {
-                Render2D.DrawSprite(_opened ? style.ArrowDown : style.ArrowRight, ArrowRect, _mouseOverHeader ? style.Foreground : style.ForegroundGrey);
+                var arrowColor = _mouseOverHeader ? style.Foreground : style.ForegroundGrey;
+                if (_opened)
+                    Editor.Instance.Icons.ArrowDown12Brush.Draw(ArrowRect, arrowColor);
+                else
+                    Editor.Instance.Icons.ArrowRight12Brush.Draw(ArrowRect, arrowColor);
             }
 
             // Draw icon
-            if (_iconCollaped.IsValid)
+            if (_iconBrush != null)
+            {
+                _iconBrush.Draw(new Rectangle(textRect.Left, 0, 16, 16), IconColor);
+                textRect.X += 18.0f;
+                textRect.Width -= 18.0f;
+            }
+            else if (_iconCollaped.IsValid)
             {
                 Render2D.DrawSprite(_opened ? _iconOpened : _iconCollaped, new Rectangle(textRect.Left, 0, 16, 16), IconColor);
                 textRect.X += 18.0f;

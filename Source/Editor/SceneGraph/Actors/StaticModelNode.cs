@@ -137,7 +137,7 @@ namespace FlaxEditor.SceneGraph.Actors
                 }
             }
 
-            var menu = contextMenu.AddChildMenu("Add collider");
+            var menu = contextMenu.AddChildMenu("Add Collider");
             menu.Enabled = ((StaticModel)Actor).Model != null;
             var b = menu.ContextMenu.AddButton("Auto", () => OnAddCollider(window, CreateAuto));
             b.TooltipText = "Add the best fitting collider to every model that uses an in-built Editor primitive.";

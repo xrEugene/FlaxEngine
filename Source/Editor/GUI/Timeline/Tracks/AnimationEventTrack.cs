@@ -368,9 +368,9 @@ namespace FlaxEditor.GUI.Timeline.Tracks
                 b.ButtonClicked += OnAddAnimEvent;
             }
             if (!addEvent.ContextMenu.Items.Any())
-                addEvent.ContextMenu.AddButton("No Anim Events found").CloseMenuOnClick = false;
+                addEvent.ContextMenu.AddButton("No Anim Events Found").CloseMenuOnClick = false;
             if (!addContinuousEvent.ContextMenu.Items.Any())
-                addContinuousEvent.ContextMenu.AddButton("No Continuous Anim Events found").CloseMenuOnClick = false;
+                addContinuousEvent.ContextMenu.AddButton("No Continuous Anim Events Found").CloseMenuOnClick = false;
         }
 
 

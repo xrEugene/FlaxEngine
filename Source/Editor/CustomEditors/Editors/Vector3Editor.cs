@@ -136,7 +136,7 @@ namespace FlaxEditor.CustomEditors.Editors
                 LinkedLabel.SetupContextMenu += (label, menu, editor) =>
                 {
                     menu.AddSeparator();
-                    var mb = menu.AddButton("Show formatted", bt =>
+                    var mb = menu.AddButton("Show Formatted", bt =>
                     {
                         XElement.SetCategory(bt.Checked ? category : Utils.ValueCategory.None);
                         YElement.SetCategory(bt.Checked ? category : Utils.ValueCategory.None);
@@ -523,7 +523,7 @@ namespace FlaxEditor.CustomEditors.Editors
                 LinkedLabel.SetupContextMenu += (label, menu, editor) =>
                 {
                     menu.AddSeparator();
-                    var mb = menu.AddButton("Show formatted", bt =>
+                    var mb = menu.AddButton("Show Formatted", bt =>
                     {
                         XElement.SetCategory(bt.Checked ? category : Utils.ValueCategory.None);
                         YElement.SetCategory(bt.Checked ? category : Utils.ValueCategory.None);

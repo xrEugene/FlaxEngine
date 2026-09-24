@@ -100,6 +100,11 @@ namespace FlaxEditor.GUI.Docking
         public SpriteHandle Icon { get; set; }
 
         /// <summary>
+        /// Gets or sets the window tab icon brush, drawn instead of <see cref="Icon"/> when set.
+        /// </summary>
+        public IBrush IconBrush { get; set; }
+
+        /// <summary>
         /// Gets the size of the title.
         /// </summary>
         public Float2 TitleSize => _titleSize;

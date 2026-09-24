@@ -140,7 +140,7 @@ namespace FlaxEditor.Windows.Assets
             _undoButton = _toolstrip.AddButton(Editor.Icons.Undo64, _undo.PerformUndo).LinkTooltip("Undo", ref inputOptions.Undo);
             _redoButton = _toolstrip.AddButton(Editor.Icons.Redo64, _undo.PerformRedo).LinkTooltip("Redo", ref inputOptions.Redo);
             _toolstrip.AddSeparator();
-            _toolstrip.AddButton(Editor.Icons.Up64, OnExport).LinkTooltip("Export localization table entries for translation to .pot file");
+            _toolstrip.AddButton(Editor.Icons.Up64Brush, OnExport).LinkTooltip("Export localization table entries for translation to .pot file");
 
             // Panel
             var panel = new Panel(ScrollBars.Vertical)

@@ -513,6 +513,7 @@ namespace FlaxEditor.GUI.Dialogs
                 replaceButton.Clicked += () => OnSavedColorReplace(b);
                 var deleteButton = menu.AddButton("Delete");
                 deleteButton.Clicked += () => OnSavedColorDelete(b);
+                deleteButton.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.DeleteBrush;
                 _disableEvents = true;
                 menu.Show(this, location);
                 menu.VisibleChanged += (c) => _disableEvents = false;

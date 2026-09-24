@@ -19,6 +19,7 @@ namespace FlaxEditor.GUI.Docking
         private float _tabHeight, _minimumTabWidth;
         private bool _useMinimumTabWidth;
         private readonly bool _hideTabForSingleTab = Utilities.Utils.HideSingleTabWindowTabBars();
+        private DockWindow _contextMenuTab;
 
         /// <summary>
         /// The is mouse down flag (left button).
@@ -216,6 +217,8 @@ namespace FlaxEditor.GUI.Docking
             var style = Style.Current;
             var window = Root;
             bool containsFocus = ContainsFocus && ((WindowRootControl)window).Window.IsFocused;
+            if (!containsFocus && _contextMenuTab != null && _contextMenuTab == _panel.SelectedTab)
+                containsFocus = true;
             if (!containsFocus)
             {
                 var owner = FlaxEditor.GUI.ContextMenu.ContextMenuBase.ActiveContextMenuOwner;
@@ -254,7 +257,8 @@ namespace FlaxEditor.GUI.Docking
                 // Cache data
                 var tab = _panel.GetTab(i);
                 var tabColor = Color.Black;
-                var iconWidth = tab.Icon.IsValid ? DockPanel.DefaultButtonsSize + DockPanel.DefaultLeftTextMargin : 0;
+                var hasIcon = tab.IconBrush != null || tab.Icon.IsValid;
+                var iconWidth = hasIcon ? DockPanel.DefaultButtonsSize + DockPanel.DefaultLeftTextMargin : 0;
 
                 float width = CalculateTabWidth(tab, _closeButtonVisibility);
 
@@ -284,13 +288,13 @@ namespace FlaxEditor.GUI.Docking
                     tabColor = style.BackgroundHighlighted;
                 }
 
-                if (tab.Icon.IsValid)
+                if (hasIcon)
                 {
-                    Render2D.DrawSprite(
-                        tab.Icon,
-                        new Rectangle(x + DockPanel.DefaultLeftTextMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize),
-                        style.Foreground);
-
+                    var iconRect = new Rectangle(x + DockPanel.DefaultLeftTextMargin, (HeaderRectangle.Height - DockPanel.DefaultButtonsSize) / 2, DockPanel.DefaultButtonsSize, DockPanel.DefaultButtonsSize);
+                    if (tab.IconBrush != null)
+                        tab.IconBrush.Draw(iconRect, style.Foreground);
+                    else
+                        Render2D.DrawSprite(tab.Icon, iconRect, style.Foreground);
                 }
 
                 // Draw text
@@ -309,7 +313,7 @@ namespace FlaxEditor.GUI.Docking
                     bool isMouseOverCross = isMouseOver && crossRect.Contains(MousePosition);
                     if (isMouseOverCross)
                         Render2D.FillRectangle(crossRect, tabColor * 1.3f);
-                    Render2D.DrawSprite(style.Cross, crossRect, isMouseOverCross ? style.Foreground : style.ForegroundGrey);
+                    Editor.Instance.Icons.Cross12Brush.Draw(crossRect, isMouseOverCross ? style.Foreground : style.ForegroundGrey);
                 }
 
                 // Set the start position for the next tab
@@ -583,17 +587,18 @@ namespace FlaxEditor.GUI.Docking
                 Tag = tab
             };
             tab.OnShowContextMenu(menu);
-            menu.AddButton("Close", OnTabMenuCloseClicked);
-            menu.AddButton("Close All", OnTabMenuCloseAllClicked);
-            menu.AddButton("Close All But This", OnTabMenuCloseAllButThisClicked);
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
+            menu.AddButton("Close", OnTabMenuCloseClicked).IconBrush = icons?.CloseBrush;
+            menu.AddButton("Close All", OnTabMenuCloseAllClicked).IconBrush = icons?.CloseAllBrush;
+            menu.AddButton("Close All but This", OnTabMenuCloseAllButThisClicked).IconBrush = icons?.CloseAllButThisBrush;
             if (_panel.Tabs.IndexOf(tab) + 1 < _panel.TabsCount)
             {
-                menu.AddButton("Close All To The Right", OnTabMenuCloseAllToTheRightClicked);
+                menu.AddButton("Close All to the Right", OnTabMenuCloseAllToTheRightClicked).IconBrush = icons?.CloseAllToRightBrush;
             }
             if (!_panel.IsFloating)
             {
                 menu.AddSeparator();
-                menu.AddButton("Undock", OnTabMenuUndockClicked);
+                menu.AddButton("Undock", OnTabMenuUndockClicked).IconBrush = icons?.UndockBrush;
             }
             else if (!tab.RootWindow?.IsMaximized ?? false)
             {
@@ -605,6 +610,12 @@ namespace FlaxEditor.GUI.Docking
                 menu.AddSeparator();
                 menu.AddButton("Restore", OnTabMenuRestoreClicked);
             }
+            _contextMenuTab = tab;
+            menu.VisibleChanged += cm =>
+            {
+                if (!cm.Visible && _contextMenuTab == tab)
+                    _contextMenuTab = null;
+            };
             menu.Show(this, location);
         }
 

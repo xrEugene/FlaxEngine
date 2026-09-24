@@ -75,14 +75,14 @@ namespace FlaxEditor.SceneGraph.Actors
             var path = Scene.Path;
             if (!string.IsNullOrEmpty(path) && File.Exists(path))
             {
-                var b = contextMenu.AddButton("Show in content window", OnSelect);
+                var b = contextMenu.AddButton("Show in Content Window", OnSelect);
                 b.Icon = Editor.Instance.Icons.Search12;
                 b.TooltipText = "Finds and selects the scene asset int Content window.";
             }
-            contextMenu.AddButton("Save scene", OnSave).LinkTooltip("Saves this scene.").Enabled = IsEdited && !Editor.IsPlayMode;
-            contextMenu.AddButton("Unload scene", OnUnload).LinkTooltip("Unloads this scene.").Enabled = Editor.Instance.StateMachine.CurrentState.CanChangeScene;
+            contextMenu.AddButton("Save Scene", OnSave).LinkTooltip("Saves this scene.").Enabled = IsEdited && !Editor.IsPlayMode;
+            contextMenu.AddButton("Unload Scene", OnUnload).LinkTooltip("Unloads this scene.").Enabled = Editor.Instance.StateMachine.CurrentState.CanChangeScene;
             if (Level.ScenesCount > 1)
-                contextMenu.AddButton("Unload all but this scene", OnUnloadAllButSelectedScene).LinkTooltip("Unloads all of the active scenes except for the selected scene.").Enabled = Editor.Instance.StateMachine.CurrentState.CanChangeScene;
+                contextMenu.AddButton("Unload All but This Scene", OnUnloadAllButSelectedScene).LinkTooltip("Unloads all of the active scenes except for the selected scene.").Enabled = Editor.Instance.StateMachine.CurrentState.CanChangeScene;
 
             contextMenu.MaximumItemsInViewCount += 3;
             base.OnContextMenu(contextMenu, window);

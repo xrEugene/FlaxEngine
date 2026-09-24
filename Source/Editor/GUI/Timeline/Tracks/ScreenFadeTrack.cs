@@ -107,7 +107,7 @@ namespace FlaxEditor.GUI.Timeline.Tracks
 
             if (controlUnderMouse is GradientEditor.StopControl stop)
             {
-                menu.AddButton("Remove gradient stop", OnRemoveGradientStop).Tag = stop.Index;
+                menu.AddButton("Remove Gradient Stop", OnRemoveGradientStop).Tag = stop.Index;
                 menu.AddSeparator();
             }
         }

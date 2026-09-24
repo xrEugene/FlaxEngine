@@ -273,7 +273,7 @@ namespace FlaxEditor
             Profiler.EndEvent();
 
             Profiler.BeginEvent("Icons");
-            Icons = new EditorIcons();
+            Icons = new CustomEditorIcons();
             Icons.LoadIcons();
             Profiler.EndEvent();
 

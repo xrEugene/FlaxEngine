@@ -142,7 +142,7 @@ public class ContentFolderTreeNode : TreeNode
 
         // Start renaming the folder
         Editor.Instance.Windows.ContentWin.ScrollingOnTreeView(false);
-        var dialog = RenamePopup.Show(this, TextRect, _folder.ShortName, false);
+        var dialog = RenamePopup.Show(this, TextRect, _folder.ShortName, false, fitToContent: true);
         dialog.Tag = _folder;
         dialog.Validate += (popup, value) => Editor.Instance.ContentEditing.IsValidAssetName((ContentItem)popup.Tag, value, out _);
         dialog.Renamed += popup =>
@@ -219,7 +219,7 @@ public class ContentFolderTreeNode : TreeNode
                 if (wantExpanded)
                     Expand(true);
                 else
-                    Collapse(true);
+                    Collapse(true, preserveSelection: false);
             }
         }
         else if (_filterChangedExpansion)

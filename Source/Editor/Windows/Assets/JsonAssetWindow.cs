@@ -272,9 +272,9 @@ namespace FlaxEditor.Windows.Assets
             }
             
             _optionsCM = new ContextMenu();
-            _optionsCM.AddButton("Copy type name", () => Clipboard.Text = Asset.DataTypeName);
-            _optionsCM.AddButton("Copy asset data", () => Clipboard.Text = Asset.Data);
-            _optionsCM.AddButton("Paste asset data", () =>
+            _optionsCM.AddButton("Copy Type Name", () => Clipboard.Text = Asset.DataTypeName);
+            _optionsCM.AddButton("Copy Asset Data", () => Clipboard.Text = Asset.Data);
+            _optionsCM.AddButton("Paste Asset Data", () =>
             {
                 if (!string.IsNullOrEmpty(Clipboard.Text))
                 {
@@ -309,11 +309,11 @@ namespace FlaxEditor.Windows.Assets
             _optionsCM.AddSeparator();
             if (_optionsButton.Tag is ContentItem item)
             {
-                _optionsCM.AddButton("Edit asset code", () =>
+                _optionsCM.AddButton("Edit Asset Code", () =>
                 {
                     Editor.Instance.ContentEditing.Open(item);
                 });
-                _optionsCM.AddButton("Show asset code item in content window", () =>
+                _optionsCM.AddButton("Show Asset Code Item in Content Window", () =>
                 {
                     Editor.Instance.Windows.ContentWin.Select(item);
                 });

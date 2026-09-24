@@ -88,6 +88,9 @@ namespace FlaxEditor.GUI
         /// <inheritdoc />
         public override bool OnMouseDown(Float2 location, MouseButton button)
         {
+            if (button != MouseButton.Left)
+                return base.OnMouseDown(location, button);
+
             Focus();
 
             if (Parent is MainMenu menu)

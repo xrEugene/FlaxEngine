@@ -94,9 +94,13 @@ namespace FlaxEditor.GUI
                         {
                             if (_table.Children[nextIndex] is Row row && row.Depth == Depth + 1)
                             {
-                                // Tree node arrow                  
+                                // Tree node arrow
                                 var arrowRect = new Rectangle(x + leftDepthMargin - arrowSize, (Height - arrowSize) * 0.5f, arrowSize, arrowSize);
-                                Render2D.DrawSprite(row.Visible ? style.ArrowDown : style.ArrowRight, arrowRect, IsMouseOver ? style.Foreground : style.ForegroundGrey);
+                                var arrowColor = IsMouseOver ? style.Foreground : style.ForegroundGrey;
+                                if (row.Visible)
+                                    Editor.Instance.Icons.ArrowDown12Brush.Draw(arrowRect, arrowColor);
+                                else
+                                    Editor.Instance.Icons.ArrowRight12Brush.Draw(arrowRect, arrowColor);
                             }
                         }
                     }

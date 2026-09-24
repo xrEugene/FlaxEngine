@@ -27,37 +27,44 @@ namespace FlaxEditor.Windows
                 float boxSize = clientRect.Height - margin * 2;
                 bool isOpened = IsPopupOpened;
                 bool enabled = EnabledInHierarchy;
-                Color backgroundColor = BackgroundColor;
-                Color borderColor = BorderColor;
                 Color arrowColor = ArrowColor;
                 if (!enabled)
                 {
-                    backgroundColor *= 0.5f;
                     arrowColor *= 0.7f;
                 }
                 else if (isOpened || _mouseDown)
                 {
-                    backgroundColor = BackgroundColorSelected;
-                    borderColor = BorderColorSelected;
                     arrowColor = ArrowColorSelected;
                 }
                 else if (IsMouseOver)
                 {
-                    backgroundColor = BackgroundColorHighlighted;
-                    borderColor = BorderColorHighlighted;
                     arrowColor = ArrowColorHighlighted;
                 }
 
-                // Background
-                Render2D.FillRectangle(clientRect, backgroundColor);
-                if (enabled && (isOpened || _mouseDown))
+                // Background (matches the gradient look of FlaxEditor.GUI.DropdownButton / FlaxEngine.GUI.Button)
+                var style = FlaxEngine.GUI.Style.Current;
+                if (!enabled)
                 {
-                    var accent = new Rectangle(0, clientRect.Height - 2.0f, clientRect.Width, 2.0f);
-                    Render2D.FillRectangle(accent, FlaxEngine.GUI.Style.Current.BackgroundSelected);
+                    Render2D.FillRectangle(clientRect, BackgroundColor * 0.5f);
+                }
+                else if (isOpened || _mouseDown)
+                {
+                    Render2D.FillRectangle(clientRect, style.ContentBackground);
+                    var accent = new Rectangle(0, clientRect.Height - 1.5f, clientRect.Width, 1.5f);
+                    Render2D.FillRectangle(accent, style.BackgroundSelected);
+                }
+                else if (IsMouseOver)
+                {
+                    var bottom = (Color)style.BackgroundHighlighted * 1.15f;
+                    bottom.A = 1.0f;
+                    var top = (Color)style.ContentBackground * 0.8f;
+                    Render2D.FillRectangle(clientRect, bottom, bottom, top, top);
                 }
                 else
                 {
-                    Render2D.DrawRectangle(clientRect, borderColor);
+                    var bottom = (Color)style.BackgroundHighlighted;
+                    var top = (Color)style.ContentBackground * 0.8f;
+                    Render2D.FillRectangle(clientRect, bottom, bottom, top, top);
                 }
 
                 // Draw text

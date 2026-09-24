@@ -326,7 +326,7 @@ namespace FlaxEditor.Surface
             base.OnShowSecondaryContextMenu(menu, location);
 
             menu.AddSeparator();
-            menu.AddButton("Rename", StartRenaming);
+            menu.AddButton("Rename", StartRenaming).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.RenameBrush;
             ContextMenuChildMenu cmOrder = menu.AddChildMenu("Order");
             {
                 cmOrder.ContextMenu.AddButton("Bring Forward", () =>

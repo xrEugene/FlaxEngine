@@ -168,9 +168,11 @@ namespace FlaxEditor.Content
             // Special case for UI prefabs
             if (_preview.Instance is UIControl uiControl && uiControl.HasControl)
             {
-                // Ensure to place UI in a proper way
+                // Ensure to place UI in a proper way - fill margin fraction leaves some background visible around
+                // the control's edges instead of scaling it to exactly fill the whole thumbnail with none.
+                const float fillMargin = 0.85f;
                 uiControl.Control.Location = Float2.Zero;
-                uiControl.Control.Scale *= PreviewsCache.AssetIconSize / uiControl.Control.Size.MaxValue;
+                uiControl.Control.Scale *= PreviewsCache.AssetIconSize * fillMargin / uiControl.Control.Size.MaxValue;
                 uiControl.Control.AnchorPreset = AnchorPresets.TopLeft;
                 uiControl.Control.AnchorPreset = AnchorPresets.MiddleCenter;
 
@@ -187,7 +189,7 @@ namespace FlaxEditor.Content
                 // Auto fit actor to camera
                 if (bounds != BoundingBox.Empty)
                 {
-                    float targetSize = 38.0f;
+                    float targetSize = 26.0f;
                     float maxSize = Math.Max(0.001f, (float)bounds.Size.MaxValue);
                     float scale = targetSize / maxSize;
                     _preview.Instance.Scale = new Float3(scale);
