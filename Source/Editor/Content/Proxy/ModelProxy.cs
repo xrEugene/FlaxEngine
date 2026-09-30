@@ -64,7 +64,7 @@ namespace FlaxEditor.Content
                     var model = FlaxEngine.Content.LoadAsync<Model>(((ModelItem)item).ID);
                     collisionDataProxy.CreateCollisionDataFromModel(model);
                 }
-            });
+            }).IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.CreateCollisionDataBrush;
         }
 
         /// <inheritdoc />

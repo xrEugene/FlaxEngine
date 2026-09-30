@@ -94,6 +94,14 @@ namespace FlaxEditor.GUI
         public ContextMenu.ContextMenu ContextMenu;
 
         /// <summary>
+        /// An externally shown popup considered owned by this button for the active/open accent line only (eg. an
+        /// ad-hoc menu shown on primary click, as opposed to <see cref="ContextMenu"/> which this button shows
+        /// itself on secondary click). Set this while such a popup is open so the line tracks it - including which
+        /// edge to draw on, based on which way the popup actually opened.
+        /// </summary>
+        public ContextMenu.ContextMenuBase ActivePopup;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ToolStripButton"/> class.
         /// </summary>
         /// <param name="height">The height.</param>
@@ -174,7 +182,8 @@ namespace FlaxEditor.GUI
             var iconRect = new Rectangle(iconDrawOffset, iconDrawOffset, iconDrawSize, iconDrawSize);
             var textRect = new Rectangle(DefaultMargin, 0, 0, Height);
             bool enabled = EnabledInHierarchy;
-            bool mouseButtonDown = _primaryMouseDown || (ContextMenu != null && ContextMenu.IsOpened);
+            var openPopup = ActivePopup != null && ActivePopup.IsOpened ? ActivePopup : ContextMenu != null && ContextMenu.IsOpened ? ContextMenu : null;
+            bool mouseButtonDown = _primaryMouseDown || openPopup != null;
             bool hasIcon = _iconBrush != null || _icon.IsValid;
 
             // Draw background
@@ -182,9 +191,13 @@ namespace FlaxEditor.GUI
             {
                 if (mouseButtonDown || Checked)
                 {
-                    // Pressed/checked: use selected-tab color with a thin blue accent line at the bottom (Restored)
+                    // Pressed/checked: use selected-tab color with a thin blue accent line - on the edge the popup
+                    // opened towards when one is open, otherwise default to the bottom.
                     Render2D.FillRectangle(clientRect, style.ContentBackground);
-                    Render2D.FillRectangle(new Rectangle(clientRect.X, clientRect.Bottom - 2, clientRect.Width, 2), style.BackgroundSelected);
+                    if (openPopup != null)
+                        global::FlaxEditor.GUI.ContextMenu.ContextMenuOpenIndicator.Draw(clientRect, openPopup.Direction, style.BackgroundSelected);
+                    else
+                        Render2D.FillRectangle(new Rectangle(clientRect.X, clientRect.Bottom - 2, clientRect.Width, 2), style.BackgroundSelected);
                 }
                 else
                 {

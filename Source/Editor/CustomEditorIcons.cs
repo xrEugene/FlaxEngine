@@ -22,6 +22,13 @@ namespace FlaxEditor
         private const float ContextMenuIconColorMultiplier = 0.9f;
 
         /// <summary>
+        /// Brightness boost for thin-stroke context-menu icons that anti-alias into faint partial coverage at the
+        /// small icon draw size; unlike <see cref="CustomIconScale"/> this keeps the icon at the same on-screen size
+        /// as every other context-menu icon, only compensating for the loss of contrast.
+        /// </summary>
+        private const float ThinStrokeIconBrightnessBoost = 1.3f;
+
+        /// <summary>
         /// The custom chevron-right icon texture, used in place of <see cref="EditorIcons.ArrowRight12"/>, <see cref="EditorIcons.Right32"/> and <see cref="EditorIcons.Right64"/>.
         /// </summary>
         public Texture ChevronRight;
@@ -366,6 +373,108 @@ namespace FlaxEditor
         /// </summary>
         public IBrush CreateMaterialInstanceBrush;
 
+        /// <summary>
+        /// The custom "Scale" (content view) context menu icon texture.
+        /// </summary>
+        public Texture ViewScale;
+
+        /// <summary>
+        /// The brush for <see cref="ViewScale"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ViewScaleBrush;
+
+        /// <summary>
+        /// The custom "Type" (content view) context menu icon texture.
+        /// </summary>
+        public Texture ViewType;
+
+        /// <summary>
+        /// The brush for <see cref="ViewType"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ViewTypeBrush;
+
+        /// <summary>
+        /// The custom "Show" (content view) context menu icon texture.
+        /// </summary>
+        public Texture ViewShow;
+
+        /// <summary>
+        /// The brush for <see cref="ViewShow"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ViewShowBrush;
+
+        /// <summary>
+        /// The custom "Filters" (content view) context menu icon texture.
+        /// </summary>
+        public Texture ViewFilters;
+
+        /// <summary>
+        /// The brush for <see cref="ViewFilters"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ViewFiltersBrush;
+
+        /// <summary>
+        /// The custom "Sort" (content view) context menu icon texture.
+        /// </summary>
+        public Texture ViewSort;
+
+        /// <summary>
+        /// The brush for <see cref="ViewSort"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ViewSortBrush;
+
+        /// <summary>
+        /// The custom context menu "checked" tick icon texture.
+        /// </summary>
+        public Texture ContextMenuCheck;
+
+        /// <summary>
+        /// The brush for <see cref="ContextMenuCheck"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ContextMenuCheckBrush;
+
+        /// <summary>
+        /// The custom "Export" context menu icon texture.
+        /// </summary>
+        public Texture Export;
+
+        /// <summary>
+        /// The brush for <see cref="Export"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ExportBrush;
+
+        /// <summary>
+        /// The custom "Show Import Location" context menu icon texture.
+        /// </summary>
+        public Texture ShowImportLocation;
+
+        /// <summary>
+        /// The brush for <see cref="ShowImportLocation"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush ShowImportLocationBrush;
+
+        /// <summary>
+        /// The custom "Create Collision Data" context menu icon texture (shared with the "New Asset > Physics >
+        /// Collision Data" menu icon - same asset).
+        /// </summary>
+        public Texture CreateCollisionData;
+
+        /// <summary>
+        /// The brush for <see cref="CreateCollisionData"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush CreateCollisionDataBrush;
+
+        /// <summary>
+        /// The custom "Create Animation Graph" context menu icon texture (shared with the "New Asset > Animation >
+        /// Animation Graph Function" menu icon - same asset).
+        /// </summary>
+        public Texture CreateAnimationGraph;
+
+        /// <summary>
+        /// The brush for <see cref="CreateAnimationGraph"/>, or null if it failed to load.
+        /// </summary>
+        public IBrush CreateAnimationGraphBrush;
+
         /// <inheritdoc />
         internal override void LoadIcons()
         {
@@ -444,6 +553,20 @@ namespace FlaxEditor
             OpenAdditiveBrush = LoadCustomIcon(EditorAssets.OpenAdditiveIcon, "OpenAdditive", out OpenAdditive, colorMultiplier: ContextMenuIconColorMultiplier);
             CreateParticleSystemBrush = LoadCustomIcon(EditorAssets.CreateParticleSystemIcon, "CreateParticleSystem", out CreateParticleSystem, colorMultiplier: ContextMenuIconColorMultiplier);
             CreateMaterialInstanceBrush = LoadCustomIcon(EditorAssets.CreateMaterialInstanceIcon, "CreateMaterialInstance", out CreateMaterialInstance, colorMultiplier: ContextMenuIconColorMultiplier);
+
+            // These are thin-stroke line art (like the chevrons above), which anti-aliases into faint partial
+            // coverage at the small context-menu icon size; boost brightness instead of scaling up so they stay
+            // the same on-screen size as every other context-menu icon.
+            ViewScaleBrush = LoadCustomIcon(EditorAssets.ViewScaleIcon, "ViewScale", out ViewScale, colorMultiplier: ThinStrokeIconBrightnessBoost);
+            ViewTypeBrush = LoadCustomIcon(EditorAssets.ViewTypeIcon, "ViewType", out ViewType, colorMultiplier: ThinStrokeIconBrightnessBoost);
+            ViewShowBrush = LoadCustomIcon(EditorAssets.ViewShowIcon, "ViewShow", out ViewShow, colorMultiplier: ThinStrokeIconBrightnessBoost);
+            ViewFiltersBrush = LoadCustomIcon(EditorAssets.ViewFiltersIcon, "ViewFilters", out ViewFilters, colorMultiplier: ThinStrokeIconBrightnessBoost);
+            ViewSortBrush = LoadCustomIcon(EditorAssets.ViewSortIcon, "ViewSort", out ViewSort, colorMultiplier: ThinStrokeIconBrightnessBoost);
+            ContextMenuCheckBrush = LoadCustomIcon(EditorAssets.ContextMenuCheckIcon, "ContextMenuCheck", out ContextMenuCheck, colorMultiplier: ThinStrokeIconBrightnessBoost);
+            ExportBrush = LoadCustomIcon(EditorAssets.ExportIcon, "Export", out Export, colorMultiplier: ContextMenuIconColorMultiplier);
+            ShowImportLocationBrush = LoadCustomIcon(EditorAssets.ShowImportLocationIcon, "ShowImportLocation", out ShowImportLocation, colorMultiplier: ContextMenuIconColorMultiplier);
+            CreateCollisionDataBrush = LoadCustomIcon(EditorAssets.NewAssetItemCollisionDataIcon, "CreateCollisionData", out CreateCollisionData, colorMultiplier: ContextMenuIconColorMultiplier);
+            CreateAnimationGraphBrush = LoadCustomIcon(EditorAssets.NewAssetItemAnimationGraphFunctionIcon, "CreateAnimationGraph", out CreateAnimationGraph, colorMultiplier: ContextMenuIconColorMultiplier);
         }
 
         /// <summary>

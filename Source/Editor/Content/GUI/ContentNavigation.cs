@@ -161,9 +161,13 @@ namespace FlaxEditor.Content.GUI
         {
             var style = Style.Current;
             var rect = new Rectangle(Float2.Zero, Size);
-            var color = IsDragOver ? Color.Transparent : (_mouseDown ? style.ContentBackground : (IsMouseOver ? style.BackgroundHighlighted : Color.Transparent));
+            bool isOpened = IsPopupOpened;
+            // While the dropdown is open, ignore hover - look the same as idle, just with the open indicator below.
+            var color = IsDragOver ? Color.Transparent : isOpened ? Color.Transparent : (_mouseDown ? style.ContentBackground : (IsMouseOver ? style.BackgroundHighlighted : Color.Transparent));
             Render2D.FillRectangle(rect, color);
-            if (_mouseDown)
+            if (isOpened)
+                ContextMenuOpenIndicator.Draw(rect, _popupMenu.Direction, style.BackgroundSelected);
+            else if (_mouseDown)
                 Render2D.FillRectangle(new Rectangle(rect.X, rect.Bottom - 2, rect.Width, 2), style.BackgroundSelected);
             Editor.Instance.Icons.ArrowRight12Brush.Draw(new Rectangle(rect.Location.X, rect.Y + rect.Size.Y * 0.25f, rect.Size.X, rect.Size.X), EnabledInHierarchy ? style.Foreground : style.ForegroundDisabled);
         }

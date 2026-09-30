@@ -13,6 +13,9 @@ namespace FlaxEditor.Windows
     {
         private class ViewDropdown : ComboBox
         {
+            /// <inheritdoc />
+            protected override bool HasCustomPopupContent => true;
+
             public void OnClicked(int index)
             {
                 OnItemClicked(index);
@@ -80,47 +83,6 @@ namespace FlaxEditor.Windows
                 ArrowImage?.Draw(new Rectangle(clientRect.Width - margin - boxSize, margin, boxSize, boxSize), arrowColor);
             }
 
-            /// <inheritdoc />
-            public override bool OnMouseUp(Float2 location, MouseButton button)
-            {
-                // Check flags
-                if (_mouseDown && !_blockPopup)
-                {
-                    // Clear flag
-                    _mouseDown = false;
-
-                    // Ensure to have valid menu
-                    if (_popupMenu == null)
-                    {
-                        _popupMenu = OnCreatePopup();
-                        _popupMenu.MaximumItemsInViewCount = MaximumItemsInViewCount;
-                        _popupMenu.VisibleChanged += cm =>
-                        {
-                            var win = Root;
-                            _blockPopup = win != null && new Rectangle(Float2.Zero, Size).Contains(PointFromWindow(win.MousePosition));
-                            if (!_blockPopup)
-                                Focus();
-                        };
-                    }
-
-                    // Check if menu hs been already shown
-                    if (_popupMenu.Visible)
-                    {
-                        // Hide
-                        _popupMenu.Hide();
-                        return true;
-                    }
-
-                    // Show
-                    _popupMenu.Show(this, new Float2(1, Height));
-                }
-                else
-                {
-                    _blockPopup = false;
-                }
-
-                return true;
-            }
         }
 
         private void OnFoldersSearchBoxTextChanged()

@@ -94,7 +94,10 @@ namespace FlaxEditor.Windows
 
         private void ShowContextMenuForItem(ContentItem item, ref Float2 location, bool isTreeNode)
         {
-            Assert.IsNull(_newElement);
+            // Not a real, renameable/deletable/copyable item yet - it may still be showing (see
+            // Rename(item, newShortName)) while its create-settings dialog (eg. Widget's root type picker) is up.
+            if (item != null && item == _newElement)
+                return;
 
             // Cache data
             bool isValidElement = item != null;
@@ -166,9 +169,48 @@ namespace FlaxEditor.Windows
                             importLocation = candidateLocation;
                     }
 
-                    // Reload goes above Re-Import. For scenes, only offer it while the scene is actually open (as the
-                    // primary scene or loaded additively) - the underlying asset otherwise stays cached as "loaded"
-                    // even after closing the scene, which would make Reload look available when there's nothing open to reload.
+                    // Inserts a separator right before whatever this group just added to cm, but only if the group
+                    // actually added something AND there's already content above it to separate from - avoids a
+                    // leading separator with nothing above it, and back-to-back separators when a group in between
+                    // (eg. Export, or Reload/Refresh Thumbnail, or the asset-info group below) turns out empty for
+                    // this item type. Counts via cm.Items (filters to actual menu items), not the raw child list,
+                    // which also includes the panel's own always-present VScrollBar.
+                    void AddGroupSeparator(int itemCountBeforeGroup)
+                    {
+                        var itemsNow = cm.Items.ToList();
+                        if (itemsNow.Count > itemCountBeforeGroup && itemCountBeforeGroup > 0)
+                        {
+                            var firstNewItem = (Control)itemsNow[itemCountBeforeGroup];
+                            cm.AddSeparator();
+                            var children = cm.ItemsContainer.Children;
+                            var addedSeparator = children[^1];
+                            children.RemoveAt(children.Count - 1);
+                            children.Insert(children.IndexOf(firstNewItem), addedSeparator);
+                        }
+                    }
+
+                    // Audio clips and Skinned Models use a reordered layout (Export first, then Reload/Refresh
+                    // Thumbnail, then Re-Import/Show Import Location, each its own delimited group); every other
+                    // type keeps Reload/Re-Import/Refresh Thumbnail as a single undivided group, closer to this
+                    // menu's original layout.
+                    bool useGroupedLayout = item is AudioClipItem || proxy is SkinnedModelProxy || proxy is TextureProxy;
+
+                    if (useGroupedLayout)
+                    {
+                        int itemCountBeforeExport = cm.Items.Count();
+                        if (Editor.CanExport(item.Path))
+                        {
+                            b = cm.AddButton("Export", ExportSelection);
+                            b.IconBrush = icons?.ExportBrush;
+                        }
+                        AddGroupSeparator(itemCountBeforeExport);
+                    }
+
+                    // Reload + Refresh Thumbnail group (+ Re-Import in between, for the non-audio layout). For
+                    // scenes, Reload is only offered while the scene is actually open (as the primary scene or
+                    // loaded additively) - the underlying asset otherwise stays cached as "loaded" even after
+                    // closing the scene, which would make Reload look available when there's nothing open to reload.
+                    int itemCountBeforeReload = cm.Items.Count();
                     if (item is SceneItem reloadableScene)
                     {
                         if (Level.FindScene(reloadableScene.ID) != null)
@@ -181,9 +223,12 @@ namespace FlaxEditor.Windows
                             cm.AddButton("Reload", reloadableItem.Reload).IconBrush = icons?.ReloadBrush;
                     }
 
-                    b = cm.AddButton("Re-Import", ReimportSelection);
-                    b.Enabled = proxy != null && proxy.CanReimport(item);
-                    b.IconBrush = icons?.ReImportBrush;
+                    if (!useGroupedLayout)
+                    {
+                        b = cm.AddButton("Re-Import", ReimportSelection);
+                        b.Enabled = proxy != null && proxy.CanReimport(item);
+                        b.IconBrush = icons?.ReImportBrush;
+                    }
 
                     if (item.HasDefaultThumbnail == false)
                     {
@@ -196,42 +241,59 @@ namespace FlaxEditor.Windows
                         else
                             cm.AddButton("Refresh Thumbnail", item.RefreshThumbnail).IconBrush = icons?.RefreshThumbnailsBrush;
                     }
+                    AddGroupSeparator(itemCountBeforeReload);
+
+                    if (useGroupedLayout)
+                    {
+                        // Re-Import + Show Import Location group.
+                        int itemCountBeforeReImport = cm.Items.Count();
+                        b = cm.AddButton("Re-Import", ReimportSelection);
+                        b.Enabled = proxy != null && proxy.CanReimport(item);
+                        b.IconBrush = icons?.ReImportBrush;
+
+                        if (importLocation != null)
+                        {
+                            cm.AddButton("Show Import Location", () => FileSystem.ShowFileExplorer(importLocation)).IconBrush = icons?.ShowImportLocationBrush;
+                        }
+                        AddGroupSeparator(itemCountBeforeReImport);
+                    }
 
                     // Type-specific custom options (e.g. Scene's "Open as Additive"), placed under Reload/Re-Import/Refresh Thumbnail,
                     // delimited from it only when the proxy actually adds something.
-                    int childCountBeforeCustom = cm.ItemsContainer.Children.Count;
+                    int itemCountBeforeCustom = cm.Items.Count();
                     proxy?.OnContentWindowContextMenu(cm, item);
-                    if (cm.ItemsContainer.Children.Count > childCountBeforeCustom)
-                    {
-                        cm.AddSeparator();
-                        var children = cm.ItemsContainer.Children;
-                        var addedSeparator = children[^1];
-                        children.RemoveAt(children.Count - 1);
-                        children.Insert(childCountBeforeCustom, addedSeparator);
-                    }
+                    AddGroupSeparator(itemCountBeforeCustom);
 
-                    // Delimit Reload/Re-Import/Refresh Thumbnail/custom options from the asset info section below.
-                    cm.AddSeparator();
-
-                    if (importLocation != null)
+                    // Asset info group: Show Import Location and Export join this group for the non-audio layout
+                    // (audio already placed them above); Copy Asset ID/Select Actors/Show Asset References always go here.
+                    int itemCountBeforeAssetInfo = cm.Items.Count();
+                    if (!useGroupedLayout && importLocation != null)
                     {
-                        cm.AddButton("Show Import Location", () => FileSystem.ShowFileExplorer(importLocation));
+                        cm.AddButton("Show Import Location", () => FileSystem.ShowFileExplorer(importLocation)).IconBrush = icons?.ShowImportLocationBrush;
                     }
 
                     if (item is AssetItem assetItem)
                     {
-                        cm.AddButton("Copy Asset ID", () => Clipboard.Text = JsonSerializer.GetStringID(assetItem.ID)).IconBrush = icons?.CopyAssetIdBrush;
+                        cm.AddButton("Copy Asset ID", () =>
+                        {
+                            var idText = JsonSerializer.GetStringID(assetItem.ID);
+                            Clipboard.Text = idText;
+                            ShowCopiedToClipboardPopup(idText);
+                        }).IconBrush = icons?.CopyAssetIdBrush;
                         cm.AddButton("Select Actors Using Asset", () => Editor.SceneEditing.SelectActorsUsingAsset(assetItem.ID)).IconBrush = icons?.SelectActorsUsingAssetBrush;
                         cm.AddButton("Show Asset References", () => Editor.Windows.Open(new AssetReferencesGraphWindow(Editor, assetItem))).IconBrush = icons?.ShowAssetReferencesBrush;
                     }
 
-                    if (Editor.CanExport(item.Path))
+                    if (!useGroupedLayout && Editor.CanExport(item.Path))
                     {
                         b = cm.AddButton("Export", ExportSelection);
+                        b.IconBrush = icons?.ExportBrush;
                     }
+                    AddGroupSeparator(itemCountBeforeAssetInfo);
 
                     // Delimit this file-info section from the Cut/Copy/Paste/Duplicate block that follows.
-                    cm.AddSeparator();
+                    if (cm.Items.Any())
+                        cm.AddSeparator();
                 }
 
                 // Cut, Copy (only for non-protected items)
@@ -276,7 +338,17 @@ namespace FlaxEditor.Windows
                 {
                     cm.AddSeparator();
                     cm.AddButton("Delete", () => Delete(item)).IconBrush = icons?.DeleteBrush;
-                    cm.AddButton("Rename", () => Rename(item)).IconBrush = icons?.RenameBrush;
+                    cm.AddButton("Rename", () =>
+                    {
+                        // For a tree-panel folder, delegate to the tree node's own rename (the same path F2
+                        // uses) rather than ContentWindow.Rename(..., true) - that one re-navigates the view via
+                        // Select()->Navigate() to bring the item into the grid, which visibly bounces the tree's
+                        // current selection through the root folder on the way back to where it already was.
+                        if (isTreeNode && item is ContentFolder folderToRename && folderToRename.Node != null)
+                            folderToRename.Node.StartRenaming();
+                        else
+                            Rename(item, isTreeNode);
+                    }).IconBrush = icons?.RenameBrush;
                     actionButtonsCount += 2;
                 }
 
@@ -478,6 +550,8 @@ namespace FlaxEditor.Windows
                                 childCM.Enabled = canCreate;
                                 if (part == "New")
                                     childCM.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.NewAssetBrush;
+                                else if (childCM.IconBrush == null)
+                                    childCM.IconBrush = GetNewAssetMenuIcon(menuIconKey);
                                 mainCM = false;
                             }
                             else if (childCM != null)
@@ -591,6 +665,24 @@ namespace FlaxEditor.Windows
             };
             popup.Show(button, new Float2(button.Width, 0));
 
+            // When there isn't enough space below to show it top-aligned with the button, ContextMenuBase flips it
+            // upward (Direction ends up *Up) by subtracting its own height from the button's TOP - which lands its
+            // bottom edge a bit off from the button's BOTTOM edge (the alignment that actually looks right beside a
+            // menu button), rather than exactly on it. Recompute the Y position directly from the button's actual
+            // bottom instead of nudging by a guessed constant, so it lines up exactly regardless of button height.
+            if (popup.Direction == ContextMenuDirection.RightUp || popup.Direction == ContextMenuDirection.LeftUp)
+            {
+                var window = popup.RootWindow?.Window;
+                if (window != null)
+                {
+                    // button.Height alone overshoots the row's actual visual bottom by a few px (likely the
+                    // button's own bottom border/separator isn't included in its layout Height) - compensate.
+                    var buttonBottomSS = button.PointToScreen(new Float2(0, button.Height)).Y + 4.0f * window.DpiScale;
+                    var bounds = window.ClientBounds;
+                    window.ClientPosition = new Float2(bounds.X, buttonBottomSS - bounds.Height);
+                }
+            }
+
             var nameLabel = new Label
             {
                 Parent = popup,
@@ -612,26 +704,37 @@ namespace FlaxEditor.Windows
             nameTextBox.LocalY += 10;
             var defaultTextBoxBorderColor = nameTextBox.BorderColor;
             var defaultTextBoxBorderSelectedColor = nameTextBox.BorderSelectedColor;
+
+            // Forward-declared so the TextChanged handler below (wired before the button exists) can disable it.
+            Button submitButton = null;
+
+            bool IsNameEntryValid()
+            {
+                var text = nameTextBox.Text;
+                if (string.IsNullOrWhiteSpace(text))
+                    return false;
+                if (!IsValidModuleName(text))
+                    return false;
+                return !Directory.Exists(Path.Combine(Globals.ProjectFolder, "Source", text));
+            }
+
             nameTextBox.TextChanged += () =>
             {
-                if (string.IsNullOrEmpty(nameTextBox.Text))
+                bool isEmpty = string.IsNullOrEmpty(nameTextBox.Text);
+                bool isValid = !isEmpty && IsNameEntryValid();
+                if (isEmpty || isValid)
                 {
                     nameTextBox.BorderColor = defaultTextBoxBorderColor;
                     nameTextBox.BorderSelectedColor = defaultTextBoxBorderSelectedColor;
-                    return;
                 }
-
-                var pluginPath = Path.Combine(Globals.ProjectFolder, "Source", nameTextBox.Text);
-                if (!IsValidModuleName(nameTextBox.Text) || Directory.Exists(pluginPath))
+                else
                 {
                     nameTextBox.BorderColor = Color.Red;
                     nameTextBox.BorderSelectedColor = Color.Red;
                 }
-                else
-                {
-                    nameTextBox.BorderColor = defaultTextBoxBorderColor;
-                    nameTextBox.BorderSelectedColor = defaultTextBoxBorderSelectedColor;
-                }
+
+                if (submitButton != null)
+                    submitButton.Enabled = isValid;
             };
 
             var editorLabel = new Label
@@ -670,12 +773,13 @@ namespace FlaxEditor.Windows
             cppCheckBox.LocalY += 60;
             cppCheckBox.LocalX += 100;
 
-            var submitButton = new Button
+            submitButton = new Button
             {
                 Parent = popup,
                 AnchorPreset = AnchorPresets.TopLeft,
                 Text = "Create",
                 Width = 70,
+                Enabled = false,
             };
             submitButton.LocalX += 40;
             submitButton.LocalY += 90;
@@ -729,6 +833,118 @@ namespace FlaxEditor.Windows
             if (text.Any(c => !char.IsLetterOrDigit(c) && c != '_'))
                 return false;
             return true;
+        }
+
+        /// <summary>
+        /// Shows a large, centered, self-dismissing popup confirming a value was copied to the clipboard (eg. the
+        /// "Copy Asset ID" context menu action).
+        /// </summary>
+        private void ShowCopiedToClipboardPopup(string value)
+        {
+            var plainMessage = $"Copied \"{value}\" to Clipboard";
+            var richMessage = $"Copied \"<b>{value}</b>\" to Clipboard";
+            var popup = new CopiedToClipboardPopup(plainMessage, richMessage);
+            var mainWindowGUI = Editor.Instance.Windows.MainWindow.GUI;
+            var location = (mainWindowGUI.Size - popup.Size) * 0.5f;
+            popup.Show(mainWindowGUI, location);
+        }
+
+        /// <summary>
+        /// A centered popup (styled the same as <see cref="ContextMenuBase"/>'s own background/border), shown over
+        /// the whole editor rather than just the current window, with an info icon and a line of text, that closes
+        /// itself after a short delay instead of waiting for user interaction.
+        /// </summary>
+        private sealed class CopiedToClipboardPopup : ContextMenuBase
+        {
+            private const float IconSize = 28.0f;
+            private const float PaddingH = 8.5f;
+            private const float PaddingV = 13.5f;
+            private const float IconTextGap = 9.0f;
+            private const float ContentShiftRight = 6.0f;
+
+            private static Texture _infoIconCache;
+
+            private float _remainingTime = 2.0f;
+
+            /// <param name="plainMessage">The message with no markup - used only to measure how big the popup needs to be.</param>
+            /// <param name="richMessage">The message with <see cref="RichTextBox"/> markup (eg. "&lt;b&gt;") applied - what's actually shown.</param>
+            public CopiedToClipboardPopup(string plainMessage, string richMessage)
+            {
+                ClipChildren = false;
+                CullChildren = false;
+
+                var font = Style.Current.FontMedium;
+                // Measure with the bold variant, not the plain one - part of the real text renders bold (wider than
+                // plain), and measuring with the plain font undersized the popup enough to clip the right edge of
+                // the text.
+                var textSize = font.Asset.GetBold().CreateFont(font.Size).MeasureText(plainMessage);
+                var textAreaLeft = PaddingH + IconSize + IconTextGap;
+                // RichTextBox lays its text out inset by TextBoxBase.DefaultMargin from its own control rect
+                // regardless of ClipText, so the text's real right edge sits DefaultMargin short of where the
+                // control rect (and PaddingH below) alone would suggest - add it back so "text end to border"
+                // ends up the same distance as "icon to left border" (both just PaddingH).
+                Size = new Float2(textAreaLeft + textSize.X + TextBoxBase.DefaultMargin + PaddingH, PaddingV * 2 + Mathf.Max(IconSize, textSize.Y));
+
+                new RichTextBox
+                {
+                    Text = richMessage,
+                    IsMultiline = false,
+                    IsReadOnly = true,
+                    IsSelectable = false,
+                    HasBorder = false,
+                    AutoFocus = false,
+                    BackgroundColor = Color.Transparent,
+                    BackgroundSelectedColor = Color.Transparent,
+                    // Text never scrolls/overflows here, so the clip mask serves no purpose - it was the actual
+                    // cause of the "C" looking cut: ClipText's rect starts exactly at the text's own left edge,
+                    // just barely inside a curved glyph's natural left overshoot.
+                    ClipText = false,
+                    TextStyle = new TextBlockStyle
+                    {
+                        Font = new FontReference(font),
+                        Color = Color.White,
+                        Alignment = TextBlockStyle.Alignments.Left | TextBlockStyle.Alignments.Middle,
+                    },
+                    AnchorPreset = AnchorPresets.StretchAll,
+                    Offsets = new Margin(textAreaLeft + ContentShiftRight, PaddingH, 0.0f, 0.0f),
+                    Parent = this,
+                };
+            }
+
+            /// <inheritdoc />
+            public override void Draw()
+            {
+                base.Draw();
+
+                // Thin blue outline frame
+                Render2D.DrawRectangle(new Rectangle(Float2.Zero, Size), Color.FromRGB(0x0079CC), 4.0f);
+
+                // The standalone info icon texture (loaded once and cached, like ContentItem's generic icons)
+                if (_infoIconCache == null)
+                    _infoIconCache = FlaxEngine.Content.LoadAsyncInternal<Texture>(EditorAssets.CopiedToClipboardInfoIcon);
+                if (_infoIconCache != null && !_infoIconCache.WaitForLoaded())
+                {
+                    var iconRect = new Rectangle(PaddingH + ContentShiftRight, (Height - IconSize) * 0.5f, IconSize, IconSize);
+                    Render2D.DrawTexture(_infoIconCache, iconRect, Color.White);
+                }
+            }
+
+            /// <inheritdoc />
+            public override void Update(float deltaTime)
+            {
+                base.Update(deltaTime);
+
+                _remainingTime -= deltaTime;
+                if (_remainingTime <= 0.0f)
+                    Hide();
+            }
+
+            /// <inheritdoc />
+            public override bool OnMouseDown(Float2 location, MouseButton button)
+            {
+                Hide();
+                return true;
+            }
         }
     }
 }

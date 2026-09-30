@@ -129,6 +129,9 @@ namespace FlaxEngine.GUI
         /// </summary>
         public void Hide()
         {
+            // Cancel any pending "about to show" countdown too, not just an already-visible tooltip
+            _timeToPopupLeft = 0.0f;
+
             if (!Visible)
                 return;
 

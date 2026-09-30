@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using FlaxEditor.Content;
+using FlaxEditor.Content.Create;
 using FlaxEditor.Content.GUI;
 using FlaxEditor.GUI;
 using FlaxEditor.GUI.ContextMenu;
@@ -76,6 +77,12 @@ namespace FlaxEditor.Windows
         private NewItem _newElement;
         private List<string> _newFilesCache;
         private int _newFilesCacheSize;
+
+        // Set on _newElement while it's waiting on a create-settings dialog (eg. Widget/Prefab's root type picker)
+        // rather than being destroyed immediately - see Rename(item, newShortName)/OnImportFileEnd/OnCreateEntryCancelled.
+        private string _pendingNewElementPath;
+        private ContentFolder _pendingNewElementFolder;
+        private Action<ContentItem> _pendingNewElementEndEvent;
 
         /// <summary>
         /// Gets the toolstrip.
@@ -347,15 +354,18 @@ namespace FlaxEditor.Windows
                     below = false;
                     break;
             }
+            _createNewButton.ActivePopup = menu;
             menu.Show(this, below ? _createNewButton.BottomLeft : _createNewButton.UpperLeft, direction);
         }
 
         private ContextMenu OnViewDropdownPopupCreate(ComboBox comboBox)
         {
             var menu = new ContextMenu();
+            var icons = Editor.Instance.Icons as CustomEditorIcons;
 
-            var viewScale = menu.AddButton("View Scale");
+            var viewScale = menu.AddButton("Scale");
             viewScale.CloseMenuOnClick = false;
+            viewScale.IconBrush = icons?.ViewScaleBrush;
             var scaleValue = new FloatValueBox(1, 75, 2, 50.0f, 0.3f, 3.0f, 0.01f)
             {
                 Parent = viewScale
@@ -363,7 +373,8 @@ namespace FlaxEditor.Windows
             scaleValue.ValueChanged += () => View.ViewScale = scaleValue.Value;
             menu.VisibleChanged += control => { scaleValue.Value = View.ViewScale; };
 
-            var viewType = menu.AddChildMenu("View Type");
+            var viewType = menu.AddChildMenu("Type");
+            viewType.IconBrush = icons?.ViewTypeBrush;
             viewType.ContextMenu.AddButton("Tiles", OnViewTypeButtonClicked).Tag = ContentViewType.Tiles;
             viewType.ContextMenu.AddButton("List", OnViewTypeButtonClicked).Tag = ContentViewType.List;
             viewType.ContextMenu.AddButton("Tree View", OnViewTypeButtonClicked).Tag = "Tree";
@@ -384,6 +395,7 @@ namespace FlaxEditor.Windows
             };
 
             var show = menu.AddChildMenu("Show");
+            show.IconBrush = icons?.ViewShowBrush;
             {
                 var b = show.ContextMenu.AddButton("File Extensions", () =>
                 {
@@ -422,6 +434,7 @@ namespace FlaxEditor.Windows
             }
 
             var filters = menu.AddChildMenu("Filters");
+            filters.IconBrush = icons?.ViewFiltersBrush;
             for (int i = 0; i < _viewDropdown.Items.Count; i++)
             {
                 var filterButton = filters.ContextMenu.AddButton(_viewDropdown.Items[i], OnFilterClicked);
@@ -449,6 +462,7 @@ namespace FlaxEditor.Windows
             };
 
             var sortBy = menu.AddChildMenu("Sort By");
+            sortBy.IconBrush = icons?.ViewSortBrush;
             sortBy.ContextMenu.AddButton("Alphabetic Order", OnSortByButtonClicked).Tag = SortType.AlphabeticOrder;
             sortBy.ContextMenu.AddButton("Alphabetic Reverse", OnSortByButtonClicked).Tag = SortType.AlphabeticReverse;
             sortBy.ContextMenu.VisibleChanged += control =>
@@ -680,8 +694,10 @@ namespace FlaxEditor.Windows
                 ScrollingOnContentView(true);
             _renameInTree = false;
 
-            // Check if was creating new element
-            if (_newElement != null)
+            // Check if was creating new element - but not if it's now waiting on a create-settings dialog it just
+            // opened (see Rename(item, newShortName)/OnImportFileEnd/OnCreateEntryCancelled), which closes this
+            // rename popup too (the name was accepted) well before that dialog itself is resolved.
+            if (_newElement != null && _pendingNewElementPath == null)
             {
                 // Destroy mock control
                 _newElement.ParentFolder = null;
@@ -777,23 +793,40 @@ namespace FlaxEditor.Windows
                 // Cache new file to be auto-selected after actual creation
                 _newFilesCache?.Clear();
                 _newFilesCacheSize = 0;
-                if (lazyCreation)
-                {
-                    _newFilesCache ??= new List<string>();
-                    _newFilesCache.Add(newPath);
-                    _newFilesCacheSize = 1;
-                }
-
-                // Destroy mock control
-                _newElement.ParentFolder = null;
-                _newElement.Dispose();
-                _newElement = null;
 
 #if !PLATFORM_SDL
                 // Focus content window
                 Focus();
                 RootWindow?.Focus();
 #endif
+
+                if (lazyCreation)
+                {
+                    _newFilesCache ??= new List<string>();
+                    _newFilesCache.Add(newPath);
+                    _newFilesCacheSize = 1;
+
+                    // Keep showing the placeholder (with its now-confirmed name) until the settings dialog this
+                    // just opened (eg. Widget/Prefab's root type picker) is actually submitted or cancelled - see
+                    // OnImportFileEnd/OnCreateEntryCancelled - rather than making it vanish immediately while the
+                    // user is still choosing options for it.
+                    _pendingNewElementPath = newPath;
+                    _pendingNewElementFolder = itemFolder;
+                    _pendingNewElementEndEvent = endEvent;
+
+                    // It isn't a real, renameable/deletable/copyable item yet - disable it so it doesn't respond
+                    // to clicks (context menu, selection, the click-gesture rename) while it's just a placeholder,
+                    // and deselect it too: F2/Delete/Copy/Cut are keyboard shortcuts that act on whatever's
+                    // currently selected regardless of Enabled, and it's still selected from entering rename mode.
+                    _newElement.Enabled = false;
+                    _view.Deselect(_newElement);
+                    return;
+                }
+
+                // Destroy mock control
+                _newElement.ParentFolder = null;
+                _newElement.Dispose();
+                _newElement = null;
             }
 
             // Refresh database and view now
@@ -1617,7 +1650,7 @@ namespace FlaxEditor.Windows
                 // Place search box between breadcrumb and view dropdown
                 if (_foldersSearchBox != null)
                 {
-                    float searchLeft = _navigationBar.X + navBarWidth + 8.0f;
+                    float searchLeft = _navigationBar.X + navBarWidth + 2.0f;
                     float searchRight = _toolStrip.Right - viewReserved;
                     float searchWidth = Mathf.Max(searchRight - searchLeft + 10.0f, 0.0f);
                     float searchHeight = _foldersSearchBox.Height;
@@ -1679,6 +1712,7 @@ namespace FlaxEditor.Windows
             Editor.ContentImporting.ImportFileBegin += OnImportFileBegin;
             Editor.ContentImporting.ImportFileEnd += OnImportFileEnd;
             Editor.ContentImporting.ImportingQueueBegin += OnImportingQueueBegin;
+            Editor.ContentImporting.CreateEntryCancelled += OnCreateEntryCancelled;
 
             LoadExpandedFolders();
             Refresh();
@@ -1693,6 +1727,13 @@ namespace FlaxEditor.Windows
                     _navigationUnlocked = false;
                     _tree.Select(folder.Node);
                     _navigationUnlocked = true;
+
+                    // _tree.Select above suppressed the normal DoNavigate (since _navigationUnlocked was locked
+                    // during it, on purpose, so this restorative selection doesn't get recorded as real
+                    // navigation) - DoNavigate is also what rebuilds the breadcrumb, so without this the bar
+                    // stays showing whatever it had before (its initial empty/root state), even though the tree
+                    // selection and view content are otherwise already correct.
+                    UpdateUI();
 
                     // Restore the tree panel's scroll position - deferred to Update(), since the panel doesn't
                     // have its real docked size yet at this point (see _pendingContentTreeScroll).
@@ -1747,7 +1788,12 @@ namespace FlaxEditor.Windows
         private void OnImportFileEnd(IFileEntryAction entry, bool failed)
         {
             if (failed)
+            {
+                // Nothing was actually created - clean up a placeholder that was still waiting on this
+                if (_newElement != null && _pendingNewElementPath == entry.ResultUrl)
+                    CancelPendingNewElement();
                 return;
+            }
             if (!Platform.IsInMainThread)
             {
                 FlaxEngine.Scripting.InvokeOnUpdate(() => OnImportFileEnd(entry, false));
@@ -1756,6 +1802,10 @@ namespace FlaxEditor.Windows
 
             // Refresh view (gives faster response than waiting for filesystem event)
             //RefreshView(); // TODO: is this still needed?
+
+            // Finish a placeholder that was waiting on this entry's settings dialog (see Rename(item, newShortName))
+            if (_newElement != null && _pendingNewElementPath == entry.ResultUrl)
+                FinishPendingNewElement();
 
             // Auto-select pending items
             if (_newFilesCache != null && _newFilesCache.Contains(entry.ResultUrl))
@@ -1768,6 +1818,44 @@ namespace FlaxEditor.Windows
                 }
                 _newFilesCache.Remove(entry.ResultUrl);
             }
+        }
+
+        private void OnCreateEntryCancelled(CreateFileEntry entry)
+        {
+            // The settings dialog for a pending placeholder (see Rename(item, newShortName)) was closed without
+            // creating anything - nothing to show in its place, so just drop the placeholder.
+            if (_newElement != null && _pendingNewElementPath == entry.ResultUrl)
+                CancelPendingNewElement();
+        }
+
+        private void FinishPendingNewElement()
+        {
+            var path = _pendingNewElementPath;
+            var folder = _pendingNewElementFolder;
+            var endEvent = _pendingNewElementEndEvent;
+            _newElement.ParentFolder = null;
+            _newElement.Dispose();
+            _newElement = null;
+            _pendingNewElementPath = null;
+            _pendingNewElementFolder = null;
+            _pendingNewElementEndEvent = null;
+
+            Editor.ContentDatabase.RefreshFolder(folder, true);
+            RefreshView();
+
+            if (endEvent != null)
+                endEvent(folder?.FindChild(path));
+        }
+
+        private void CancelPendingNewElement()
+        {
+            _newElement.ParentFolder = null;
+            _newElement.Dispose();
+            _newElement = null;
+            _pendingNewElementPath = null;
+            _pendingNewElementFolder = null;
+            _pendingNewElementEndEvent = null;
+            RefreshView();
         }
 
         private void OnImportingQueueBegin()
@@ -1960,6 +2048,9 @@ namespace FlaxEditor.Windows
                 {
                     if (_view.IsSelected(item) == false)
                         _view.Select(item);
+                    // Bring a partially-scrolled-out item fully into view - a no-op if it's already fully visible
+                    // (see ContentView.OnItemClick for the same fix on the plain left-click path).
+                    _contentViewPanel.ScrollViewTo(item);
                     ShowContextMenuForItem(item, ref location, false);
                 }
                 else if (c is ContentView)
@@ -2069,6 +2160,7 @@ namespace FlaxEditor.Windows
                 Editor.ContentImporting.ImportFileBegin -= OnImportFileBegin;
                 Editor.ContentImporting.ImportFileEnd -= OnImportFileEnd;
                 Editor.ContentImporting.ImportingQueueBegin -= OnImportingQueueBegin;
+                Editor.ContentImporting.CreateEntryCancelled -= OnCreateEntryCancelled;
             }
 
             base.OnDestroy();

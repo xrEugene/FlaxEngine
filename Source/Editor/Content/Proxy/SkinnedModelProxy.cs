@@ -49,6 +49,7 @@ namespace FlaxEditor.Content
             {
                 var button = menu.AddButton("Create Animation Graph", CreateAnimationGraphClicked);
                 button.Tag = binaryAssetItem;
+                button.IconBrush = (Editor.Instance.Icons as CustomEditorIcons)?.CreateAnimationGraphBrush;
             }
         }
 

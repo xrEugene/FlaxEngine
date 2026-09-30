@@ -19,8 +19,8 @@ namespace FlaxEditor.GUI.Timeline.GUI
         : base(ScrollBars.Both)
         {
             ScrollBarsSize = 18.0f;
-            VScrollBar.ThumbThickness = 10.0f;
-            HScrollBar.ThumbThickness = 10.0f;
+            VScrollBar.ThumbThickness = 9.5f;
+            HScrollBar.ThumbThickness = 9.5f;
             _timeline = timeline;
         }
 

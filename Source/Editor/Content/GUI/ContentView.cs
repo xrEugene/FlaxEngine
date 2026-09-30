@@ -204,14 +204,20 @@ namespace FlaxEditor.Content.GUI
             {
                 new InputActionsContainer.Binding(options => options.Delete, () =>
                 {
-                    if (HasSelection)
-                        OnDelete?.Invoke(_selection);
+                    // Excludes disabled items (eg. a NewItem placeholder still waiting on a create-settings
+                    // dialog - see ContentWindow.Rename(item, newShortName)): Enabled blocks mouse-routed input
+                    // to them, but these container-level shortcuts act on _selection directly, so it doesn't
+                    // stop them - Selection membership alone isn't a reliable enough signal that they're real,
+                    // actionable items, since it can still contain one of these behind the scenes.
+                    var items = _selection.Where(x => x.Enabled).ToList();
+                    if (items.Count > 0)
+                        OnDelete?.Invoke(items);
                 }),
                 new InputActionsContainer.Binding(options => options.SelectAll, SelectAll),
                 new InputActionsContainer.Binding(options => options.DeselectAll, DeselectAll),
                 new InputActionsContainer.Binding(options => options.Rename, () =>
                 {
-                    if (HasSelection && _selection[0].CanRename)
+                    if (HasSelection && _selection[0].CanRename && _selection[0].Enabled)
                     {
                         if (_selection.Count > 1)
                             Select(_selection[0]);
@@ -355,6 +361,11 @@ namespace FlaxEditor.Content.GUI
             if (items == null)
                 throw new ArgumentNullException();
 
+            // Excludes disabled items (eg. a NewItem placeholder still waiting on a create-settings dialog - see
+            // ContentWindow.Rename(item, newShortName)) - it isn't a real, selectable item yet.
+            if (items.Any(x => !x.Enabled))
+                items = items.Where(x => x.Enabled).ToList();
+
             // Check if nothing to select
             if (items.Count == 0)
             {
@@ -398,6 +409,10 @@ namespace FlaxEditor.Content.GUI
             if (item == null)
                 throw new ArgumentNullException();
 
+            // Not a real, selectable item yet (eg. a NewItem placeholder still waiting on a create-settings dialog)
+            if (!item.Enabled)
+                return;
+
             // Lock layout
             var wasLayoutLocked = IsLayoutLocked;
             IsLayoutLocked = true;
@@ -425,10 +440,11 @@ namespace FlaxEditor.Content.GUI
             var wasLayoutLocked = IsLayoutLocked;
             IsLayoutLocked = true;
 
-            // Select items
+            // Select items (excluding disabled ones - eg. a NewItem placeholder still waiting on a create-settings
+            // dialog, see ContentWindow.Rename(item, newShortName) - it isn't a real, selectable item yet)
             _selection.Clear();
             if (select)
-                _selection.AddRange(_items);
+                _selection.AddRange(_items.Where(x => x.Enabled));
 
             // Unload and perform UI layout
             IsLayoutLocked = wasLayoutLocked;
@@ -479,7 +495,11 @@ namespace FlaxEditor.Content.GUI
         public void Duplicate()
         {
             UpdateContentItemCut(false);
-            OnDuplicate?.Invoke(_selection);
+            // Excludes disabled items - see the Delete binding's comment above for why Selection membership
+            // alone isn't enough here.
+            var items = _selection.Where(x => x.Enabled).ToList();
+            if (items.Count > 0)
+                OnDuplicate?.Invoke(items);
         }
 
         /// <summary>
@@ -487,10 +507,12 @@ namespace FlaxEditor.Content.GUI
         /// </summary>
         public void Copy()
         {
-            if (_selection.Count == 0)
+            // Excludes disabled items - see the Delete binding's comment above for why Selection membership
+            // alone isn't enough here.
+            var files = _selection.Where(x => x.Enabled).Select(x => x.Path).ToArray();
+            if (files.Length == 0)
                 return;
 
-            var files = _selection.ConvertAll(x => x.Path).ToArray();
             Clipboard.Files = files;
             UpdateContentItemCut(false);
         }
@@ -531,9 +553,9 @@ namespace FlaxEditor.Content.GUI
         {
             _isCutting = cut;
   
-            // Add selection to cut list
+            // Add selection to cut list (excluding disabled items - see the Delete binding's comment above)
             if (cut)
-                _cutItems.AddRange(_selection);
+                _cutItems.AddRange(_selection.Where(x => x.Enabled));
             
             // Update item with if it is being cut.
             foreach (var item in _cutItems)
@@ -611,6 +633,9 @@ namespace FlaxEditor.Content.GUI
             {
                 Select(item);
             }
+
+            // Bring a partially-scrolled-out item fully into view - a no-op if it's already fully visible.
+            (Parent as Panel)?.ScrollViewTo(item);
         }
 
         /// <summary>
@@ -620,6 +645,16 @@ namespace FlaxEditor.Content.GUI
         public void OnItemDoubleClick(ContentItem item)
         {
             OnOpen?.Invoke(item);
+        }
+
+        /// <summary>
+        /// Called when user wants to rename an item (eg. via a slow double-click, see <see cref="ContentItem.OnMouseUp"/>).
+        /// </summary>
+        /// <param name="item">The item.</param>
+        public void RequestRename(ContentItem item)
+        {
+            if (item != null && item.CanRename)
+                OnRename?.Invoke(item);
         }
 
         #endregion
@@ -751,7 +786,21 @@ namespace FlaxEditor.Content.GUI
                 _rubberBandRectangle.Height = location.Y - _mousePressLocation.Y;
             }
 
+            // Show a "not allowed" cursor over a disabled item (eg. a NewItem placeholder still waiting on a
+            // create-settings dialog, see ContentWindow.Rename(item, newShortName)) - it doesn't receive its own
+            // mouse-move events at all while disabled (Enabled gates ContainerControl's dispatch), so this
+            // container has to detect hovering over it instead - see OnMouseLeave for the reset back to Default.
+            Cursor = _items.Any(t => !t.Enabled && t.Bounds.Contains(location)) ? CursorType.No : CursorType.Default;
+
             base.OnMouseMove(location);
+        }
+
+        /// <inheritdoc />
+        public override void OnMouseLeave()
+        {
+            Cursor = CursorType.Default;
+
+            base.OnMouseLeave();
         }
 
         /// <inheritdoc />

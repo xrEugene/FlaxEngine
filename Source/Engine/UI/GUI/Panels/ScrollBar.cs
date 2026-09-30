@@ -37,11 +37,13 @@ namespace FlaxEngine.GUI
 
         private Rectangle _thumbRect, _trackRect;
         private bool _thumbClicked;
+        private bool _isThumbHovered;
         private float _thumbCenter, _thumbSize;
 
         // Smoothing
 
         private float _thumbOpacity = DefaultMinimumOpacity;
+        private float _trackOpacity = DefaultMinimumOpacity;
         private float _scrollAnimationProgress = 0f;
 
         /// <summary>
@@ -52,7 +54,7 @@ namespace FlaxEngine.GUI
         /// <summary>
         /// Gets or sets the thumb box thickness.
         /// </summary>
-        public float ThumbThickness { get; set; } = 8;
+        public float ThumbThickness { get; set; } = 7.5f;
 
         /// <summary>
         /// Gets or sets the track line thickness.
@@ -328,10 +330,13 @@ namespace FlaxEngine.GUI
         {
             bool isDeltaSlow = deltaTime > (1 / 20.0f);
 
-            // Opacity smoothing
-            float targetOpacity = IsMouseOver ? 1.0f : DefaultMinimumOpacity;
-            _thumbOpacity = isDeltaSlow ? targetOpacity : Mathf.Lerp(_thumbOpacity, targetOpacity, deltaTime * 10.0f);
-            bool needUpdate = Mathf.Abs(_thumbOpacity - targetOpacity) > 0.001f;
+            // Opacity smoothing - only the thumb ever highlights (when hovering it directly, or while being
+            // dragged); hovering the track around it does nothing at all, for either the thumb or the track itself.
+            float thumbTargetOpacity = _isThumbHovered || _thumbClicked ? 1.0f : DefaultMinimumOpacity;
+            const float trackTargetOpacity = DefaultMinimumOpacity;
+            _thumbOpacity = isDeltaSlow ? thumbTargetOpacity : Mathf.Lerp(_thumbOpacity, thumbTargetOpacity, deltaTime * 10.0f);
+            _trackOpacity = trackTargetOpacity;
+            bool needUpdate = Mathf.Abs(_thumbOpacity - thumbTargetOpacity) > 0.001f;
 
             // Ensure scroll bar is visible and smoothing is required
             if (Visible && Mathf.Abs(_targetValue - _value) > 0.01f)
@@ -404,8 +409,8 @@ namespace FlaxEngine.GUI
             base.Draw();
 
             var style = Style.Current;
-            Render2D.FillRectangle(_trackRect, style.ContentBackground * 1.8f * _thumbOpacity);
-            Render2D.FillRectangle(_thumbRect, (_thumbClicked ? ThumbSelectedColor : style.ContentBackground * 1.8f) * _thumbOpacity);
+            Render2D.FillRectangle(_trackRect, style.ContentBackground * 1.8f * _trackOpacity);
+            Render2D.FillRectangle(_thumbRect, style.ContentBackground * 1.8f * (_thumbClicked ? 1.25f : 1.0f) * _thumbOpacity);
         }
 
         /// <inheritdoc />
@@ -419,6 +424,12 @@ namespace FlaxEngine.GUI
         /// <inheritdoc />
         public override void OnMouseMove(Float2 location)
         {
+            _isThumbHovered = _thumbRect.Contains(ref location);
+            // Moving from the track onto the thumb (or back) doesn't re-trigger OnMouseEnter/OnMouseLeave (still
+            // within the control's own bounds the whole time) - restart the opacity smoothing update explicitly,
+            // since it stops itself once it reaches whatever target it last had (see OnUpdate's needUpdate).
+            SetUpdate(ref _update, OnUpdate);
+
             if (_thumbClicked)
             {
                 var slidePosition = location + Root.TrackingMouseOffset;
@@ -507,6 +518,7 @@ namespace FlaxEngine.GUI
         {
             base.OnMouseLeave();
 
+            _isThumbHovered = false;
             SetUpdate(ref _update, OnUpdate);
         }
 

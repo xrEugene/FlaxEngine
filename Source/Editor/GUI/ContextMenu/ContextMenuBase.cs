@@ -64,6 +64,39 @@ namespace FlaxEditor.GUI.ContextMenu
     }
 
     /// <summary>
+    /// Helpers for controls that show an "active/open" accent line while a popup attached to them is open (eg. a
+    /// toolbar button whose dropdown is showing). Centralized here so every such control follows the same rule -
+    /// draw the line on the edge the popup actually opened towards (bottom if opened downward, top if upward) -
+    /// without each control re-implementing the flip logic itself.
+    /// </summary>
+    [HideInEditor]
+    public static class ContextMenuOpenIndicator
+    {
+        /// <summary>
+        /// Returns true if the given popup direction opens upward (above its origin), false if it opens downward.
+        /// </summary>
+        public static bool IsUpward(ContextMenuDirection direction)
+        {
+            return direction == ContextMenuDirection.LeftUp || direction == ContextMenuDirection.RightUp;
+        }
+
+        /// <summary>
+        /// Draws a thin accent line along the edge a popup opened towards.
+        /// </summary>
+        /// <param name="clientRect">The owning control's client rectangle.</param>
+        /// <param name="direction">The direction the attached popup opened towards.</param>
+        /// <param name="color">The line color.</param>
+        /// <param name="thickness">The line thickness in pixels.</param>
+        public static void Draw(Rectangle clientRect, ContextMenuDirection direction, Color color, float thickness = 2.0f)
+        {
+            var rect = IsUpward(direction)
+                       ? new Rectangle(clientRect.X, clientRect.Y, clientRect.Width, thickness)
+                       : new Rectangle(clientRect.X, clientRect.Bottom - thickness, clientRect.Width, thickness);
+            Render2D.FillRectangle(rect, color);
+        }
+    }
+
+    /// <summary>
     /// Base class for all context menu controls.
     /// </summary>
     /// <seealso cref="FlaxEngine.GUI.ContainerControl" />

@@ -235,6 +235,46 @@ namespace FlaxEditor
         public static string CreateMaterialInstanceIcon = "Editor/Icons/Thumb/CreateMaterialInstance";
 
         /// <summary>
+        /// The custom "Scale" (content view) context menu icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ViewScaleIcon = "Editor/Icons/Thumb/ContextMenu/View/Scale";
+
+        /// <summary>
+        /// The custom "Type" (content view) context menu icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ViewTypeIcon = "Editor/Icons/Thumb/ContextMenu/View/Type";
+
+        /// <summary>
+        /// The custom "Show" (content view) context menu icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ViewShowIcon = "Editor/Icons/Thumb/ContextMenu/View/Show";
+
+        /// <summary>
+        /// The custom "Filters" (content view) context menu icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ViewFiltersIcon = "Editor/Icons/Thumb/ContextMenu/View/Filters";
+
+        /// <summary>
+        /// The custom "Sort" (content view) context menu icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ViewSortIcon = "Editor/Icons/Thumb/ContextMenu/View/Sort";
+
+        /// <summary>
+        /// The custom context menu "checked" tick icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ContextMenuCheckIcon = "Editor/Icons/Thumb/ContextMenu/View/Check";
+
+        /// <summary>
+        /// The custom "Export" context menu icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ExportIcon = "Editor/Icons/Thumb/ContextMenu/Export";
+
+        /// <summary>
+        /// The custom "Show Import Location" context menu icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ShowImportLocationIcon = "Editor/Icons/Thumb/ContextMenu/ShowImportLocation";
+
+        /// <summary>
         /// The Behavior Tree asset's generic thumbnail icon texture (standalone asset, not part of the icons atlas).
         /// </summary>
         public static string BehaviorTreeThumbIcon = "Editor/Icons/Thumb/Assets/BehaviorTree";
@@ -313,6 +353,52 @@ namespace FlaxEditor
         /// The Video content item's thumbnail icon texture (standalone asset, not part of the icons atlas).
         /// </summary>
         public static string VideoThumbIcon = "Editor/Icons/Thumb/Assets/Video";
+
+        /// <summary>
+        /// The Settings content item's thumbnail icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string SettingsThumbIcon = "Editor/Icons/Thumb/Assets/Settings";
+
+        /// <summary>
+        /// The "New Widget" placeholder's thumbnail icon texture, shown only while naming it - the created item is
+        /// a Prefab and uses a real rendered preview from then on (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string WidgetThumbIcon = "Editor/Icons/Thumb/Assets/Widget";
+
+        /// <summary>
+        /// The "New Prefab" placeholder's thumbnail icon texture, shown only while naming it - the created item
+        /// uses a real rendered preview from then on (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string PrefabThumbIcon = "Editor/Icons/Thumb/Assets/Prefab";
+
+        /// <summary>
+        /// The "New Particle Emitter" placeholder's thumbnail icon texture, shown only while naming it - the
+        /// created item uses a real rendered preview from then on (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ParticleEmitterThumbIcon = "Editor/Icons/Thumb/Assets/ParticleEmitter";
+
+        /// <summary>
+        /// The "New Particle System" placeholder's thumbnail icon texture, shown only while naming it - the
+        /// created item uses a real rendered preview from then on (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string ParticleSystemThumbIcon = "Editor/Icons/Thumb/Assets/ParticleSystem";
+
+        /// <summary>
+        /// The "New Material" placeholder's thumbnail icon texture, shown only while naming it - the created item
+        /// uses a real rendered preview from then on (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string MaterialThumbIcon = "Editor/Icons/Thumb/Assets/Material";
+
+        /// <summary>
+        /// The "New Material Instance" placeholder's thumbnail icon texture, shown only while naming it - the
+        /// created item uses a real rendered preview from then on (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string MaterialInstanceThumbIcon = "Editor/Icons/Thumb/Assets/MaterialInstance";
+
+        /// <summary>
+        /// The "Copied to Clipboard" popup's info icon texture (standalone asset, not part of the icons atlas).
+        /// </summary>
+        public static string CopiedToClipboardInfoIcon = "Editor/Icons/Thumb/Misc/Info";
 
         /// <summary>
         /// The "New Asset" context menu's "AI" category icon texture (standalone asset, not part of the icons atlas).

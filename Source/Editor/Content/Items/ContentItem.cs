@@ -210,6 +210,28 @@ namespace FlaxEditor.Content
 
         private bool _isMouseDown;
         private Float2 _mouseDownStartPos;
+        private float _lastClickDownTime = -1f;
+        private ClickGesture _pendingClickGesture = ClickGesture.Select;
+
+        /// <summary>
+        /// What a left-click press should do once it's released, decided up front (at press time) from how long
+        /// ago the previous press was - see <see cref="RegisterClickDown"/>.
+        /// </summary>
+        private enum ClickGesture
+        {
+            Select,
+            Open,
+            Rename,
+        }
+
+        // Custom, OS-independent click-gesture timing: a second left-click within OpenMaxGap of the first opens
+        // the item (matches a fast double-click, which every OS would already treat as one - but relying on the
+        // OS's own double-click speed setting would make this vary per platform and per-user setting, so it's
+        // reimplemented here instead); one landing between OpenMaxGap and RenameMaxGap instead starts a rename,
+        // like Windows Explorer's "click, pause, click" gesture; anything slower is just two unrelated clicks.
+        private const float OpenMaxGap = 0.25f;
+        private const float RenameMaxGap = 1.0f;
+
         private readonly List<IContentItemOwner> _references = new List<IContentItemOwner>(4);
 
         private SpriteHandle _thumbnail;
@@ -248,7 +270,7 @@ namespace FlaxEditor.Content
         /// only reads <see cref="ContentProxy.AccentColor"/>, which doesn't need the narrower type. Null for anything
         /// without any proxy at all (eg. folders).
         /// </summary>
-        private ContentProxy CachedAssetProxy
+        protected virtual ContentProxy CachedAssetProxy
         {
             get
             {
@@ -458,9 +480,11 @@ namespace FlaxEditor.Content
         public virtual SpriteHandle DefaultThumbnail => SpriteHandle.Invalid;
 
         /// <summary>
-        /// Gets a value indicating whether this item has default thumbnail.
+        /// Gets a value indicating whether this item has a default/generic thumbnail rather than a real rendered
+        /// preview - either the older baked-sprite <see cref="DefaultThumbnail"/>, or the newer per-type
+        /// <see cref="GenericThumbnailIcon"/>/<see cref="GenericThumbnailText"/>.
         /// </summary>
-        public bool HasDefaultThumbnail => DefaultThumbnail.IsValid;
+        public bool HasDefaultThumbnail => DefaultThumbnail.IsValid || GenericThumbnailIcon != null || GenericThumbnailText != null;
 
         /// <summary>
         /// Gets or sets the item thumbnail. Warning, thumbnail may not be available if item has no references (<see cref="ReferencesCount"/>).
@@ -1035,6 +1059,10 @@ namespace FlaxEditor.Content
                 };
 
                 var lineHeight = font.Height * scale;
+                // font.Height is the font's full line-box metric, taller than what a wrapped 2-line name actually
+                // needs per line - a box this tall drawn down from the line's top bleeds into the next line's row.
+                // Trim off the bottom only (top already lines up with the text) so it stops short of the next line.
+                var highlightHeight = lineHeight * 0.55f;
                 var highlightColor = style.ProgressNormal * 0.6f;
 
                 for (int r = 0; r < highlightRanges.Length; r++)
@@ -1057,7 +1085,7 @@ namespace FlaxEditor.Content
                             j++;
                         }
 
-                        if (e.X > s.X) Render2D.FillRectangle(new Rectangle(s.X, s.Y, e.X - s.X, lineHeight), highlightColor);
+                        if (e.X > s.X) Render2D.FillRectangle(new Rectangle(s.X, s.Y, e.X - s.X, highlightHeight), highlightColor);
                         i = j;
                     }
                 }
@@ -1073,6 +1101,26 @@ namespace FlaxEditor.Content
             }
         }
 
+        /// <summary>
+        /// Classifies a just-started left-click press against the previous one's timestamp (see
+        /// <see cref="OpenMaxGap"/>/<see cref="RenameMaxGap"/>) and records it as the one to act on once this
+        /// press is released. Called from both <see cref="OnMouseDown"/> and <see cref="OnMouseDoubleClick"/> -
+        /// a platform may substitute the latter for the former's second call when its own double-click speed
+        /// setting is satisfied, but either way this is "a press just happened", so both feed the same timer.
+        /// </summary>
+        private void RegisterClickDown()
+        {
+            var now = Time.UnscaledGameTime;
+            var sinceLastClick = _lastClickDownTime < 0f ? float.MaxValue : now - _lastClickDownTime;
+            _lastClickDownTime = now;
+            if (sinceLastClick <= OpenMaxGap)
+                _pendingClickGesture = ClickGesture.Open;
+            else if (sinceLastClick <= RenameMaxGap)
+                _pendingClickGesture = ClickGesture.Rename;
+            else
+                _pendingClickGesture = ClickGesture.Select;
+        }
+
         /// <inheritdoc />
         public override bool OnMouseDown(Float2 location, MouseButton button)
         {
@@ -1083,6 +1131,7 @@ namespace FlaxEditor.Content
                 // Cache data
                 _isMouseDown = true;
                 _mouseDownStartPos = location;
+                RegisterClickDown();
             }
 
             return true;
@@ -1096,8 +1145,21 @@ namespace FlaxEditor.Content
                 // Clear flag
                 _isMouseDown = false;
 
-                // Fire event
-                (Parent as ContentView).OnItemClick(this);
+                switch (_pendingClickGesture)
+                {
+                case ClickGesture.Open:
+                    _lastClickDownTime = -1f;
+                    (Parent as ContentView).OnItemDoubleClick(this);
+                    break;
+                case ClickGesture.Rename:
+                    _lastClickDownTime = -1f;
+                    if (CanRename)
+                        (Parent as ContentView)?.RequestRename(this);
+                    break;
+                default:
+                    (Parent as ContentView).OnItemClick(this);
+                    break;
+                }
             }
 
             return base.OnMouseUp(location, button);
@@ -1112,8 +1174,13 @@ namespace FlaxEditor.Content
 
             Focus();
 
-            // Open
-            (Parent as ContentView).OnItemDoubleClick(this);
+            // The open/rename decision is made by our own OS-independent timing in OnMouseUp (via
+            // RegisterClickDown) rather than here - this just needs to feed that same timer and look like a
+            // press to it, since the platform sends this instead of a second OnMouseDown once its own
+            // double-click speed setting is satisfied. The actual action fires from the OnMouseUp that follows.
+            _isMouseDown = true;
+            _mouseDownStartPos = location;
+            RegisterClickDown();
 
             return true;
         }

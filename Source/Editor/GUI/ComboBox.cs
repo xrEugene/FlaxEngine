@@ -41,6 +41,12 @@ namespace FlaxEditor.GUI
         protected ContextMenu.ContextMenu _popupMenu;
 
         /// <summary>
+        /// The ComboBox (of any kind) whose dropdown is currently open, if any - used so opening one proactively
+        /// closes whatever other one is open first (see <see cref="ShowPopup"/>).
+        /// </summary>
+        private static ComboBox _openComboBox;
+
+        /// <summary>
         /// The mouse down flag.
         /// </summary>
         protected bool _mouseDown;
@@ -394,6 +400,9 @@ namespace FlaxEditor.GUI
                 // Bind events
                 _popupMenu.VisibleChanged += cm =>
                 {
+                    if (!cm.Visible && _openComboBox == this)
+                        _openComboBox = null;
+
                     var win = Root;
                     _blockPopup = win != null && new Rectangle(Float2.Zero, Size).Contains(PointFromWindow(win.MousePosition));
                     if (!_blockPopup)
@@ -428,7 +437,12 @@ namespace FlaxEditor.GUI
             // Check if has any items
             if (_items.Count > 0)
             {
-                UpdateButtons();
+                // Track this as the currently-open dropdown (the other-popup-closing itself happens earlier, in
+                // OnMouseDown - see the comment there for why).
+                _openComboBox = this;
+
+                if (!HasCustomPopupContent)
+                    UpdateButtons();
 
                 // Show dropdown list
                 _popupMenu.MinimumWidth = Width;
@@ -492,6 +506,14 @@ namespace FlaxEditor.GUI
             if (_tooltips != null && _tooltips.Length > index)
                 button.TooltipText = _tooltips[index];
         }
+
+        /// <summary>
+        /// When true, this ComboBox's popup content is fully custom (eg. built by overriding <see cref="OnCreatePopup"/>
+        /// or hooking <see cref="PopupCreate"/> to add arbitrary child menus) and should not be synced to <see cref="Items"/>
+        /// via the default one-button-per-item layout - that sync would otherwise dispose and rebuild the custom content
+        /// as plain item buttons every time the popup opens.
+        /// </summary>
+        protected virtual bool HasCustomPopupContent => false;
 
         /// <summary>
         /// Creates the popup menu.
@@ -612,6 +634,14 @@ namespace FlaxEditor.GUI
         {
             if (button == MouseButton.Left)
             {
+                // Only one ComboBox-style dropdown should be open at a time - proactively close any other one
+                // synchronously here, before Focus() below. Doing this later (eg. in ShowPopup, from OnMouseUp)
+                // is too late: the other popup's own delayed "lost native focus" close races with this click and
+                // steals focus back off this control in between mouse-down and mouse-up, resetting _mouseDown and
+                // silently swallowing the click.
+                if (_openComboBox != null && _openComboBox != this)
+                    _openComboBox.Popup?.Hide();
+
                 _mouseDown = true;
                 Focus();
                 return true;

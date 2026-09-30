@@ -100,6 +100,24 @@ namespace FlaxEditor.Content.Create
         }
 
         /// <inheritdoc />
+        protected override void OnShow()
+        {
+            base.OnShow();
+
+            // Catch every way this dialog can close without creating anything (Cancel, Escape, the window's own
+            // close button) in one place, rather than overriding OnCancel - which the close button doesn't call.
+            var window = RootWindow?.Window;
+            if (window != null)
+                window.Closed += OnWindowClosed;
+        }
+
+        private void OnWindowClosed()
+        {
+            if (Result != DialogResult.OK)
+                Editor.Instance.ContentImporting.OnCreateEntryCancelled(_entry);
+        }
+
+        /// <inheritdoc />
         protected override void SetupWindowSettings(ref CreateWindowSettings settings)
         {
             base.SetupWindowSettings(ref settings);

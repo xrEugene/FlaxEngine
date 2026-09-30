@@ -23,6 +23,23 @@ public class ContentFolderTreeNode : TreeNode
     private QueryFilterHelper.Range[] _highlightRanges;
     private bool _filterChangedExpansion;
     private bool _expandedBeforeFilter;
+    private float _lastHeaderClickDownTime = -1f;
+    private HeaderClickGesture _pendingHeaderClickGesture = HeaderClickGesture.Select;
+
+    private enum HeaderClickGesture
+    {
+        Select,
+        Toggle,
+        Rename,
+    }
+
+    // Custom, OS-independent click-gesture timing (see ContentItem.RegisterClickDown for the same scheme on the
+    // grid side): a second left-click on the header within OpenMaxGap of the first expands/collapses it (matches
+    // a fast double-click - reimplemented here rather than relying on the OS's own, platform- and
+    // user-configurable double-click speed setting, so it's identical everywhere); one landing between
+    // OpenMaxGap and RenameMaxGap instead starts a rename, like Windows Explorer's "click, pause, click" gesture.
+    private const float OpenMaxGap = 0.25f;
+    private const float RenameMaxGap = 1.0f;
 
     /// <summary>
     /// The folder.
@@ -151,6 +168,90 @@ public class ContentFolderTreeNode : TreeNode
             Editor.Instance.Windows.ContentWin.ScrollingOnTreeView(true);
         };
         dialog.Closed += popup => { Editor.Instance.Windows.ContentWin.ScrollingOnTreeView(true); };
+    }
+
+    /// <summary>
+    /// True if this press landed on the header but not on its expand/collapse arrow - the region the
+    /// open/rename click gesture applies to (see <see cref="RegisterHeaderClickDown"/>). Arrow clicks keep their
+    /// own, unrelated single-click toggle behavior from the base <see cref="TreeNode"/>.
+    /// </summary>
+    private bool IsHeaderGestureHit(ref Float2 location)
+    {
+        return TestHeaderHit(ref location) && !(HasAnyVisibleChild && ArrowRect.Contains(location));
+    }
+
+    /// <summary>
+    /// Classifies a just-started left-click press on the header against the previous one's timestamp (see
+    /// <see cref="OpenMaxGap"/>/<see cref="RenameMaxGap"/>) and records it as the one to act on once this press
+    /// is released. Called from both <see cref="OnMouseDown"/> and <see cref="OnMouseDoubleClickHeader"/> - a
+    /// platform may substitute the latter for the former's second call when its own double-click speed setting
+    /// is satisfied, but either way this is "a press just happened", so both feed the same timer.
+    /// </summary>
+    private void RegisterHeaderClickDown()
+    {
+        var now = Time.UnscaledGameTime;
+        var sinceLastClick = _lastHeaderClickDownTime < 0f ? float.MaxValue : now - _lastHeaderClickDownTime;
+        _lastHeaderClickDownTime = now;
+        if (sinceLastClick <= OpenMaxGap)
+            _pendingHeaderClickGesture = HeaderClickGesture.Toggle;
+        else if (sinceLastClick <= RenameMaxGap)
+            _pendingHeaderClickGesture = HeaderClickGesture.Rename;
+        else
+            _pendingHeaderClickGesture = HeaderClickGesture.Select;
+    }
+
+    /// <inheritdoc />
+    public override bool OnMouseDown(Float2 location, MouseButton button)
+    {
+        if (button == MouseButton.Left && IsHeaderGestureHit(ref location))
+            RegisterHeaderClickDown();
+
+        return base.OnMouseDown(location, button);
+    }
+
+    /// <inheritdoc />
+    protected override bool OnMouseDoubleClickHeader(ref Float2 location, MouseButton button)
+    {
+        if (button != MouseButton.Left)
+            return base.OnMouseDoubleClickHeader(ref location, button);
+
+        // The expand/toggle-vs-rename decision is made by our own OS-independent timing in OnMouseUp (via
+        // RegisterHeaderClickDown) rather than here - this just needs to feed that same timer, since the platform
+        // sends this instead of a second OnMouseDown once its own double-click speed setting is satisfied. The
+        // actual action fires from the OnMouseUp that follows (both clicks' releases still hit that override).
+        if (IsHeaderGestureHit(ref location))
+            RegisterHeaderClickDown();
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public override bool OnMouseUp(Float2 location, MouseButton button)
+    {
+        bool handled = base.OnMouseUp(location, button);
+
+        if (button == MouseButton.Left && IsHeaderGestureHit(ref location))
+        {
+            switch (_pendingHeaderClickGesture)
+            {
+            case HeaderClickGesture.Toggle:
+                _lastHeaderClickDownTime = -1f;
+                if (HasAnyVisibleChild)
+                {
+                    if (IsCollapsed)
+                        Expand();
+                    else
+                        Collapse();
+                }
+                break;
+            case HeaderClickGesture.Rename:
+                _lastHeaderClickDownTime = -1f;
+                StartRenaming();
+                break;
+            }
+        }
+
+        return handled;
     }
 
     /// <summary>

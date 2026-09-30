@@ -940,6 +940,17 @@ namespace FlaxEditor.Modules
             if (folderName.StartsWith('.'))
                 return true;
 
+            // A project root only ever has Content/Source as its content-database children (see LoadProjects) -
+            // anything else next to them on disk (Binaries, Cache, Logs, Output, Screenshots, etc.) is a build or
+            // tooling artifact, not content, and a rescan (eg. via the "Refresh" context menu action, which walks
+            // every subdirectory it finds) shouldn't start showing it.
+            if (parentNode is ProjectFolderTreeNode &&
+                !string.Equals(folderName, "Content", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(folderName, "Source", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             // Ignore build output and IDE folders inside source code trees
             if (parentNode.CanHaveScripts || parentNode.FolderType == ContentFolderType.Source)
             {
@@ -1258,9 +1269,9 @@ namespace FlaxEditor.Modules
             Proxy.Add(new SettingsProxy(typeof(LayersAndTagsSettings), Editor.Instance.Icons.LayersTagsSettings128));
             Proxy.Add(new SettingsProxy(typeof(PhysicsSettings), Editor.Instance.Icons.PhysicsSettings128));
             Proxy.Add(new SettingsProxy(typeof(GraphicsSettings), Editor.Instance.Icons.GraphicsSettings128));
-            Proxy.Add(new SettingsProxy(typeof(NetworkSettings), Editor.Instance.Icons.Document128));
+            Proxy.Add(new SettingsProxy(typeof(NetworkSettings), Editor.Instance.Icons.LocalizationSettings128));
             Proxy.Add(new SettingsProxy(typeof(NavigationSettings), Editor.Instance.Icons.NavigationSettings128));
-            Proxy.Add(new SettingsProxy(typeof(LocalizationSettings), Editor.Instance.Icons.LocalizationSettings128));
+            Proxy.Add(new SettingsProxy(typeof(LocalizationSettings), Editor.Instance.Icons.VisualScript128));
             Proxy.Add(new SettingsProxy(typeof(AudioSettings), Editor.Instance.Icons.AudioSettings128));
             Proxy.Add(new SettingsProxy(typeof(BuildSettings), Editor.Instance.Icons.BuildSettings128));
             Proxy.Add(new SettingsProxy(typeof(InputSettings), Editor.Instance.Icons.InputSettings128));

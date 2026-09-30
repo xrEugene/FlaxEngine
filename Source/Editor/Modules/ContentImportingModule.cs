@@ -76,6 +76,22 @@ namespace FlaxEditor.Modules
         /// </summary>
         public event Action ImportingQueueEnd;
 
+        /// <summary>
+        /// Occurs when a <see cref="CreateFileEntry"/>'s settings dialog (see <see cref="Create"/>) is closed
+        /// without creating anything - Cancel, Escape, or the window's own close button.
+        /// </summary>
+        public event Action<CreateFileEntry> CreateEntryCancelled;
+
+        /// <summary>
+        /// Notifies that the given entry's settings dialog was closed without creating it. Called by
+        /// <see cref="CreateFilesDialog"/> once it closes with anything other than an OK result.
+        /// </summary>
+        /// <param name="entry">The entry.</param>
+        internal void OnCreateEntryCancelled(CreateFileEntry entry)
+        {
+            CreateEntryCancelled?.Invoke(entry);
+        }
+
         /// <inheritdoc />
         internal ContentImportingModule(Editor editor)
         : base(editor)
