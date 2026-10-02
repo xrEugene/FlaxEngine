@@ -34,7 +34,7 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
-        public override Color AccentColor => Color.FromRGB(0x25B84C);
+        public override Color AccentColor => Color.FromRGB(0x2FCB63);
 
         /// <inheritdoc />
         public override Type AssetType => typeof(Texture);

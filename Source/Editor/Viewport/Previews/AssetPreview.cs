@@ -7,6 +7,7 @@ using Real = System.Single;
 #endif
 
 using System;
+using FlaxEditor.Content.Thumbnails;
 using FlaxEditor.Gizmo;
 using FlaxEditor.GUI.ContextMenu;
 using FlaxEditor.Viewport.Cameras;
@@ -234,7 +235,11 @@ namespace FlaxEditor.Viewport.Previews
         }
 
         /// <inheritdoc />
-        public override bool HasLoadedAssets => base.HasLoadedAssets && Sky.HasContentLoaded && EnvProbe.HasContentLoaded && PostFxVolume.HasContentLoaded;
+        public override bool HasLoadedAssets => base.HasLoadedAssets && Sky.HasContentLoaded && EnvProbe.HasContentLoaded && PostFxVolume.HasContentLoaded &&
+                                                 // HasContentLoaded only means the cube texture asset reference is loaded, not that it has streamed in
+                                                 // enough mips yet - without this, the very first thumbnail/preview captured in a session (before this
+                                                 // shared ambient/reflection texture finishes streaming in) renders noticeably darker than later ones.
+                                                 (EnvProbe.CustomProbe == null || ThumbnailsModule.HasMinimumQuality(EnvProbe.CustomProbe));
 
         /// <inheritdoc />
         public override void OnDestroy()

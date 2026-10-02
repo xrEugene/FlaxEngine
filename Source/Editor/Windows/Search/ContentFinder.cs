@@ -157,9 +157,9 @@ namespace FlaxEditor.Windows.Search
         }
 
         /// <inheritdoc />
-        public override void Show(Control parent, Float2 location, ContextMenuDirection? direction = null)
+        public override void Show(Control parent, Float2 location, ContextMenuDirection? direction = null, bool activate = true)
         {
-            base.Show(parent, location, direction);
+            base.Show(parent, location, direction, activate);
 
             // Setup
             _resultPanel.ScrollViewTo(Float2.Zero);

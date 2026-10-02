@@ -355,14 +355,14 @@ namespace FlaxEditor.GUI.ContextMenu
         }
 
         /// <inheritdoc />
-        public override void Show(Control parent, Float2 location, ContextMenuDirection? direction = null)
+        public override void Show(Control parent, Float2 location, ContextMenuDirection? direction = null, bool activate = true)
         {
             // Remove last separator to make context menu look better
             int lastIndex = _panel.Children.Count - 1;
             if (lastIndex >= 0 && _panel.Children[lastIndex] is ContextMenuSeparator separator)
                 separator.Dispose();
 
-            base.Show(parent, location, direction);
+            base.Show(parent, location, direction, activate);
         }
 
         /// <inheritdoc />

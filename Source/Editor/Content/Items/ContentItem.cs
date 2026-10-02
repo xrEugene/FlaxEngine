@@ -191,6 +191,13 @@ namespace FlaxEditor.Content
         public const int DefaultHeight = (DefaultThumbnailSize + 2 * DefaultMarginSize + DefaultTextHeight);
 
         /// <summary>
+        /// The thumbnail's left offset in <see cref="ContentViewType.List"/>, bigger than <see cref="DefaultMarginSize"/>
+        /// alone so the thumbnail (and, following it, the name) sit a comfortable distance clear of the left-edge
+        /// selection accent line drawn at x=0..3, rather than crowding right up against it.
+        /// </summary>
+        public const int ListLeftMargin = DefaultMarginSize * 2;
+
+        /// <summary>
         /// Whether the item is being but.
         /// </summary>
         public bool IsBeingCut;
@@ -284,6 +291,15 @@ namespace FlaxEditor.Content
         }
 
         /// <summary>
+        /// Overrides <see cref="CachedAssetProxy"/>'s own <see cref="ContentProxy.AccentColor"/> for this specific
+        /// item, for a proxy whose items don't all display as the same conceptual type (eg. <see cref="PrefabItem"/>:
+        /// a widget-rooted Prefab shows as "Widget" rather than "Prefab", and should get its own distinct accent
+        /// color to match, even though both still share the one <see cref="PrefabProxy"/>). Null uses the proxy's
+        /// own color unchanged, as before.
+        /// </summary>
+        public virtual Color? AccentColorOverride => null;
+
+        /// <summary>
         /// The fraction of the tile's own size a file-icon item's <see cref="DefaultThumbnail"/> is drawn at (see
         /// <see cref="Draw"/>'s file-icon branch) - centered, rather than stretched to fill the tile.
         /// </summary>
@@ -327,10 +343,13 @@ namespace FlaxEditor.Content
         /// background and live accent bar the text thumbnail uses (see <see cref="DrawGenericTextThumbnail"/>) -
         /// the icon itself doesn't cover either, being smaller than the tile.
         /// </summary>
-        private void DrawGenericIconThumbnail(ref Rectangle rectangle)
+        private void DrawGenericIconThumbnail(ref Rectangle rectangle, bool drawBackground = true, bool drawAccentBar = true)
         {
-            // SecondaryBackground - same near-black used by an unselected dock tab's header row.
-            Render2D.FillRectangle(rectangle, Style.Current.SecondaryBackground);
+            if (drawBackground)
+            {
+                // SecondaryBackground - same near-black used by an unselected dock tab's header row.
+                Render2D.FillRectangle(rectangle, Style.Current.SecondaryBackground);
+            }
 
             if (!_genericThumbnailIconCache.TryGetValue(GenericThumbnailIcon, out var texture))
             {
@@ -345,9 +364,12 @@ namespace FlaxEditor.Content
                 Render2D.DrawTexture(texture, iconRect, Color.White);
             }
 
-            var proxy = CachedAssetProxy;
-            if (proxy != null)
-                DrawAccentBar(ref rectangle, proxy.AccentColor);
+            if (drawAccentBar)
+            {
+                var proxy = CachedAssetProxy;
+                if (proxy != null)
+                    DrawAccentBar(ref rectangle, AccentColorOverride ?? proxy.AccentColor);
+            }
         }
 
         /// <summary>
@@ -359,15 +381,19 @@ namespace FlaxEditor.Content
         /// <see cref="GenericThumbnailReferenceSize"/>) so it reads at roughly the same size the baked version was
         /// designed to, rather than shrinking to a corner or overflowing at a different tile size.
         /// </summary>
-        private void DrawGenericTextThumbnail(ref Rectangle rectangle)
+        private void DrawGenericTextThumbnail(ref Rectangle rectangle, bool drawBackground = true, bool drawAccentBar = true)
         {
             var style = Style.Current;
-            Render2D.FillRectangle(rectangle, Color.Black);
+            if (drawBackground)
+                Render2D.FillRectangle(rectangle, Color.Black);
             var scale = rectangle.Width / GenericThumbnailReferenceSize;
             Render2D.DrawText(style.FontMedium, GenericThumbnailText, rectangle, style.Foreground, TextAlignment.Center, TextAlignment.Center, TextWrapping.WrapWords, 1.0f, scale);
-            var proxy = CachedAssetProxy;
-            if (proxy != null)
-                DrawAccentBar(ref rectangle, proxy.AccentColor);
+            if (drawAccentBar)
+            {
+                var proxy = CachedAssetProxy;
+                if (proxy != null)
+                    DrawAccentBar(ref rectangle, AccentColorOverride ?? proxy.AccentColor);
+            }
         }
 
         /// <summary>
@@ -383,6 +409,40 @@ namespace FlaxEditor.Content
             var accentHeight = accentHeightAtReferenceSize * (rectangle.Width / GenericThumbnailReferenceSize);
             var accentRect = new Rectangle(rectangle.X, rectangle.Bottom - accentHeight, rectangle.Width, accentHeight);
             Render2D.FillRectangle(accentRect, accentColor);
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether this item draws its thumbnail via <see cref="GenericThumbnailIcon"/> or
+        /// <see cref="GenericThumbnailText"/> (see <see cref="DrawGenericThumbnail"/>) rather than a real rendered
+        /// preview or the older baked-sprite <see cref="DefaultThumbnail"/>.
+        /// </summary>
+        public bool HasGenericThumbnail => GenericThumbnailIcon != null || GenericThumbnailText != null;
+
+        /// <summary>
+        /// Draws this item's <see cref="GenericThumbnailIcon"/>/<see cref="GenericThumbnailText"/> thumbnail into
+        /// <paramref name="rectangle"/> - whichever of the two this item actually has set (see
+        /// <see cref="HasGenericThumbnail"/>); does nothing if neither is. Exposed publicly (beyond the tile/list
+        /// rendering <see cref="Draw"/> already does this for) so other item presentations - eg.
+        /// <see cref="FlaxEditor.Content.ContentItemTreeNode"/>'s row icon in Tree View - can draw the exact same
+        /// thumbnail instead of falling back to a generic document icon for every asset type that uses this newer
+        /// mechanism in place of a baked <see cref="DefaultThumbnail"/> sprite.
+        /// </summary>
+        /// <param name="rectangle">The area to draw the thumbnail into.</param>
+        /// <param name="drawBackground">
+        /// Whether to also draw the background fill a tile/list thumbnail normally gets behind the icon/text
+        /// itself.
+        /// </param>
+        /// <param name="drawAccentBar">
+        /// Whether to also draw the per-asset-type accent-color bar a tile/list thumbnail normally gets along its
+        /// bottom edge - set to <c>false</c> for a small inline icon slot (eg. a Tree View row) where that bar has
+        /// no room to read as anything but visual noise around the icon.
+        /// </param>
+        public void DrawGenericThumbnail(ref Rectangle rectangle, bool drawBackground = true, bool drawAccentBar = true)
+        {
+            if (GenericThumbnailIcon != null)
+                DrawGenericIconThumbnail(ref rectangle, drawBackground, drawAccentBar);
+            else if (GenericThumbnailText != null)
+                DrawGenericTextThumbnail(ref rectangle, drawBackground, drawAccentBar);
         }
 
         /// <summary>
@@ -651,12 +711,26 @@ namespace FlaxEditor.Content
                 {
                     var thumbnailSize = size.Y - 2 * DefaultMarginSize;
                     var textHeight = Mathf.Min(size.Y, 24.0f);
-                    return new Rectangle(thumbnailSize + DefaultMarginSize * 2, (size.Y - textHeight) * 0.5f, size.X - textHeight - DefaultMarginSize * 3.0f, textHeight);
+                    // Text starts right after the thumbnail (now offset by ListLeftMargin, not DefaultMarginSize,
+                    // to clear the selection accent line) plus one more margin's gap; the right edge keeps its
+                    // original position by shrinking the available width by that same extra left offset.
+                    var textX = thumbnailSize + ListLeftMargin + DefaultMarginSize;
+                    var textWidth = size.X - textHeight - DefaultMarginSize * 3.0f - (ListLeftMargin - DefaultMarginSize);
+                    return new Rectangle(textX, (size.Y - textHeight) * 0.5f, textWidth, textHeight);
                 }
                 default: throw new ArgumentOutOfRangeException();
                 }
             }
         }
+
+        /// <summary>
+        /// Gets the horizontal alignment the item's own name is drawn with: <see cref="TextAlignment.Center"/> for
+        /// <see cref="ContentViewType.Tiles"/> (centered under a square thumbnail), <see cref="TextAlignment.Near"/>
+        /// for <see cref="ContentViewType.List"/> (starting right after the thumbnail, like any other row label).
+        /// Used by <see cref="FlaxEditor.Windows.ContentWindow"/> so the rename edit box's text aligns the same way
+        /// the finished label does, instead of always defaulting to centered regardless of view type.
+        /// </summary>
+        public TextAlignment NameAlignment => (Parent as ContentView)?.ViewType == ContentViewType.List ? TextAlignment.Near : TextAlignment.Center;
 
         /// <summary>
         /// Gets the rectangle text should actually be wrapped/measured against: <see cref="TextRectangle"/>, inset
@@ -667,9 +741,20 @@ namespace FlaxEditor.Content
         /// there instead of this same proportional one was enough of a width mismatch to flip a borderline name's
         /// wrap point between the two.
         /// </summary>
+        /// <remarks>
+        /// <paramref name="size"/>.X only scales proportionally with how zoomed-in a <see cref="ContentViewType.Tiles"/>
+        /// tile is (it's a square tile, so width scales with <see cref="ContentViewType.Tiles"/>'s own
+        /// <c>DefaultWidth * ViewScale</c>) - a <see cref="ContentViewType.List"/> row's width is instead the whole
+        /// panel's width regardless of zoom, so using that same size.X-based ratio there blew the margin out to
+        /// however wide the panel happened to be (eg. a name shoved ~100px right of its thumbnail on a wide window).
+        /// <see cref="ContentView.ViewScale"/> is what the row's own thumbnail/text sizing already scales off, so
+        /// that's used directly for List instead.
+        /// </remarks>
         public Rectangle GetWrapTextRectangle(Rectangle textRect, Float2 size)
         {
-            var wrapWidthMargin = 10.0f * size.X / DefaultWidth;
+            var view = Parent as ContentView;
+            var scale = (view?.ViewType ?? ContentViewType.Tiles) == ContentViewType.List ? (view?.ViewScale ?? 1.0f) : size.X / DefaultWidth;
+            var wrapWidthMargin = 10.0f * scale;
             return new Rectangle(textRect.X + wrapWidthMargin * 0.5f, textRect.Y, textRect.Width - wrapWidthMargin, textRect.Height);
         }
 
@@ -890,15 +975,14 @@ namespace FlaxEditor.Content
             var isSelected = view.IsSelected(this);
             var clientRect = new Rectangle(Float2.Zero, size);
             var textRect = TextRectangle;
+            var nameAlignment = NameAlignment;
             Rectangle thumbnailRect;
-            TextAlignment nameAlignment;
             switch (view.ViewType)
             {
             case ContentViewType.Tiles:
             {
                 var thumbnailSize = size.X;
                 thumbnailRect = new Rectangle(0, 0, thumbnailSize, thumbnailSize);
-                nameAlignment = TextAlignment.Center;
 
                 if (this is ContentFolder)
                 {
@@ -960,7 +1044,7 @@ namespace FlaxEditor.Content
                         }
                         var proxy = CachedAssetProxy;
                         if (proxy != null)
-                            DrawAccentBar(ref thumbnailRect, proxy.AccentColor);
+                            DrawAccentBar(ref thumbnailRect, AccentColorOverride ?? proxy.AccentColor);
                     }
                     if (isSelected && !IsBeingRenamed)
                     {
@@ -975,13 +1059,26 @@ namespace FlaxEditor.Content
             case ContentViewType.List:
             {
                 var thumbnailSize = size.Y - 2 * DefaultMarginSize;
-                thumbnailRect = new Rectangle(DefaultMarginSize, DefaultMarginSize, thumbnailSize, thumbnailSize);
-                nameAlignment = TextAlignment.Near;
+                thumbnailRect = new Rectangle(ListLeftMargin, DefaultMarginSize, thumbnailSize, thumbnailSize);
+
+                // Alternating (zebra) row background, matching every other list/tree/context-menu in the editor
+                // (even rows: ContentBackground, odd rows: TreeAlternateRowBackground). IndexInParent is this
+                // item's own position among its view siblings - the same flat child order
+                // ContentView.PerformLayoutBeforeChildren lays List rows out in.
+                Render2D.FillRectangle(clientRect, (IndexInParent & 1) != 0 ? style.TreeAlternateRowBackground : style.ContentBackground);
 
                 if (isSelected && !IsBeingRenamed)
                 {
+                    // Match the left folder tree's own selected-row background (TreeNode.Draw's
+                    // BackgroundColorSelectedUnfocused fill) instead of leaving the plain zebra stripe showing
+                    // through under just the accent bar.
+                    var selectedBackground = Color.Lerp(style.ContentBackground, style.BackgroundHighlighted, 0.5f);
+                    Render2D.FillRectangle(clientRect, selectedBackground);
+
+                    // A left-edge accent bar, like a row in any other list/tree, rather than Tiles' bottom bar -
+                    // a bottom one would just sit lost in the gap between rows here instead of hugging the row itself.
                     var accentColor = style.BackgroundSelected;
-                    var accentRect = new Rectangle(0, clientRect.Height - 3.0f, clientRect.Width, 3.0f);
+                    var accentRect = new Rectangle(0, 0, 3.0f, clientRect.Height);
                     Render2D.FillRectangle(accentRect, accentColor);
                 }
                 else if (IsMouseOver)
@@ -1008,7 +1105,7 @@ namespace FlaxEditor.Content
                     }
                     var proxy = CachedAssetProxy;
                     if (proxy != null)
-                        DrawAccentBar(ref thumbnailRect, proxy.AccentColor);
+                        DrawAccentBar(ref thumbnailRect, AccentColorOverride ?? proxy.AccentColor);
                 }
                 break;
             }

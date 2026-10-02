@@ -24,7 +24,7 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
-        public override Color AccentColor => Color.FromRGB(0x00B371);
+        public override Color AccentColor => Color.FromRGB(0x009ED0);
 
         /// <inheritdoc />
         public override Type AssetType => typeof(AnimationGraph);

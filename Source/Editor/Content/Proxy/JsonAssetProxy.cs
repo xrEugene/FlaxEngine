@@ -32,7 +32,7 @@ namespace FlaxEditor.Content
         public static readonly string Extension = "json";
 
         /// <inheritdoc />
-        public override string Name => "Json Asset";
+        public override string Name => "Json Item";
 
         /// <inheritdoc />
         public override string FileExtension => Extension;
@@ -163,7 +163,7 @@ namespace FlaxEditor.Content
         /// </summary>
         /// <param name="resultUrl">The result file url.</param>
         public GenericJsonCreateEntry(string resultUrl)
-        : base("Json Asset", resultUrl)
+        : base("Json Item", resultUrl)
         {
         }
 
@@ -180,7 +180,7 @@ namespace FlaxEditor.Content
     /// Generic Json assets proxy (supports all json assets that don't have dedicated proxy).
     /// </summary>
     /// <seealso cref="FlaxEditor.Content.JsonAssetBaseProxy" />
-    [ContentContextMenu("New/Json Asset")]
+    [ContentContextMenu("New/Json Item")]
     public class GenericJsonAssetProxy : JsonAssetProxy
     {
         /// <inheritdoc />

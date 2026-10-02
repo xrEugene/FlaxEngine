@@ -57,7 +57,7 @@ namespace FlaxEditor.Content
         }
 
         /// <inheritdoc />
-        public override Color AccentColor => Color.FromRGB(0x2c3e50);
+        public override Color AccentColor => Color.FromRGB(0x89B595);
 
         /// <inheritdoc />
         public override Type AssetType => typeof(CollisionData);

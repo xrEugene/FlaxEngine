@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using FlaxEditor.Content;
 using FlaxEditor.GUI.ContextMenu;
 using FlaxEditor.Scripting;
@@ -29,8 +30,7 @@ namespace FlaxEditor.Windows
         /// </summary>
         private static readonly Dictionary<string, string> _newAssetMenuIcons = new Dictionary<string, string>
         {
-            { "AI", EditorAssets.NewAssetCategoryAIIcon },
-            { "AI/Behavior Tree", EditorAssets.NewAssetItemBehaviorTreeIcon },
+            { "Behavior Tree", EditorAssets.NewAssetItemBehaviorTreeIcon },
             { "Animation", EditorAssets.NewAssetCategoryAnimationIcon },
             { "Animation/Animation", EditorAssets.NewAssetItemAnimationIcon },
             { "Animation/Animation Graph", EditorAssets.NewAssetItemAnimationGraphIcon },
@@ -38,7 +38,7 @@ namespace FlaxEditor.Windows
             { "Animation/Scene Animation", EditorAssets.NewAssetItemSceneAnimationIcon },
             { "Animation/Skeleton Mask", EditorAssets.NewAssetItemSkeletonMaskIcon },
             { "Gameplay Globals", EditorAssets.NewAssetItemGameplayGlobalsIcon },
-            { "Json Asset", EditorAssets.NewAssetItemJsonAssetIcon },
+            { "Json Item", EditorAssets.NewAssetItemJsonAssetIcon },
             { "Material", EditorAssets.NewAssetCategoryMaterialIcon },
             { "Material/Material", EditorAssets.NewAssetItemMaterialIcon },
             { "Material/Material Function", EditorAssets.NewAssetItemAnimationGraphFunctionIcon },
@@ -77,6 +77,29 @@ namespace FlaxEditor.Windows
             brush = new TextureBrush(texture);
             _newAssetMenuIconCache[key] = brush;
             return brush;
+        }
+
+        /// <summary>
+        /// Whether a given proxy type can ever answer <see cref="ContentProxy.CanReimport"/> with <c>true</c> for
+        /// any item, keyed by proxy type so the reflection lookup only runs once per type. A proxy that never
+        /// overrides it (eg. script/JSON/engine-authored-asset proxies) inherits <see cref="ContentProxy"/>'s own
+        /// unconditional <c>false</c>, so its "Re-Import" option would stay permanently disabled rather than ever
+        /// becoming available for some item - that option (and the delimiter around it, if it was the only thing
+        /// in that group) is skipped entirely for those types instead of being shown just to sit grayed out.
+        /// </summary>
+        private static readonly Dictionary<Type, bool> _proxySupportsReimportCache = new Dictionary<Type, bool>();
+
+        private static bool ProxySupportsReimport(ContentProxy proxy)
+        {
+            if (proxy == null)
+                return false;
+            var type = proxy.GetType();
+            if (_proxySupportsReimportCache.TryGetValue(type, out var supports))
+                return supports;
+            var method = type.GetMethod(nameof(ContentProxy.CanReimport), BindingFlags.Public | BindingFlags.Instance);
+            supports = method != null && method.DeclaringType != typeof(ContentProxy);
+            _proxySupportsReimportCache[type] = supports;
+            return supports;
         }
 
         private void MakeContextMenuUnlimited(ContextMenu menu)
@@ -168,6 +191,7 @@ namespace FlaxEditor.Windows
                         if (!string.IsNullOrEmpty(candidateLocation) && System.IO.Directory.Exists(candidateLocation))
                             importLocation = candidateLocation;
                     }
+                    bool canReimport = ProxySupportsReimport(proxy);
 
                     // Inserts a separator right before whatever this group just added to cm, but only if the group
                     // actually added something AND there's already content above it to separate from - avoids a
@@ -193,24 +217,20 @@ namespace FlaxEditor.Windows
                     // Thumbnail, then Re-Import/Show Import Location, each its own delimited group); every other
                     // type keeps Reload/Re-Import/Refresh Thumbnail as a single undivided group, closer to this
                     // menu's original layout.
-                    bool useGroupedLayout = item is AudioClipItem || proxy is SkinnedModelProxy || proxy is TextureProxy;
+                    bool useGroupedLayout = item is AudioClipItem || proxy is SkinnedModelProxy || proxy is TextureProxy || proxy is ModelProxy;
 
-                    if (useGroupedLayout)
+                    // Export + Reload + Refresh Thumbnail group (grouped layout only adds Export here; no separator
+                    // between Export and Reload). For scenes, Reload is only offered while the scene is actually
+                    // open (as the primary scene or loaded additively) - the underlying asset otherwise stays
+                    // cached as "loaded" even after closing the scene, which would make Reload look available when
+                    // there's nothing open to reload.
+                    int itemCountBeforeReload = cm.Items.Count();
+                    if (useGroupedLayout && Editor.CanExport(item.Path))
                     {
-                        int itemCountBeforeExport = cm.Items.Count();
-                        if (Editor.CanExport(item.Path))
-                        {
-                            b = cm.AddButton("Export", ExportSelection);
-                            b.IconBrush = icons?.ExportBrush;
-                        }
-                        AddGroupSeparator(itemCountBeforeExport);
+                        b = cm.AddButton("Export", ExportSelection);
+                        b.IconBrush = icons?.ExportBrush;
                     }
 
-                    // Reload + Refresh Thumbnail group (+ Re-Import in between, for the non-audio layout). For
-                    // scenes, Reload is only offered while the scene is actually open (as the primary scene or
-                    // loaded additively) - the underlying asset otherwise stays cached as "loaded" even after
-                    // closing the scene, which would make Reload look available when there's nothing open to reload.
-                    int itemCountBeforeReload = cm.Items.Count();
                     if (item is SceneItem reloadableScene)
                     {
                         if (Level.FindScene(reloadableScene.ID) != null)
@@ -223,10 +243,10 @@ namespace FlaxEditor.Windows
                             cm.AddButton("Reload", reloadableItem.Reload).IconBrush = icons?.ReloadBrush;
                     }
 
-                    if (!useGroupedLayout)
+                    if (!useGroupedLayout && canReimport)
                     {
                         b = cm.AddButton("Re-Import", ReimportSelection);
-                        b.Enabled = proxy != null && proxy.CanReimport(item);
+                        b.Enabled = proxy.CanReimport(item);
                         b.IconBrush = icons?.ReImportBrush;
                     }
 
@@ -241,28 +261,43 @@ namespace FlaxEditor.Windows
                         else
                             cm.AddButton("Refresh Thumbnail", item.RefreshThumbnail).IconBrush = icons?.RefreshThumbnailsBrush;
                     }
+
+                    // Scene's "Open as Additive" joins this same undivided group (no separator); every other type's
+                    // custom option (e.g. "Create Particle System", "Create Material Instance") gets its own
+                    // delimited group below instead, same as the grouped layout does for "Create Collision Data".
+                    if (!useGroupedLayout && item is SceneItem)
+                        proxy?.OnContentWindowContextMenu(cm, item);
                     AddGroupSeparator(itemCountBeforeReload);
+
+                    if (!useGroupedLayout && !(item is SceneItem))
+                    {
+                        int itemCountBeforeCustom = cm.Items.Count();
+                        proxy?.OnContentWindowContextMenu(cm, item);
+                        AddGroupSeparator(itemCountBeforeCustom);
+                    }
 
                     if (useGroupedLayout)
                     {
                         // Re-Import + Show Import Location group.
                         int itemCountBeforeReImport = cm.Items.Count();
-                        b = cm.AddButton("Re-Import", ReimportSelection);
-                        b.Enabled = proxy != null && proxy.CanReimport(item);
-                        b.IconBrush = icons?.ReImportBrush;
+                        if (canReimport)
+                        {
+                            b = cm.AddButton("Re-Import", ReimportSelection);
+                            b.Enabled = proxy.CanReimport(item);
+                            b.IconBrush = icons?.ReImportBrush;
+                        }
 
                         if (importLocation != null)
                         {
                             cm.AddButton("Show Import Location", () => FileSystem.ShowFileExplorer(importLocation)).IconBrush = icons?.ShowImportLocationBrush;
                         }
                         AddGroupSeparator(itemCountBeforeReImport);
-                    }
 
-                    // Type-specific custom options (e.g. Scene's "Open as Additive"), placed under Reload/Re-Import/Refresh Thumbnail,
-                    // delimited from it only when the proxy actually adds something.
-                    int itemCountBeforeCustom = cm.Items.Count();
-                    proxy?.OnContentWindowContextMenu(cm, item);
-                    AddGroupSeparator(itemCountBeforeCustom);
+                        // Type-specific custom options (e.g. "Create Collision Data"), own group here.
+                        int itemCountBeforeCustom = cm.Items.Count();
+                        proxy?.OnContentWindowContextMenu(cm, item);
+                        AddGroupSeparator(itemCountBeforeCustom);
+                    }
 
                     // Asset info group: Show Import Location and Export join this group for the non-audio layout
                     // (audio already placed them above); Copy Asset ID/Select Actors/Show Asset References always go here.
@@ -368,16 +403,16 @@ namespace FlaxEditor.Windows
             }
             else
             {
+                cm.AddButton("Refresh", () => Editor.ContentDatabase.RefreshFolder(CurrentViewFolder, true)).IconBrush = icons?.RefreshBrush;
+
+                cm.AddButton("Refresh Thumbnails", RefreshViewItemsThumbnails).IconBrush = icons?.RefreshThumbnailsBrush;
+                cm.AddSeparator();
+
                 b = cm.AddButton("Paste", _view.Paste);
                 b.Enabled = _view.CanPaste();
                 b.IconBrush = icons?.PasteBrush;
 
                 cm.AddButton(Utilities.Constants.ShowInExplorer, () => FileSystem.ShowFileExplorer(CurrentViewFolder.Path)).IconBrush = icons?.ShowInExplorerBrush;
-                cm.AddSeparator();
-
-                cm.AddButton("Refresh", () => Editor.ContentDatabase.RefreshFolder(CurrentViewFolder, true)).IconBrush = icons?.RefreshBrush;
-
-                cm.AddButton("Refresh Thumbnails", RefreshViewItemsThumbnails).IconBrush = icons?.RefreshThumbnailsBrush;
             }
 
             // Right-clicking a specific file doesn't get New Folder/New Asset/Import File - those create things
@@ -566,6 +601,37 @@ namespace FlaxEditor.Windows
                     }
                 }
             }
+
+            // Visual grouping separators within specific category submenus (desired item groupings). These
+            // submenus use AutoSort, which re-sorts on every AddButton call above, so a separator can only be
+            // placed reliably once the whole menu is finished building, not threaded through the loop.
+            InsertCategorySeparatorAfter(menu, "Animation", "Animation Graph Function");
+            InsertCategorySeparatorAfter(menu, "Particles", "Particle Emitter Function");
+        }
+
+        /// <summary>
+        /// Inserts a separator right after a specific named item within a "New Asset" category submenu (searched at
+        /// the top level, or inside the "New Asset" wrapper submenu when the right-click menu nests everything
+        /// under it).
+        /// </summary>
+        private static void InsertCategorySeparatorAfter(ContextMenu menu, string categoryName, string afterItemText)
+        {
+            var categoryMenu = menu.Items.OfType<ContextMenuChildMenu>().FirstOrDefault(c => c.Text == categoryName);
+            if (categoryMenu == null)
+            {
+                var newAssetWrapper = menu.Items.OfType<ContextMenuChildMenu>().FirstOrDefault(c => c.Text == "New Asset");
+                categoryMenu = newAssetWrapper?.ContextMenu.Items.OfType<ContextMenuChildMenu>().FirstOrDefault(c => c.Text == categoryName);
+            }
+            var afterItem = categoryMenu?.ContextMenu.Items.OfType<ContextMenuButton>().FirstOrDefault(b => b.Text == afterItemText);
+            if (afterItem == null)
+                return;
+
+            var subMenu = categoryMenu.ContextMenu;
+            subMenu.AddSeparator();
+            var children = subMenu.ItemsContainer.Children;
+            var addedSeparator = children[^1];
+            children.RemoveAt(children.Count - 1);
+            children.Insert(children.IndexOf((Control)afterItem) + 1, addedSeparator);
         }
 
         private void OnExpandAllClicked(ContextMenuButton button)

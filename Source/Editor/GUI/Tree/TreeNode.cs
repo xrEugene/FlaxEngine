@@ -645,15 +645,26 @@ namespace FlaxEditor.GUI.Tree
         }
 
         /// <summary>
+        /// Whether this node supports showing/dropping at an <see cref="DragItemPositioning.Above"/>/<see cref="DragItemPositioning.Below"/>
+        /// insertion position (reordering as a sibling) rather than only directly onto it
+        /// (<see cref="DragItemPositioning.At"/>). Overridden to <c>false</c> by trees with no meaningful manual
+        /// ordering to insert a sibling at a precise position within (eg. content folders, always sorted
+        /// alphabetically) - there, hovering anywhere in the header just resolves to <see cref="DragItemPositioning.At"/>,
+        /// so a drop always has one unambiguous, specific target instead of a boundary between two siblings that
+        /// has no sensible meaning to drop onto.
+        /// </summary>
+        protected virtual bool SupportsDragInsertPositioning => true;
+
+        /// <summary>
         /// Updates the drag over mode based on the given mouse location.
         /// </summary>
         /// <param name="location">The location.</param>
         private void UpdateDragPositioning(ref Float2 location)
         {
             // Check collision with drag areas
-            if (new Rectangle(_headerRect.X, _headerRect.Y - DefaultDragInsertPositionMargin - DefaultNodeOffsetY, _headerRect.Width, DefaultDragInsertPositionMargin * 2.0f).Contains(location))
+            if (SupportsDragInsertPositioning && new Rectangle(_headerRect.X, _headerRect.Y - DefaultDragInsertPositionMargin - DefaultNodeOffsetY, _headerRect.Width, DefaultDragInsertPositionMargin * 2.0f).Contains(location))
                 _dragOverMode = DragItemPositioning.Above;
-            else if ((IsCollapsed || !HasAnyVisibleChild) && new Rectangle(_headerRect.X, _headerRect.Bottom - DefaultDragInsertPositionMargin, _headerRect.Width, DefaultDragInsertPositionMargin * 2.0f).Contains(location))
+            else if (SupportsDragInsertPositioning && (IsCollapsed || !HasAnyVisibleChild) && new Rectangle(_headerRect.X, _headerRect.Bottom - DefaultDragInsertPositionMargin, _headerRect.Width, DefaultDragInsertPositionMargin * 2.0f).Contains(location))
                 _dragOverMode = DragItemPositioning.Below;
             else
                 _dragOverMode = DragItemPositioning.At;
@@ -1167,6 +1178,13 @@ namespace FlaxEditor.GUI.Tree
 
                 // Start
                 DoDragDrop();
+
+                // Mark the drag as just-ended regardless of where it was dropped - OnDragDrop below only sets this
+                // itself when some node's drop target actually accepted the drop (eg. a folder); dropping over a
+                // node that rejects it (eg. a plain file) never calls OnDragDrop anywhere, which left this stale and
+                // let the synthetic mouse-up Windows needs to fix its own hanging button state (see
+                // Window::DoDragDrop) fall through to a plain click-to-select on whatever node is under the cursor.
+                _dragEndFrame = Engine.FrameCount;
                 return;
             }
 
@@ -1214,6 +1232,9 @@ namespace FlaxEditor.GUI.Tree
 
                 // Start
                 DoDragDrop();
+
+                // See the matching comment in OnMouseMove above.
+                _dragEndFrame = Engine.FrameCount;
             }
 
             // Base

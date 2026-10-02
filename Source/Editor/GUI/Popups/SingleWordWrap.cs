@@ -220,7 +220,13 @@ namespace FlaxEditor.GUI
                 var (start, end, _) = lines[i];
                 if (end <= start)
                     continue;
-                if (MeasureWidth(font, text.Substring(start, end - start), ref measureLayout) > boundsWidth + 0.5f)
+                var lineText = text.Substring(start, end - start);
+                var lineWidth = MeasureWidth(font, lineText, ref measureLayout);
+                // Only a true floating-point tolerance here, not a visual fudge factor: the actual draw/clip rect
+                // has no such slack, so anything bigger than rounding error (eg. the half-pixel tolerance this used
+                // to carry) let lines that were genuinely, reproducibly too wide - not just noisy - report as
+                // fitting, leaving them undrawn with no ellipsis and their trailing edge silently clipped.
+                if (lineWidth > boundsWidth + 0.05f)
                     return false;
             }
 
@@ -365,25 +371,25 @@ namespace FlaxEditor.GUI
                 return text;
             }
 
-            // Doesn't fit even once wrapped - shorten with a trailing ellipsis. Binary search the longest original-
-            // text prefix (before the ellipsis) whose own wrap decision fits within boundsHeight.
-            int lo = 0, hi = text.Length;
+            // Doesn't fit even once wrapped - shorten with a trailing ellipsis. Find the longest original-text
+            // prefix (before the ellipsis) whose own wrap decision fits within boundsHeight, trying longest-first
+            // rather than a binary search: Decide() can switch wrapping strategy (native word-wrap, a hyphen split,
+            // or character wrap) at different prefix lengths, which can make "fits" non-monotonic in that length -
+            // a classic binary search can walk straight past the one prefix length that actually fits and land on
+            // none at all, silently leaving the full, overflowing text undrawn with no ellipsis ever applied. A
+            // plain linear scan can't miss it like that, and these are short filenames, so the extra iterations cost
+            // nothing worth optimizing away.
             var best = decision;
             var bestPrefixLength = 0;
-            while (lo <= hi)
+            for (int mid = text.Length; mid >= 0; mid--)
             {
-                int mid = (lo + hi) / 2;
                 var candidateSource = text.Substring(0, mid).TrimEnd() + Ellipsis;
                 var candidateDecision = Decide(candidateSource, font, scale, boundsWidth);
                 if (FitsHeight(candidateDecision.Text, font, scale, candidateDecision.Wrapping, boundsWidth, boundsHeight))
                 {
                     best = candidateDecision;
                     bestPrefixLength = mid;
-                    lo = mid + 1;
-                }
-                else
-                {
-                    hi = mid - 1;
+                    break;
                 }
             }
 

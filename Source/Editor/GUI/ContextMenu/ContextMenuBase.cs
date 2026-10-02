@@ -113,7 +113,7 @@ namespace FlaxEditor.GUI.ContextMenu
         private HideFocusMode _hideFocusMode;
 
         /// <summary>
-        /// The control that opened the currently visible topmost context menu (the <c>parent</c> passed to <see cref="Show(Control,Float2,ContextMenuDirection?)"/>).
+        /// The control that opened the currently visible topmost context menu (the <c>parent</c> passed to <see cref="Show(Control,Float2,ContextMenuDirection?,bool)"/>).
         /// Used by dock chrome to keep the correct tab visually focused while a context menu popup steals OS window focus.
         /// </summary>
         public static Control ActiveContextMenuOwner { get; private set; }
@@ -220,7 +220,13 @@ namespace FlaxEditor.GUI.ContextMenu
         /// <param name="parent">Parent control to attach to it.</param>
         /// <param name="location">Popup menu origin location in parent control coordinates.</param>
         /// <param name="direction">The custom popup direction. Null to use automatic direction.</param>
-        public virtual void Show(Control parent, Float2 location, ContextMenuDirection? direction = null)
+        /// <param name="activate">
+        /// Whether this popup should take native window activation/keyboard focus when shown. False for a
+        /// hover-only preview (eg. a submenu revealed just by hovering its parent row) so it doesn't steal keyboard
+        /// focus away from something the user is actively typing into elsewhere - the popup still works with the
+        /// mouse either way, since that's controlled independently by <see cref="UseInput"/>/AllowInput.
+        /// </param>
+        public virtual void Show(Control parent, Float2 location, ContextMenuDirection? direction = null, bool activate = true)
         {
             Assert.IsNotNull(parent);
             bool isAlreadyVisible = Visible && _window;
@@ -329,7 +335,7 @@ namespace FlaxEditor.GUI.ContextMenu
                 // an external text box while this popup is shown), while AllowInput controls whether the popup can
                 // receive mouse input at all (eg. hover/scrollbar/wheel) - these must stay independent, otherwise
                 // disabling activation would make the whole popup click-through and unusable with the mouse.
-                desc.ActivateWhenFirstShown = UseInput;
+                desc.ActivateWhenFirstShown = UseInput && activate;
                 desc.AllowInput = true;
                 desc.AllowMinimize = false;
                 desc.AllowMaximize = false;
@@ -372,7 +378,8 @@ namespace FlaxEditor.GUI.ContextMenu
 #if !PLATFORM_SDL
                 _previouslyFocused = parentWin.FocusedControl;
 #endif
-                Focus();
+                if (activate)
+                    Focus();
                 OnShow();
             }
         }
@@ -395,6 +402,12 @@ namespace FlaxEditor.GUI.ContextMenu
         {
             if (!Visible)
                 return;
+
+            // Captured before the parent-unlink below clears _parentCM - a child/nested popup closing (eg. a
+            // sibling submenu switch, or the parent regaining focus) just means the interaction is continuing
+            // elsewhere in the same menu chain, not that it's actually ending, so it shouldn't trigger the
+            // focus-restoration dance below. Only the root popup's own Hide() represents the whole chain closing.
+            bool wasRoot = _parentCM == null;
 
             // Lock update
             IsLayoutLocked = true;
@@ -427,7 +440,7 @@ namespace FlaxEditor.GUI.ContextMenu
             _showParent = null;
 
             // Return focus (behavior depends on why the popup is closing - see HideFocusMode)
-            if (_previouslyFocused != null)
+            if (wasRoot && _previouslyFocused != null)
             {
                 switch (_hideFocusMode)
                 {
@@ -459,7 +472,8 @@ namespace FlaxEditor.GUI.ContextMenu
         /// <param name="child">The child menu.</param>
         /// <param name="location">The child menu initial location.</param>
         /// <param name="isSubMenu">True if context menu is a normal sub-menu, otherwise it is a custom menu popup linked as child.</param>
-        public void ShowChild(ContextMenuBase child, Float2 location, bool isSubMenu = true)
+        /// <param name="activate">Forwarded to <see cref="Show"/> - false for a hover-only preview.</param>
+        public void ShowChild(ContextMenuBase child, Float2 location, bool isSubMenu = true, bool activate = true)
         {
             // Hide current child
             HideChild();
@@ -470,7 +484,7 @@ namespace FlaxEditor.GUI.ContextMenu
             _childCM._isSubMenu = isSubMenu;
 
             // Show child
-            _childCM.Show(this, location);
+            _childCM.Show(this, location, null, activate);
         }
 
         /// <summary>

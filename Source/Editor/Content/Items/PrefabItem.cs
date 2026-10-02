@@ -45,6 +45,9 @@ namespace FlaxEditor.Content
         public override SpriteHandle DefaultThumbnail => SpriteHandle.Invalid;
 
         /// <inheritdoc />
+        public override Color? AccentColorOverride => TypeDescription == "Widget" ? Color.FromRGB(0x76A9C8) : null;
+
+        /// <inheritdoc />
         public override string TypeDescription
         {
             get

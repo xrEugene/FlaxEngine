@@ -261,6 +261,10 @@ namespace FlaxEditor.Modules
             if (File.Exists(path))
             {
                 LoadLayout(path);
+
+                // Tied explicitly to this user action rather than folded into ContentWindow.OnLayoutDeserialize
+                // itself - see that method's own remarks on why.
+                ContentWin?.CollapseAllFolders();
             }
         }
 

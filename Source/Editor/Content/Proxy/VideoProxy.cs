@@ -25,7 +25,7 @@ namespace FlaxEditor.Content
         public override string FileExtension => _extension;
 
         /// <inheritdoc />
-        public override Color AccentColor => Color.FromRGB(0x11f7f1);
+        public override Color AccentColor => Color.FromRGB(0x07CBC6);
 
         /// <inheritdoc />
         public override bool IsProxyFor(ContentItem item)

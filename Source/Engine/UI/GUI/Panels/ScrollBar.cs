@@ -241,7 +241,7 @@ namespace FlaxEngine.GUI
         {
             if (!Mathf.NearEqual(_value, _targetValue))
             {
-                _value = _targetValue = _startValue;
+                _value = _startValue = _targetValue;
                 _scrollAnimationProgress = 0f;
                 SetUpdate(ref _update, null);
                 OnValueChanged();

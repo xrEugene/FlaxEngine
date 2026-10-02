@@ -35,6 +35,14 @@ namespace FlaxEngine.GUI
         public VScrollBar VScrollBar;
 
         /// <summary>
+        /// Whether dragging near this panel's edge during a drag-and-drop operation (see <see cref="OnDragMove"/>)
+        /// automatically scrolls it. Enabled by default; disable it for a panel where that continuous edge-scroll
+        /// fights with precise drop targeting (eg. reordering/dropping onto a specific row in a long list) - the
+        /// mouse wheel still works as a manual alternative regardless of this setting.
+        /// </summary>
+        public bool AutoScrollOnDrag = true;
+
+        /// <summary>
         /// The horizontal scroll bar.
         /// </summary>
         [HideInEditor, NoSerialize]
@@ -695,7 +703,7 @@ namespace FlaxEngine.GUI
             float MoveScale = 4.0f;
             var viewOffset = -_viewOffset;
 
-            if (VScrollBar != null && VScrollBar.Enabled && height > MinSize)
+            if (AutoScrollOnDrag && VScrollBar != null && VScrollBar.Enabled && height > MinSize)
             {
                 if (new Rectangle(0, 0, width, AreaSize).Contains(ref location))
                 {
@@ -710,7 +718,7 @@ namespace FlaxEngine.GUI
                 VScrollBar.TargetValue = viewOffset.Y;
             }
 
-            if (HScrollBar != null && HScrollBar.Enabled && width > MinSize)
+            if (AutoScrollOnDrag && HScrollBar != null && HScrollBar.Enabled && width > MinSize)
             {
                 if (new Rectangle(0, 0, AreaSize, height).Contains(ref location))
                 {

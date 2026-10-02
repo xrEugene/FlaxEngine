@@ -182,26 +182,30 @@ namespace FlaxEditor.GUI
         }
 
         /// <summary>
-        /// The minimum width (in UI units) given to a rename input box when <c>fitToContent</c> shrinks it to the text.
+        /// The minimum width (in UI units) given to a rename input box when <c>fitToContent</c> shrinks it to the
+        /// text - just enough to keep a near-empty box clickable/typeable, not a visual floor (that's what made
+        /// short names like "File" look like they still had oversized padding: the box was being forced up to this
+        /// width well past what <see cref="FitToContentPadding"/> alone would've given them).
         /// </summary>
-        private const float MinFitToContentWidth = 60.0f;
+        private const float MinFitToContentWidth = 24.0f;
 
         /// <summary>
-        /// The multiplier applied to the measured text width when <c>fitToContent</c> is used, so the box has some
-        /// breathing room around the text (1.2 = 20% wider than the text itself).
+        /// Extra width (in UI units) added around the measured text when <c>fitToContent</c> is used, so the box has
+        /// some breathing room around the text - a flat amount rather than a percentage of the text's own width, so
+        /// a long name (eg. "Animation Graph Function") doesn't end up with visibly more breathing room than a short
+        /// one (eg. "IES Profile") just because there's more text to take a percentage of.
         /// </summary>
-        private const float FitToContentWidthMultiplier = 1.2f;
+        private const float FitToContentPadding = 13.0f;
 
         /// <summary>
         /// Computes the input box width for the input field's current text: its own <see cref="TextBox.GetTextSize"/>
-        /// measurement scaled by <see cref="FitToContentWidthMultiplier"/>, clamped between
-        /// <see cref="MinFitToContentWidth"/> and <see cref="_maxWidth"/> (the box never grows past the space that was
-        /// originally available to it).
+        /// measurement plus <see cref="FitToContentPadding"/>, clamped between <see cref="MinFitToContentWidth"/> and
+        /// <see cref="_maxWidth"/> (the box never grows past the space that was originally available to it).
         /// </summary>
         private float GetFitToContentWidth()
         {
             var textWidth = _inputField.GetTextSize().X;
-            return Mathf.Clamp(textWidth * FitToContentWidthMultiplier, MinFitToContentWidth, _maxWidth);
+            return Mathf.Clamp(textWidth + FitToContentPadding, MinFitToContentWidth, _maxWidth);
         }
 
         /// <summary>
@@ -241,39 +245,36 @@ namespace FlaxEditor.GUI
             var bottomRight = control.PointToWindow(area.BottomRight);
             var size = bottomRight - upperLeft;
 
+            // Walk up to the nearest Panel ancestor (the actual scroll viewport) so a box sized off a row's own
+            // reported area can still be clamped against that viewport's real right edge - a Panel's VScrollBar
+            // floats as an overlay at its own right edge rather than shrinking the Panel's reported width (see
+            // Panel.GetDesireClientArea), so a row's full-width area can extend underneath it without the row
+            // itself visibly overlapping (its background and short label never reach that far right), while a
+            // solid, bordered edit box sized the exact same way does.
+            Panel clipPanel = FindContainingPanel(control);
+            float? clipRightX = null;
+            if (clipPanel != null)
+            {
+                // Exclude the vertical scrollbar (if visible) from the available width, otherwise the box can
+                // overlap it.
+                clipPanel.GetDesireClientArea(out var clientArea);
+                clipRightX = clipPanel.PointToWindow(new Float2(clientArea.Right, 0)).X;
+            }
+
+            var rootWindow = control.RootWindow;
+            var windowRightX = rootWindow != null ? rootWindow.Width : (float?)null;
+
+            // The hard ceiling against the actual viewport (and its scrollbar): fitToContent grows up to here
+            // instead of trusting the row's own, possibly too-narrow, reported width; the general case below clamps
+            // down to it instead, since there it's the row's own area that's too wide, not too narrow.
+            var availableRightX = Mathf.Min(clipRightX ?? float.MaxValue, windowRightX ?? float.MaxValue);
+
             if (fitToContent && !isMultiline)
             {
                 // The area passed in (eg. a tree row's TextRect) doesn't always match what's actually visible on screen:
                 // a Tree control widens itself (and every TreeNode row cascades that width) to fit its widest node, for
                 // horizontal-scroll support, so tree rows report that inflated width rather than their host Panel's real,
-                // anchor-constrained viewport width. Walk up to the nearest Panel ancestor (the actual scroll viewport)
-                // and cap against its visible right edge instead; fall back to the enclosing window's right edge if none.
-                Panel clipPanel = null;
-                var clipAncestor = control.Parent;
-                while (clipAncestor != null)
-                {
-                    if (clipAncestor is Panel panel)
-                    {
-                        clipPanel = panel;
-                        break;
-                    }
-                    clipAncestor = clipAncestor.Parent;
-                }
-                float? clipRightX = null;
-                if (clipPanel != null)
-                {
-                    // Exclude the vertical scrollbar (if visible) from the available width, otherwise the box can
-                    // overlap it.
-                    clipPanel.GetDesireClientArea(out var clientArea);
-                    clipRightX = clipPanel.PointToWindow(new Float2(clientArea.Right, 0)).X;
-                }
-
-                var rootWindow = control.RootWindow;
-                var windowRightX = rootWindow != null ? rootWindow.Width : (float?)null;
-
-                // This is the hard ceiling GetFitToContentWidth() clamps against: the box can grow up to here (never
-                // just the row's own, possibly too-narrow, reported TextRect width) before it stops expanding.
-                var availableRightX = Mathf.Min(clipRightX ?? float.MaxValue, windowRightX ?? float.MaxValue);
+                // anchor-constrained viewport width.
                 if (availableRightX < float.MaxValue)
                 {
                     // A hair past the computed edge on purpose: better to slightly overshoot than leave any gap
@@ -283,10 +284,36 @@ namespace FlaxEditor.GUI
                         size.X = available;
                 }
             }
+            else if (availableRightX < float.MaxValue)
+            {
+                // Not growing to fit here - fitToContent handles that above, for the tree row case where the
+                // reported area is too narrow. Here it's the opposite: a content-view row's own TextRectangle
+                // already spans the full, scrollbar-unaware row width (see ContentItem.TextRectangle), so just cap
+                // the box down to the real viewport edge instead of growing past it.
+                var available = availableRightX - upperLeft.X;
+                if (available > 0.0f)
+                    size.X = Mathf.Min(size.X, available);
+            }
 
             var rename = new RenamePopup(value, size, isMultiline, horizontalAlignment, fitToContent, wrapWords, textScale, wrapWidthMargin);
             rename.Show(control, area.Location + new Float2(0, (size.Y - rename.Height) * 0.5f));
             return rename;
+        }
+
+        /// <summary>
+        /// Walks up from the given control to find the nearest <see cref="Panel"/> ancestor (the actual scroll
+        /// viewport it's rendered within), or null if none is found.
+        /// </summary>
+        internal static Panel FindContainingPanel(Control control)
+        {
+            var ancestor = control.Parent;
+            while (ancestor != null)
+            {
+                if (ancestor is Panel panel)
+                    return panel;
+                ancestor = ancestor.Parent;
+            }
+            return null;
         }
 
         private void OnEnd()

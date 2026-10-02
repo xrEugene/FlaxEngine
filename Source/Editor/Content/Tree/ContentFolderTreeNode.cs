@@ -157,6 +157,12 @@ public class ContentFolderTreeNode : TreeNode
         if (!_folder.CanRename)
             return;
 
+        // Finish any in-flight smooth scroll animation on the containing panel first - the rename popup is a
+        // separate floating native window positioned once from this node's current on-screen location, so if the
+        // panel is still easing toward a target scroll offset (eg. from a recent mouse wheel scroll) the popup
+        // would be left behind, frozen, while the row keeps animating to its final resting position underneath it.
+        RenamePopup.FindContainingPanel(this)?.FastScroll();
+
         // Start renaming the folder
         Editor.Instance.Windows.ContentWin.ScrollingOnTreeView(false);
         var dialog = RenamePopup.Show(this, TextRect, _folder.ShortName, false, fitToContent: true);
@@ -394,6 +400,9 @@ public class ContentFolderTreeNode : TreeNode
 
         Editor.Instance?.Windows?.ContentWin?.OnContentTreeNodeExpandedChanged(this, IsExpanded);
     }
+
+    /// <inheritdoc />
+    protected override bool SupportsDragInsertPositioning => false;
 
     private DragDropEffect GetDragEffect(DragData data)
     {

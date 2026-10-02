@@ -41,6 +41,9 @@ namespace FlaxEditor.Windows
         // if there's nothing to scroll to).
         private float? _pendingContentTreeScroll;
         private int _pendingContentTreeScrollFrames;
+        private string _pendingContentTreeScrollTargetPath;
+        private float _pendingContentTreeScrollLastMaximum = float.NaN;
+        private bool? _pendingContentTreeScrollLastEnabled;
         private SplitPanel _split;
         private TreeViewPanel _treeOnlyPanel;
         private ContainerControl _treePanelRoot;
@@ -239,6 +242,10 @@ namespace FlaxEditor.Windows
                 Offsets = Margin.Zero,
                 IsScrollable = true,
                 ScrollBars = ScrollBars.Both,
+                // Edge auto-scroll while dragging an item fights with trying to land it on a specific row (the
+                // view keeps crawling out from under the cursor) - the mouse wheel still scrolls manually during
+                // a drag regardless, so that's the way to reach a row that isn't currently in view.
+                AutoScrollOnDrag = false,
                 BackgroundColor = style.ContentBackground,
                 Parent = _treePanelRoot,
             };
@@ -358,6 +365,27 @@ namespace FlaxEditor.Windows
             menu.Show(this, below ? _createNewButton.BottomLeft : _createNewButton.UpperLeft, direction);
         }
 
+        /// <summary>
+        /// A <see cref="FloatValueBox"/> that only accepts digits and a decimal separator while typing - used for
+        /// the View dropdown's Scale field, where the base box's arithmetic-expression typing (via ShuntingYard)
+        /// isn't wanted.
+        /// </summary>
+        private sealed class NumericOnlyFloatValueBox : FloatValueBox
+        {
+            public NumericOnlyFloatValueBox(float value, float x, float y, float width, float min, float max, float slideSpeed)
+            : base(value, x, y, width, min, max, slideSpeed)
+            {
+            }
+
+            /// <inheritdoc />
+            public override bool OnCharInput(char c)
+            {
+                if (char.IsControl(c) || char.IsDigit(c) || c == '.' || c == ',')
+                    return base.OnCharInput(c);
+                return true; // swallow disallowed characters
+            }
+        }
+
         private ContextMenu OnViewDropdownPopupCreate(ComboBox comboBox)
         {
             var menu = new ContextMenu();
@@ -366,7 +394,7 @@ namespace FlaxEditor.Windows
             var viewScale = menu.AddButton("Scale");
             viewScale.CloseMenuOnClick = false;
             viewScale.IconBrush = icons?.ViewScaleBrush;
-            var scaleValue = new FloatValueBox(1, 75, 2, 50.0f, 0.3f, 3.0f, 0.01f)
+            var scaleValue = new NumericOnlyFloatValueBox(1, 75, 2, 50.0f, 0.3f, 3.0f, 0.01f)
             {
                 Parent = viewScale
             };
@@ -610,6 +638,16 @@ namespace FlaxEditor.Windows
             // Show element in the view
             Select(item, true);
 
+            // Finish any in-flight smooth scroll animation Select() just triggered (eg. to bring the renamed item
+            // into view) before reading its on-screen position below - the rename popup is a separate floating
+            // native window positioned once from that position, so if the panel were still easing toward its
+            // target scroll offset the popup would be left behind, frozen, while the row keeps animating to its
+            // final resting position underneath it. _contentTreePanel is the tree's actual scrollable viewport in
+            // both split and unified Tree View modes (ApplyTreeViewMode only reparents it between the two, it
+            // doesn't move the tree out of it - _treeOnlyPanel itself has no scroll bars of its own).
+            _contentTreePanel.FastScroll();
+            _contentViewPanel.FastScroll();
+
             // Disable scrolling in proper view
             _renameInTree = _showAllContentInTree || forceRenameInTree;
             if (_renameInTree)
@@ -619,12 +657,14 @@ namespace FlaxEditor.Windows
 
             // Show rename popup
             RenamePopup popup;
-            // Match the font scale and wrap width the finished (non-editing) tile label uses (see ContentItem.Draw
-            // and GetWrapTextRectangle), so word-wrapping while editing happens at exactly the same point it does
-            // once renaming finishes.
+            // Match the font scale, wrap width and horizontal alignment the finished (non-editing) tile label uses
+            // (see ContentItem.Draw, GetWrapTextRectangle and NameAlignment), so the edit box looks and wraps
+            // exactly like the label does once renaming finishes - Tiles centers the name under a square thumbnail,
+            // while List starts it right after the thumbnail like any other row, not centered across the whole row.
             var gridTextScale = item.Parent is Content.GUI.ContentView contentView ? 0.95f * contentView.ViewScale : 1.0f;
             var gridTextRect = item.TextRectangle;
             var gridWrapWidthMargin = gridTextRect.Width - item.GetWrapTextRectangle(gridTextRect, item.Size).Width;
+            var gridNameAlignment = item.NameAlignment;
             if (_renameInTree)
             {
                 TreeNode node = null;
@@ -635,7 +675,7 @@ namespace FlaxEditor.Windows
                 if (node == null)
                 {
                     // Fallback to content view rename
-                    popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true, wrapWords: true, textScale: gridTextScale, wrapWidthMargin: gridWrapWidthMargin);
+                    popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true, horizontalAlignment: gridNameAlignment, wrapWords: true, textScale: gridTextScale, wrapWidthMargin: gridWrapWidthMargin);
                 }
                 else
                 {
@@ -647,7 +687,7 @@ namespace FlaxEditor.Windows
             }
             else
             {
-                popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true, wrapWords: true, textScale: gridTextScale, wrapWidthMargin: gridWrapWidthMargin);
+                popup = RenamePopup.Show(item, item.TextRectangle, item.ShortName, true, horizontalAlignment: gridNameAlignment, wrapWords: true, textScale: gridTextScale, wrapWidthMargin: gridWrapWidthMargin);
             }
             popup.Tag = item;
             popup.Validate += OnRenameValidate;
@@ -1232,6 +1272,9 @@ namespace FlaxEditor.Windows
 
             if (_showAllContentInTree)
             {
+                // _contentTreePanel is the tree's actual scrollable viewport in both split and unified Tree View
+                // modes (ApplyTreeViewMode only reparents it between the two, it doesn't move the tree out of it -
+                // _treeOnlyPanel itself has no scroll bars of its own, see TreeViewPanel's base(ScrollBars.None)).
                 var targetNode = item is ContentFolder folder ? folder.Node : parent.Node;
                 if (targetNode != null)
                 {
@@ -1286,6 +1329,22 @@ namespace FlaxEditor.Windows
                 if (parentNode.GetChild(i) is ContentItemTreeNode itemNode && itemNode.Item == item)
                     return itemNode;
             }
+            return null;
+        }
+
+        /// <summary>
+        /// Resolves the tree row for a path saved via the "last viewed" restore (see <see cref="OnExit"/>/
+        /// <see cref="OnInit"/>/<see cref="Update"/>): a folder's own row, or - only in the unified Tree View,
+        /// where an asset row is a real, restorable selection target in its own right rather than just "the
+        /// folder it happens to sit in" - the specific asset's row within its (already resolved) parent folder.
+        /// </summary>
+        private TreeNode FindLastViewedTreeNode(string path)
+        {
+            var content = Editor.ContentDatabase.Find(path);
+            if (content is ContentFolder folder)
+                return folder.Node;
+            if (_showAllContentInTree && content != null && content.ParentFolder?.Node != null)
+                return FindTreeItemNode(content.ParentFolder.Node, content);
             return null;
         }
 
@@ -1345,11 +1404,29 @@ namespace FlaxEditor.Windows
             if (!_showAllContentInTree || _root == null)
                 return;
 
+            // Capture the currently selected asset (if any) so it can be re-selected below - RemoveTreeAssetNodes
+            // disposes and recreates every ContentItemTreeNode, including the selected one, which otherwise
+            // silently empties the tree's selection (or leaves whatever "last viewed" restore logic depends on it
+            // stuck with nothing, or just a stale folder - see OnExit) even though the user never did anything to
+            // actually deselect it. This refresh isn't only triggered by switching into Tree View mode - it also
+            // reruns on any WorkspaceModified event (asset imports, background processing, etc.) while already in
+            // Tree View mode, so a selected asset can get invalidated at any time, not just once at startup.
+            ContentItem selectedItem = null;
+            if (_tree.SelectedNode is ContentItemTreeNode selectedItemNode)
+                selectedItem = selectedItemNode.Item;
+
             _root.LockChildrenRecursive();
             RemoveTreeAssetNodes(_root);
             AddTreeAssetNodes(_root);
             _root.UnlockChildrenRecursive();
             _tree.PerformLayout();
+
+            if (selectedItem != null && selectedItem.ParentFolder?.Node != null)
+            {
+                var newNode = FindTreeItemNode(selectedItem.ParentFolder.Node, selectedItem);
+                if (newNode != null)
+                    _tree.Select(newNode);
+            }
         }
 
         private void UpdateTreeItemNames(ContentFolderTreeNode node)
@@ -1722,10 +1799,17 @@ namespace FlaxEditor.Windows
             // the same way WorkspaceRebuilt already does below for its own restorative selection.
             if (Editor.ProjectCache.TryGetCustomData(ProjectDataLastViewedFolder, out string lastViewedFolder))
             {
-                if (Editor.ContentDatabase.Find(lastViewedFolder) is ContentFolder folder)
+                // Try to resolve+select right away - this only ever succeeds for a folder path (folder rows
+                // always exist), never for an asset path saved from the unified Tree View: that mode's asset rows
+                // don't exist yet at this point, since OnLayoutDeserialize (which sets _showAllContentInTree and
+                // populates them via RefreshTreeItems/ApplyTreeViewMode) hasn't run yet - OnInit runs before it.
+                // Don't gate the deferred scroll/select restore below on this succeeding, or an asset path could
+                // never be resolved at all: Update()'s correction re-resolves (and now also re-selects) once the
+                // layout, and the tree's asset rows, are actually ready.
+                if (FindLastViewedTreeNode(lastViewedFolder) is TreeNode node)
                 {
                     _navigationUnlocked = false;
-                    _tree.Select(folder.Node);
+                    _tree.Select(node);
                     _navigationUnlocked = true;
 
                     // _tree.Select above suppressed the normal DoNavigate (since _navigationUnlocked was locked
@@ -1734,14 +1818,20 @@ namespace FlaxEditor.Windows
                     // stays showing whatever it had before (its initial empty/root state), even though the tree
                     // selection and view content are otherwise already correct.
                     UpdateUI();
+                }
 
-                    // Restore the tree panel's scroll position - deferred to Update(), since the panel doesn't
-                    // have its real docked size yet at this point (see _pendingContentTreeScroll).
-                    if (Editor.ProjectCache.TryGetCustomData(ProjectDataLastViewedFolderScroll, out float lastViewedFolderScroll))
-                    {
-                        _pendingContentTreeScroll = lastViewedFolderScroll;
-                        _pendingContentTreeScrollFrames = 0;
-                    }
+                // Restore the tree panel's scroll position (and, for an asset path, the selection itself too) -
+                // deferred to Update(), since the panel doesn't have its real docked size yet at this point (see
+                // _pendingContentTreeScroll).
+                if (Editor.ProjectCache.TryGetCustomData(ProjectDataLastViewedFolderScroll, out float lastViewedFolderScroll))
+                {
+                    _pendingContentTreeScroll = lastViewedFolderScroll;
+                    _pendingContentTreeScrollFrames = 0;
+                    // Re-resolved fresh at correction time (see Update()) rather than caching folder.Node
+                    // directly - the content database can rebuild tree nodes for the same path during the
+                    // several-second window this restore spans, which would leave a cached node reference
+                    // detached from the live tree.
+                    _pendingContentTreeScrollTargetPath = lastViewedFolder;
                 }
             }
 
@@ -1943,10 +2033,70 @@ namespace FlaxEditor.Windows
             // right back out. Reapplying on the following frames re-wins that race once the size has settled.
             if (_pendingContentTreeScroll.HasValue)
             {
+                // _contentTreePanel is the tree's actual scrollable viewport in both split and unified Tree View
+                // modes (ApplyTreeViewMode only reparents it between the two, it doesn't move the tree out of it -
+                // _treeOnlyPanel itself has no scroll bars of its own, see TreeViewPanel's base(ScrollBars.None)).
                 if (_contentTreePanel.VScrollBar != null)
+                {
+                    // Reapply _pendingContentTreeScroll itself every frame (not just once) to defeat the
+                    // Panel.Reset() race described above - but critically, once the correction below actually
+                    // moves the scroll to show the restored selection, it updates this same field to that
+                    // corrected value. Without that, this line would unconditionally stomp the correction back
+                    // down to the original, possibly off-screen, raw value on the very next frame, since the
+                    // correction below only re-fires on an actual range change, which normally only happens once.
                     _contentTreePanel.VScrollBar.TargetValue = _pendingContentTreeScroll.Value;
+
+                    // Correct to show the restored selection as soon as the scrollable range actually changes (eg.
+                    // the tree just grew tall enough to need a scroll bar, or more content streamed in) - not
+                    // merely "every retried frame", which re-ran ScrollViewTo against the same still-settling tree
+                    // over and over and was visibly jittery while sibling rows kept getting added/removed above the
+                    // target the whole time the content database was still populating. Only recomputing on an
+                    // actual range change still reacts the first moment there's a real size to react to, without
+                    // that per-frame noise once it settles. ScrollViewTo only moves the scroll when the target
+                    // isn't already fully in view, so this only has an effect once there's actually something to
+                    // correct (eg. the user had scrolled away from the selection, without reselecting anything
+                    // else, right before closing last time).
+                    //
+                    // Also watch Enabled, not just Maximum: Panel.UpdateScrollBars forces Value back to 0 via
+                    // VScrollBar.Reset() specifically when Enabled toggles, then sets Maximum to its new value in
+                    // that same call - if that new Maximum happens to equal whatever we'd already recorded (eg. a
+                    // later, unrelated toggle after content settles), a Maximum-only check would miss that the
+                    // value just got silently reset out from under us.
+                    var maximum = _contentTreePanel.VScrollBar.Maximum;
+                    var enabled = _contentTreePanel.VScrollBar.Enabled;
+                    if (!Mathf.NearEqual(maximum, _pendingContentTreeScrollLastMaximum) || enabled != _pendingContentTreeScrollLastEnabled)
+                    {
+                        _pendingContentTreeScrollLastMaximum = maximum;
+                        _pendingContentTreeScrollLastEnabled = enabled;
+                        if (!string.IsNullOrEmpty(_pendingContentTreeScrollTargetPath) &&
+                            FindLastViewedTreeNode(_pendingContentTreeScrollTargetPath) is TreeNode targetNode)
+                        {
+                            // Also (re)apply the actual selection here, not just the scroll - OnInit's restore
+                            // attempt runs before OnLayoutDeserialize sets _showAllContentInTree and populates the
+                            // tree's asset rows (see RefreshTreeItems/ApplyTreeViewMode), so an asset path saved
+                            // from the unified Tree View can never be resolved that early: the row simply doesn't
+                            // exist yet. Folders restore fine since folder rows always exist regardless of mode,
+                            // which is why only assets were affected. By the time this range-change-triggered
+                            // correction runs, the layout (and the tree's asset rows) should be ready.
+                            if (_tree.SelectedNode != targetNode)
+                            {
+                                _navigationUnlocked = false;
+                                _tree.Select(targetNode);
+                                _navigationUnlocked = true;
+                                UpdateUI();
+                            }
+                            _contentTreePanel.ScrollViewTo(targetNode, true);
+                            _pendingContentTreeScroll = _contentTreePanel.VScrollBar.Value;
+                        }
+                    }
+                }
                 if (++_pendingContentTreeScrollFrames > 180)
+                {
+                    _pendingContentTreeScrollLastMaximum = float.NaN;
+                    _pendingContentTreeScrollLastEnabled = null;
                     _pendingContentTreeScroll = null;
+                    _pendingContentTreeScrollTargetPath = null;
+                }
             }
 
             base.Update(deltaTime);
@@ -1955,17 +2105,24 @@ namespace FlaxEditor.Windows
         /// <inheritdoc />
         public override void OnExit()
         {
-            // Save last viewed folder
-            ContentFolderTreeNode lastViewedFolder = null;
+            // Save last viewed folder/asset path
+            string lastViewedPath = null;
             if (_tree.Selection.Count == 1)
             {
                 var selectedNode = _tree.SelectedNode;
                 if (selectedNode is ContentItemTreeNode itemNode)
-                    lastViewedFolder = itemNode.Item?.ParentFolder?.Node;
-                else
-                    lastViewedFolder = selectedNode as ContentFolderTreeNode;
+                {
+                    // In the unified Tree View, an asset row is itself a real, restorable selection target - not
+                    // just "the folder it happens to sit in" (which is all that matters in the regular split
+                    // view, since there the asset lives in the separate grid panel, not this tree). Save the
+                    // asset's own path there so reopening the editor can re-select and scroll back to the exact
+                    // row (see FindLastViewedTreeNode), not just demote it to its parent folder.
+                    lastViewedPath = _showAllContentInTree ? itemNode.Item?.Path : itemNode.Item?.ParentFolder?.Path;
+                }
+                else if (selectedNode is ContentFolderTreeNode folderNode)
+                    lastViewedPath = folderNode.Path;
             }
-            Editor.ProjectCache.SetCustomData(ProjectDataLastViewedFolder, lastViewedFolder?.Path ?? string.Empty);
+            Editor.ProjectCache.SetCustomData(ProjectDataLastViewedFolder, lastViewedPath ?? string.Empty);
             if (_contentTreePanel.VScrollBar != null)
                 Editor.ProjectCache.SetCustomData(ProjectDataLastViewedFolderScroll, _contentTreePanel.VScrollBar.Value);
 
@@ -1994,6 +2151,9 @@ namespace FlaxEditor.Windows
             // Give up on the pending scroll restore (see Update) the moment the user tries to interact themselves,
             // so it doesn't keep fighting their input for the rest of its window
             _pendingContentTreeScroll = null;
+            _pendingContentTreeScrollTargetPath = null;
+            _pendingContentTreeScrollLastMaximum = float.NaN;
+            _pendingContentTreeScrollLastEnabled = null;
 
             return base.OnMouseDown(location, button);
         }
@@ -2003,6 +2163,9 @@ namespace FlaxEditor.Windows
         {
             // See OnMouseDown
             _pendingContentTreeScroll = null;
+            _pendingContentTreeScrollTargetPath = null;
+            _pendingContentTreeScrollLastMaximum = float.NaN;
+            _pendingContentTreeScrollLastEnabled = null;
 
             return base.OnMouseWheel(location, delta);
         }
@@ -2137,7 +2300,56 @@ namespace FlaxEditor.Windows
         {
             _split.SplitterValue = DefaultSplitterValue;
             _view.ViewScale = 1.0f;
+            _view.ViewType = ContentViewType.Tiles;
+            bool wasTreeViewActive = _showAllContentInTree;
             _showAllContentInTree = false;
+
+            // Unlike OnLayoutDeserialize(XmlElement), this fallback is also what a completely normal launch goes
+            // through for this window (confirmed: the saved layout's Content window entry doesn't resolve via the
+            // Data-element path here, for whatever reason - this one fires every time, not just when restoring a
+            // layout with no saved Data). ApplyTreeViewMode's un-applying branch reparents _treePanelRoot and
+            // forces a fresh PerformLayout pass; doing that unconditionally on every ordinary boot - while the
+            // window/panels may not have reached their real, final size yet - left the tree rendered far outside
+            // the visible viewport. Only call it when there's actually a Tree View switch to undo (ie. this field
+            // was true before the reset above, which only happens after a live SetShowAllContentInTree(true) - see
+            // the "Restore Default Layout doesn't actually switch back to Tiles" bug this was added for).
+            if (wasTreeViewActive)
+                ApplyTreeViewMode();
+        }
+
+        /// <summary>
+        /// Collapses every folder in the content tree back to its default closed state. Which folders are expanded
+        /// persists independently of the window layout (see <see cref="_expandedFolderPaths"/>/
+        /// <see cref="TryAutoExpandContentNode"/>), so restoring the default layout should explicitly reset this too
+        /// rather than leaving the tree exactly as drilled-into as before.
+        /// </summary>
+        /// <remarks>
+        /// Called from <see cref="Modules.WindowsModule.LoadDefaultLayout"/> rather than unconditionally from
+        /// <see cref="OnLayoutDeserialize()"/> itself: that fallback turns out to run on every ordinary launch for
+        /// this window too (not only when restoring a layout with no saved per-window data), and collapsing there
+        /// would silently defeat "remember expanded folders across sessions" on every single boot, not just on an
+        /// explicit "Restore Default Layout".
+        /// </remarks>
+        internal void CollapseAllFolders()
+        {
+            if (_root == null)
+                return;
+
+            // CollapseAll on each top-level folder (not _root itself, which has no collapsed state of its own)
+            // naturally updates and persists the cleared expanded-paths set too, via
+            // ContentFolderTreeNode.OnExpandedChanged -> OnContentTreeNodeExpandedChanged, same as a manual collapse
+            // click would.
+            for (int i = 0; i < _root.ChildrenCount; i++)
+            {
+                if (_root.GetChild(i) is ContentFolderTreeNode folderNode)
+                    folderNode.CollapseAll(true);
+            }
+
+            // Also select the project's own root folder - not the Engine's "Flax" folder (also a top-level sibling
+            // here for any project referencing it), nor whatever happened to be selected before - since that's
+            // what a "Restore Default Layout" should land the user on, same as a brand new project would.
+            if (Editor.ContentDatabase.Game != null)
+                _tree.Select(Editor.ContentDatabase.Game);
         }
 
         /// <inheritdoc />

@@ -40,7 +40,10 @@ public:
             DebugDraw::UpdateContext(nullptr, 0.0f);
 #endif
             Engine::OnDraw();
-            Platform::Sleep(20);
+            // ~120fps cap rather than ~50fps: a drag that also drives its own GUI update tick (eg. for a smooth
+            // scroll animation - see WindowsWindow::DoDragDrop) needs this redraw loop to keep up with it, or the
+            // visible result still looks stepped/stuttery no matter how often the update side itself ticks.
+            Platform::Sleep(8);
         }
         return false;
     }

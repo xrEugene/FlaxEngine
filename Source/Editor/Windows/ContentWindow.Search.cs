@@ -144,6 +144,14 @@ namespace FlaxEditor.Windows
             if (_showAllContentInTree)
             {
                 RefreshTreeItems();
+
+                // RefreshTreeItems rebuilds every asset row from scratch (see RemoveTreeAssetNodes/
+                // AddTreeAssetNodes - needed here to re-evaluate ShouldShowTreeItem against the current view
+                // filters), which drops whatever highlight/visibility state the sibling
+                // OnFoldersSearchBoxTextChanged handler (bound to this same TextChanged event, and which runs
+                // first) had just set via UpdateFilter - re-apply it to the fresh nodes so a text search still
+                // highlights (and filters) matching assets, not just matching folders, which never get rebuilt.
+                _root?.UpdateFilter(_foldersSearchBox.Text);
                 return;
             }
 

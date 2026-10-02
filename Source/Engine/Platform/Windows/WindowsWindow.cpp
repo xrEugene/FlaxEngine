@@ -30,6 +30,20 @@ WIN_API HRGN WIN_API_CALLCONV CreateRectRgn(int x1, int y1, int x2, int y2);
 #pragma comment(lib, "dwmapi.lib")
 WIN_API HRESULT WIN_API_CALLCONV DwmExtendFrameIntoClientArea(HWND hWnd, const void* pMarInset);
 WIN_API HRESULT WIN_API_CALLCONV DwmIsCompositionEnabled(BOOL* pfEnabled);
+WIN_API HRESULT WIN_API_CALLCONV DwmSetWindowAttribute(HWND hwnd, DWORD dwAttribute, LPCVOID pvAttribute, DWORD cbAttribute);
+
+// Declared manually (same as the two DWM entry points above) rather than including <dwmapi.h>, which would pull
+// in the full Windows 11 SDK - this constant and enum only exist there from the Windows 11 SDK onward.
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
+#endif
+enum FlaxDwmWindowCornerPreference
+{
+    FLAX_DWMWCP_DEFAULT = 0,
+    FLAX_DWMWCP_DONOTROUND = 1,
+    FLAX_DWMWCP_ROUND = 2,
+    FLAX_DWMWCP_ROUNDSMALL = 3,
+};
 
 #define WINDOWS_LAZY_SET_LAYERED_FOR_TRANSPARENCY 1
 
@@ -163,6 +177,14 @@ WindowsWindow::WindowsWindow(const CreateWindowSettings& settings)
     {
         const int margin[4] = { 1, 1, 1, 1 };
         ::DwmExtendFrameIntoClientArea(_handle, margin);
+    }
+
+    // Opt out of the Windows 11 DWM's automatic rounded window corners, for sharp 90-degree corners matching
+    // every other platform instead of an OS-specific look. No-op (fails silently) pre-Windows 11, where DWM
+    // doesn't round corners anyway and doesn't recognize this attribute.
+    {
+        const FlaxDwmWindowCornerPreference cornerPreference = FLAX_DWMWCP_DONOTROUND;
+        ::DwmSetWindowAttribute(_handle, DWMWA_WINDOW_CORNER_PREFERENCE, &cornerPreference, sizeof(cornerPreference));
     }
 #endif
 

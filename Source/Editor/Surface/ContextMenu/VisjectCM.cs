@@ -764,7 +764,7 @@ namespace FlaxEditor.Surface.ContextMenu
         }
 
         /// <inheritdoc />
-        public override void Show(Control parent, Float2 location, ContextMenuDirection? direction = null)
+        public override void Show(Control parent, Float2 location, ContextMenuDirection? direction = null, bool activate = true)
         {
             Show(parent, location, null);
         }

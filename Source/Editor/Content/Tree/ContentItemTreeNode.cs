@@ -17,6 +17,22 @@ namespace FlaxEditor.Content;
 public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
 {
     private QueryFilterHelper.Range[] _highlightRanges;
+    private float _lastHeaderClickDownTime = -1f;
+    private HeaderClickGesture _pendingHeaderClickGesture = HeaderClickGesture.Select;
+
+    private enum HeaderClickGesture
+    {
+        Select,
+        Open,
+        Rename,
+    }
+
+    // Same click-gesture timing as ContentFolderTreeNode (see its own remarks): a second left-click within
+    // OpenMaxGap of the first opens the item (matches a fast double-click), one landing between OpenMaxGap and
+    // RenameMaxGap instead starts a rename, like Windows Explorer's "click, pause, click" gesture - previously
+    // only folders supported this in Tree View, leaving no way to rename an asset there via double-click.
+    private const float OpenMaxGap = 0.25f;
+    private const float RenameMaxGap = 1.0f;
 
     /// <summary>
     /// The content item.
@@ -34,18 +50,6 @@ public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
         UpdateDisplayedName();
         IconColor = Color.Transparent; // Reserve icon space but draw custom thumbnail.
         Item.AddReference(this);
-    }
-
-    private static SpriteHandle GetIcon(ContentItem item)
-    {
-        if (item == null)
-            return SpriteHandle.Invalid;
-        var icon = item.Thumbnail;
-        if (!icon.IsValid)
-            icon = item.DefaultThumbnail;
-        if (!icon.IsValid)
-            icon = Editor.Instance.Icons.Document128;
-        return icon;
     }
 
     /// <summary>
@@ -83,15 +87,32 @@ public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
     {
         base.Draw();
 
-        var icon = GetIcon(Item);
-        if (icon.IsValid)
+        var contentWindow = Editor.Instance.Windows.ContentWin;
+        var scale = contentWindow != null && contentWindow.IsTreeOnlyMode ? contentWindow.View.ViewScale : 1.0f;
+        var iconSize = Mathf.Clamp(16.0f * scale, 12.0f, 28.0f);
+        var textRect = TextRect;
+        var iconRect = new Rectangle(textRect.Left - iconSize - 2.0f, (HeaderHeight - iconSize) * 0.5f, iconSize, iconSize);
+
+        // GenericThumbnailIcon/Text takes priority over Thumbnail/DefaultThumbnail, matching ContentItem.Draw's own
+        // order: for an item using that newer mechanism (eg. Animation Graph, Skeleton Mask), ThumbnailsModule still
+        // populates Thumbnail alongside it with a real but tiny/wrong baked-in sprite (see
+        // ThumbnailsModule.RequestPreview's own remarks on why it has to keep doing that), so checking Thumbnail
+        // first would draw that wrong sprite instead of ever reaching the generic one.
+        if (Item.HasGenericThumbnail)
         {
-            var contentWindow = Editor.Instance.Windows.ContentWin;
-            var scale = contentWindow != null && contentWindow.IsTreeOnlyMode ? contentWindow.View.ViewScale : 1.0f;
-            var iconSize = Mathf.Clamp(16.0f * scale, 12.0f, 28.0f);
-            var textRect = TextRect;
-            var iconRect = new Rectangle(textRect.Left - iconSize - 2.0f, (HeaderHeight - iconSize) * 0.5f, iconSize, iconSize);
-            Render2D.DrawSprite(icon, iconRect);
+            // Keep the background fill (matches every other icon's own slot here), but skip the accent-color bar -
+            // there's no room for that to read as anything but visual noise around an icon this small.
+            Item.DrawGenericThumbnail(ref iconRect, true, false);
+        }
+        else
+        {
+            var icon = Item.Thumbnail;
+            if (!icon.IsValid)
+                icon = Item.DefaultThumbnail;
+            if (icon.IsValid)
+                Render2D.DrawSprite(icon, iconRect);
+            else
+                Render2D.DrawSprite(Editor.Instance.Icons.Document128, iconRect);
         }
 
         if (_highlightRanges != null && _highlightRanges.Length > 0)
@@ -101,7 +122,6 @@ public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
             var font = style.FontSmall;
 
             var text = Text;
-            var textRect = TextRect;
 
             for (int i = 0; i < _highlightRanges.Length; i++)
             {
@@ -113,16 +133,73 @@ public sealed class ContentItemTreeNode : TreeNode, IContentItemOwner
         }
     }
 
+    /// <summary>
+    /// Classifies a just-started left-click press on the header against the previous one's timestamp (see
+    /// <see cref="OpenMaxGap"/>/<see cref="RenameMaxGap"/>) and records it as the one to act on once this press
+    /// is released. Called from both <see cref="OnMouseDown"/> and <see cref="OnMouseDoubleClickHeader"/> - a
+    /// platform may substitute the latter for the former's second call when its own double-click speed setting
+    /// is satisfied, but either way this is "a press just happened", so both feed the same timer.
+    /// </summary>
+    private void RegisterHeaderClickDown()
+    {
+        var now = Time.UnscaledGameTime;
+        var sinceLastClick = _lastHeaderClickDownTime < 0f ? float.MaxValue : now - _lastHeaderClickDownTime;
+        _lastHeaderClickDownTime = now;
+        if (sinceLastClick <= OpenMaxGap)
+            _pendingHeaderClickGesture = HeaderClickGesture.Open;
+        else if (sinceLastClick <= RenameMaxGap)
+            _pendingHeaderClickGesture = HeaderClickGesture.Rename;
+        else
+            _pendingHeaderClickGesture = HeaderClickGesture.Select;
+    }
+
+    /// <inheritdoc />
+    public override bool OnMouseDown(Float2 location, MouseButton button)
+    {
+        if (button == MouseButton.Left && TestHeaderHit(ref location))
+            RegisterHeaderClickDown();
+
+        return base.OnMouseDown(location, button);
+    }
+
     /// <inheritdoc />
     protected override bool OnMouseDoubleClickHeader(ref Float2 location, MouseButton button)
     {
-        if (button == MouseButton.Left)
+        if (button != MouseButton.Left)
+            return base.OnMouseDoubleClickHeader(ref location, button);
+
+        // The open-vs-rename decision is made by our own OS-independent timing in OnMouseUp (via
+        // RegisterHeaderClickDown) rather than here - this just needs to feed that same timer, since the platform
+        // sends this instead of a second OnMouseDown once its own double-click speed setting is satisfied. The
+        // actual action fires from the OnMouseUp that follows (both clicks' releases still hit that override).
+        if (TestHeaderHit(ref location))
+            RegisterHeaderClickDown();
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public override bool OnMouseUp(Float2 location, MouseButton button)
+    {
+        bool handled = base.OnMouseUp(location, button);
+
+        if (button == MouseButton.Left && TestHeaderHit(ref location))
         {
-            Editor.Instance.Windows.ContentWin.Open(Item);
-            return true;
+            switch (_pendingHeaderClickGesture)
+            {
+            case HeaderClickGesture.Open:
+                _lastHeaderClickDownTime = -1f;
+                Editor.Instance.Windows.ContentWin.Open(Item);
+                break;
+            case HeaderClickGesture.Rename:
+                _lastHeaderClickDownTime = -1f;
+                if (Item.CanRename)
+                    Editor.Instance.Windows.ContentWin.Rename(Item);
+                break;
+            }
         }
 
-        return base.OnMouseDoubleClickHeader(ref location, button);
+        return handled;
     }
 
     /// <inheritdoc />

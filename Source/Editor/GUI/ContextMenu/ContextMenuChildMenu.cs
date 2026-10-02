@@ -29,13 +29,13 @@ namespace FlaxEditor.GUI.ContextMenu
             CloseMenuOnClick = false;
         }
 
-        internal void ShowChild(ContextMenu parentContextMenu)
+        internal void ShowChild(ContextMenu parentContextMenu, bool activate = true)
         {
             // Hide parent CM popups and set itself as child
             var vAlign = parentContextMenu.ItemsAreaMargin.Top;
             var location = new Float2(Width, -vAlign);
             location = PointToParent(parentContextMenu, location);
-            parentContextMenu.ShowChild(ContextMenu, location);
+            parentContextMenu.ShowChild(ContextMenu, location, true, activate);
         }
 
         /// <inheritdoc />
@@ -72,7 +72,10 @@ namespace FlaxEditor.GUI.ContextMenu
 
             base.OnMouseEnter(location);
 
-            ShowChild(parentContextMenu);
+            // Hover-only reveal - don't steal keyboard focus (eg. from an in-progress edit in a sibling row like
+            // the View dropdown's Scale box). A real interaction with this submenu (click, or arrow-key navigation
+            // via ContextMenu's own KeyDown handling) focuses it through its own path regardless.
+            ShowChild(parentContextMenu, activate: false);
         }
 
         /// <inheritdoc />

@@ -23,6 +23,8 @@
 #if USE_EDITOR
 #include <oleidl.h>
 #include <shellapi.h>
+#include <timeapi.h>
+#pragma comment(lib, "winmm.lib")
 #endif
 
 #if USE_EDITOR
@@ -568,6 +570,73 @@ private:
 
 WindowsGuiData GuiDragDropData;
 
+namespace
+{
+    // The window currently inside Window::DoDragDrop below, if any - set/cleared around the blocking ::DoDragDrop
+    // call so the hook/timer below know which window (and GUI tree) a wheel tick or update tick during the drag
+    // belongs to. A plain global is enough: ::DoDragDrop blocks its calling thread until the drag ends, so at most
+    // one drag is ever in flight at a time.
+    Window* ActiveDragDropWindow = nullptr;
+    HHOOK ActiveDragDropMouseHook = nullptr;
+    const UINT_PTR DragDropUpdateTimerID = 2; // Distinct from WindowsWindow.cpp's own MouseStopTimerID (1)
+    UINT_PTR ActiveDragDropUpdateTimer = 0;
+    DWORD ActiveDragDropLastTickTime = 0;
+
+    // Makes the mouse wheel scroll whatever's under the cursor while the native OLE drag-and-drop modal loop in
+    // Window::DoDragDrop is running. That loop only ever calls back into the engine through IDropSource/IDropTarget
+    // (QueryContinueDrag, GiveFeedback, DragEnter/Over/Drop) - none of which carry wheel input - and the
+    // DoDragDropJob the engine runs in the background to keep repainting during the call only pumps Engine::OnDraw,
+    // never OnUpdate, so the normal Mouse::OnMouseWheel event queue (drained each update tick) never gets a chance
+    // to run either; a wheel event queued through it would just sit there, unseen, until the drag already ended.
+    // A low-level hook runs independently of whichever modal loop happens to be pumping messages, so it still fires
+    // here; calling OnMouseWheel directly from it reuses the exact same synchronous GUI dispatch
+    // Mouse::OnMouseWheel's queued event would otherwise feed into once an update tick finally ran - just without
+    // waiting on a tick that isn't happening.
+    LRESULT CALLBACK DragDropMouseWheelHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+    {
+        if (nCode == HC_ACTION && wParam == WM_MOUSEWHEEL && ActiveDragDropWindow)
+        {
+            const auto* info = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
+            const short delta = (short)HIWORD(info->mouseData);
+            const HWND hwnd = ActiveDragDropWindow->GetHWND();
+            RECT clientRect;
+            if (delta != 0 && hwnd && ::GetClientRect(hwnd, &clientRect))
+            {
+                POINT p = info->pt;
+                ::ScreenToClient(hwnd, &p);
+                if (::PtInRect(&clientRect, p))
+                {
+                    const float deltaNormalized = static_cast<float>(delta) / WHEEL_DELTA;
+                    ActiveDragDropWindow->OnMouseWheel(Float2((float)p.x, (float)p.y), deltaNormalized);
+                }
+            }
+        }
+        return CallNextHookEx(nullptr, nCode, wParam, lParam);
+    }
+
+    // Keeps the GUI's own per-frame update ticking during the drag, so a wheel scroll set up above actually eases
+    // smoothly toward its target (see ScrollBar.OnUpdate) instead of sitting frozen there until the drag ends, same
+    // underlying reason as the wheel hook above: nothing else drives an update tick during this call. A plain
+    // SetTimer still gets dispatched through OLE's internal message pump the same way WM_MOUSEWHEEL does - it only
+    // intercepts the messages it specifically needs for drag tracking (mouse move/buttons, Escape), forwarding
+    // everything else - so this keeps firing at its own steady interval regardless of whether the mouse is moving.
+    // Window::OnUpdate (not the full Engine::OnUpdate) is the same narrow, GUI-only update pass
+    // WindowsManagerService::Update already calls once a frame outside of a drag (see WindowsManager.cpp) - no
+    // physics or scripting tick involved, just this one window's own GUI tree easing its animations forward.
+    void CALLBACK DragDropUpdateTimerProc(HWND hwnd, UINT msg, UINT_PTR eventId, DWORD time)
+    {
+        if (!ActiveDragDropWindow)
+            return;
+        float dt = ActiveDragDropLastTickTime != 0 ? static_cast<float>(time - ActiveDragDropLastTickTime) / 1000.0f : 0.0f;
+        ActiveDragDropLastTickTime = time;
+        if (dt <= 0.0f)
+            return;
+        if (dt > 0.1f)
+            dt = 0.1f; // Clamp away any single unusually large gap (eg. a delayed first tick) rather than ease through it in one jump
+        ActiveDragDropWindow->OnUpdate(dt);
+    }
+}
+
 DragDropEffect Window::DoDragDrop(const StringView& data)
 {
     // Create background worker that will keep updating GUI (perform rendering)
@@ -586,9 +655,40 @@ DragDropEffect Window::DoDragDrop(const StringView& data)
     // Create drop source
     auto dropSource = new WindowsDragSource(&fmtetc, &stgmed, 1);
 
+    // Let the mouse wheel scroll whatever's under the cursor, smoothly easing just like it does outside a drag,
+    // for the duration of this drag (see DragDropMouseWheelHookProc/DragDropUpdateTimerProc) - the OLE modal loop
+    // below otherwise swallows wheel input entirely and leaves nothing to ease a scroll toward its target anyway.
+    // A plain SetTimer's firing interval is tied to the system's default timer tick (~15.6ms, and can be coalesced
+    // coarser still for power saving), which reads as visible stutter for something meant to look like a smooth,
+    // every-frame animation - timeBeginPeriod(1) asks the OS for its finest available tick for the duration of the
+    // drag, the same well-known technique games/media apps use to get Sleep/SetTimer actually close to what they
+    // ask for instead of snapping to a much coarser default.
+    timeBeginPeriod(1);
+    ActiveDragDropWindow = this;
+    ActiveDragDropLastTickTime = 0;
+    ActiveDragDropMouseHook = SetWindowsHookEx(WH_MOUSE_LL, DragDropMouseWheelHookProc, nullptr, 0);
+    if (ActiveDragDropMouseHook == nullptr)
+        LOG(Warning, "Failed to set drag-drop mouse wheel hook (GetLastError={})", GetLastError());
+    ActiveDragDropUpdateTimer = SetTimer(_handle, DragDropUpdateTimerID, 8, DragDropUpdateTimerProc);
+    if (ActiveDragDropUpdateTimer == 0)
+        LOG(Warning, "Failed to set drag-drop update timer (GetLastError={})", GetLastError());
+
     // Do the drag drop operation
     DWORD dwEffect;
     HRESULT result = ::DoDragDrop(dropSource, dropSource, DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK | DROPEFFECT_SCROLL, &dwEffect);
+
+    if (ActiveDragDropMouseHook)
+    {
+        UnhookWindowsHookEx(ActiveDragDropMouseHook);
+        ActiveDragDropMouseHook = nullptr;
+    }
+    if (ActiveDragDropUpdateTimer)
+    {
+        KillTimer(_handle, DragDropUpdateTimerID);
+        ActiveDragDropUpdateTimer = 0;
+    }
+    ActiveDragDropWindow = nullptr;
+    timeEndPeriod(1);
 
     // Wait for job end
     Platform::AtomicStore(&task->ExitFlag, 1);

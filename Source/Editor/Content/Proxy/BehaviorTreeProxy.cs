@@ -14,7 +14,7 @@ namespace FlaxEditor.Content
     /// A <see cref="BehaviorTree"/> asset proxy object.
     /// </summary>
     /// <seealso cref="FlaxEditor.Content.BinaryAssetProxy" />
-    [ContentContextMenu("New/AI/Behavior Tree")]
+    [ContentContextMenu("New/Behavior Tree")]
     public class BehaviorTreeProxy : BinaryAssetProxy
     {
         /// <inheritdoc />
